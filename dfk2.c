@@ -1,3 +1,15 @@
+/* Routines for arithmetic/logical operations on binary matrices 
+   represented as k^2 trees 
+
+   This file contains the defintion of the operations and makes use of
+   the basic operations defined in k2.c
+
+   Matrix dimensions are assumed to be power of 2, of size at least
+   MMSize (minimatrix size), ie, the size of the last level of recursion. 
+
+
+   Copyright August 2023-today   ---  giovanni.manzini@unipi.it
+*/
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -13,21 +25,30 @@
 
 #include "k2.c"
 
-// fixme
+
+
+// fixme: type for the input matrix
 typedef uint8_t *matrix;
 
 
+// prototypes
+
+// multiply two k2 matrices a and b writing the result to c
+// multiplication is done replacing scalar */+ by logical and/or 
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
 
-// m matrix to encode (top level)
-// i,j vertice in alto a sinistra
-// size dimensione della matrice (potenza di 2)
-// b where the cardinality info is written 
-// encode submatrix m[i,i+size)[j,j+size) writing the cardinality info to b
+// Incomplete 
+// encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte per entry 
+// format into a k2mat_t structure
+// Parameters:
+//   m matrix to encode (top level)
+//   i,j submatrix top left corner
+//   size submatrix size (power of 2)
+//   *b output k2mat_t structure 
 // return:
 //   0   if the submatrix is all 0's (nothing is written to b)
-//  -1   if the submatrix is all 1's (written a single 0000 or 1111 is size==2)
+//  -1   if the submatrix is all 1's (only the root is written to b)
 //  n>0  otherwise, n items are written to b 
 int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
   assert(size%2==0);
@@ -65,12 +86,11 @@ int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
 
 
 
-
-
 // multiply two minimat matrices of size 2*2
 minimat_t mmult2x2(minimat_t a, minimat_t b) {
   return a & b;  //WRONG, replace by table lookup
 }
+
 
 // copy matrix a to b: used instead of sum when one of the matrices is all 0s
 void mcopy(int size, const k2mat_t *a, k2mat_t *b)
@@ -94,7 +114,7 @@ void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + nonzero minisize matrices   
-void msum_base(int size, const k2mat_t *a, size_t *posa, 
+void _XXX_msum_base(int size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
   assert(size==2*MMsize);

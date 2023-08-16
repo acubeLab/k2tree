@@ -1,22 +1,36 @@
+/* Core routines for handling square binary matrices using k^2 trees 
+
+   This file contains the defintion of the k2mat_t type and the basic
+   operations on it, without reference to particular operations
+
+   Matrix dimensions are assumed to be power of 2, of size at least
+   MMSize (minimatrix size), ie, the size of the last level of recursion. 
+
+
+   Copyright August 2023-today   ---  giovanni.manzini@unipi.it
+*/
+
 
 // ----------------------------------------------
-// global variable storing the size od a mini-matrix 
+// global variable storing the size of a mini-matrix 
 // ie. the last level of recursion
+// possibly this will be a command line parameter
 static const int MMsize = 2; 
-// global variable storing how many nodes takes a minimat
+// global variable storing how many nodes takes a minimat:
 // since nodes have 4 bits (not likely to change)
-// this amount ot how many nibbles takes a minimat 
+// this amounts to how many nibbles takes a minimat 
+// a 2x2 binary matrix takes one nibble, so here the constant is 1
 static const int Minimat_node_ratio = 1;
 #if ((MMsize*MMsize) != 4*Minimat_node_ratio)
-#error "check MMsize"
+#error "MMsize vs Minimat_node_ratio mismatch"
 #endif
 
-// node constants (depend on node arity, here 4) 
+// node constants (depend on node arity, here 4 and not likely to change) 
 #define NO_CHILDREN   0x0   // node representing a submatrix of all 0's 
                             // before normalization
 #define ALL_ONES      0x0   // node representing a submatrix of all 1's
                             // it is the same as NO_CHILDREN since
-                            // after nomralization that code is available 
+                            // after normalization that code is available 
 #define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
                             // with all the 4 submatrices non-empty
 #define ILLEGAL_NODE  0x10  // illegal node (more than 4 bits)
@@ -24,11 +38,16 @@ static const int Minimat_node_ratio = 1;
 #define MINIMAT0s      0x0   // minimat containing all 0's  
 #define MINIMAT1s      0xF   // minimat containing all 1's  
 
-// the type representing a minimat matrix must be an integer
+// the type representing a (temporary) minimat matrix must be an integer
 // so that two minimat matrices can be summed with a single
 // bitwise OR operation
 typedef uint64_t minimat_t; // explict matrix aka minimat (currently 2x2)
-// a leaf node must have a number of bits at least equal to the arity
+// check that minimat_t is large enough to store a minimat
+#if ((MMsize*MMsize) > (8*sizeof(minimat_t)))
+#error "MMsize too large for minimat_t"
+#endif
+
+// an internal node must have a number of bits at least equal to the arity
 // of the k2-tree (here 4 and it is unlikely to change)
 // here we use an uint64_t but only the 4 lower order bits are ever used  
 typedef uint64_t node_t;   // non leaf node 
@@ -36,16 +55,16 @@ typedef uint64_t node_t;   // non leaf node
 // struct representing a k2-tree: nodes and minimat are stored in a single
 // buffer of bytes. offset is used to create a "pointer" to a submatrix
 // without copying the buffer during the splitting phase. 
-// read_only is currently used only for these
-// pointer matrices. By changing b offset can be restricted to the 0/1 values
-// so offeset+read_only can be stores in a single byte to save space.
-// use read_only also for the input matrices to avoid accidental changes
+// read_only is currently used only for these pointer matrices. 
+// By changing b, offset can be restricted to the 0/1 values
+// so offeset+read_only could be stored in a single byte to save space.
+// ??? use read_only also for the input matrices to avoid accidental changes
 // or using the const modifier is enough??? 
 typedef struct k2mat {
   uint8_t *b;
   size_t pos;   // position where next node is written
   size_t size;  // number of nodes that can be written without rallocating
-  size_t offset;// initial pos in b to be skipped (they are not from this matrix)
+  size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
                 // only read only matrices can have a positive offset 
   bool read_only; // if true write and add operations are not allowed
                   // all matrices created by splitting are read only            
@@ -104,9 +123,14 @@ void k2_free(k2mat_t *m)
   m->pos = m->size = 0;
 }
 
-// nodes are added at the end of a matrix, read back, 
-// and sometimes written after a modification 
-// (when a node is added we still don't all its children)
+// nodes are added at the end of a matrix:
+// since when a node is added we still don't all its children
+// once the corrsposnding subtree is completed nodes are read back 
+// and sometimes re-written after a modification 
+// (this is why we keep track where the node was written)
+
+// So for nodes we have add/read/write operations 
+
 
 // add a node to the current k2_tree
 // return the position where the node was stored 
@@ -118,10 +142,12 @@ size_t k2add_node(k2mat_t *m, node_t n)
   if(m->pos >= m->size) {
     assert(m->pos ==m->size);
     m->size = 16+2*m->size;          // more than double number of positions
+    assert(m->size%2==0)             // #positions must be even 
     m->b = realloc(m->b, m->size/2); // each byte stores two positions
     if(m->b==NULL) quit("Unable to enlarge k2-tree",__LINE__,__FILE__);
   }
   assert(m->pos<m->size);
+  // since a node is stored in 4 bits, we store two nodes in a byte
   if(m->pos%2==0)
     m->b[m->pos/2] = n;
   else
@@ -133,21 +159,21 @@ size_t k2add_node(k2mat_t *m, node_t n)
 // get node at position p 
 node_t k2read_node(const k2mat_t *m, size_t p)
 {
-  assert(p<m->pos);
   p+=m->offset;
-  assert(p<m->size);
+  assert(p<m->pos && p<m->size);
   if(p%2==0)
     return m->b[p/2] & 0xF;
   else 
     return  (m->b[p/2] >> 4) & 0xF;
 }
 
-// write n at (existing) position p
+// write node n at (existing) position p
 void k2write_node(k2mat_t *m, size_t p, node_t n)
 {
   assert(!m->read_only);
   assert(n<ILLEGAL_NODE);
-  assert(p<m->pos);
+  assert(p<m->pos && p<m->size);
+  assert(m->offset==0);   // if m->offset>0 node should be read only 
   if(p%2==0)
     m->b[p/2] = (m->b[p/2]  & 0xF0) | n;
   else 
@@ -155,7 +181,8 @@ void k2write_node(k2mat_t *m, size_t p, node_t n)
 }  
 
 
-// minimats are only added to the current matrix or read back: never modified
+// minimats are only added to a matrix or read back: they are never modified
+// so we have add/read operations but there is not a k2write_minimat function
 
 // store a minimatrix in b
 // return the starting position where the matrix is stored
@@ -164,7 +191,7 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
   assert(!b->read_only);
   assert(MMsize>7  ||  m< (1UL<<(MMsize*MMsize)));
   // currently a 2x2 matrix takes exactly 4 bit == one node 
-  assert(Minimat_node_ratio==1); 
+  assert(Minimat_node_ratio==1); // otherwise this code must change
   return k2add_node(b, (node_t) m);
 }
 
@@ -175,7 +202,8 @@ minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
 }
 
 // read all the minimats of a submatrix starting at position *posa
-// having already read the root node 
+// and write them to ax[] assuming we have already read the root node roota 
+// we are implicitly assuming we are at the last level of the tree
 void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 {
   assert(roota!=ALL_ONES);
@@ -194,16 +222,18 @@ void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 
 
 
-// visit a submatrix from its root (in *pos)
-// count the number of nodes and minimatrices visited
+// visit a size x size submatrix sarting from its root (in *pos)
+// the visit is done recursively in depth first order 
+// count the number of nodes and minimatrices visited incrementing *nodes and *minimats
 // used to split a matrix into 4 submatrices, but also for debugging/info
+// it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 void k2dfs_visit(int size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats)
 {
-  assert(size>=2*MMsize);
-  assert(*pos<m->pos);
+  assert(size>MMsize);
+  assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node(m,*pos); (*pos)++;
   (*nodes)++;
-  if(root==ALL_ONES) return; // all 1's matrix consits of root only
+  if(root==ALL_ONES) return; // all 1's matrix consists of root only
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion
@@ -217,12 +247,14 @@ void k2dfs_visit(int size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t 
 }
 
 
-// copy the subtree of a starting at *posa to b
+// copy the subtree of :a starting at *posa to :b
 // *posa should always point to the next item to be read
 // used when summing two matrices and a submatrix is all zeros 
+// it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
+  assert(*posa<a->pos); // implies a is non-empty
   // copy root node
   node_t roota = k2read_node(a,*posa); *posa++;
   k2add_node(b,roota);
@@ -241,9 +273,10 @@ void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
   }
 }
 
-// clone a k2 (sub)matrix of :a starting at position pos
+// clone a k2 (sub)matrix of :a starting at position :start and ending at :end-1
 // creating a read only copy :c which is a pointer inside :a
-void clone_k2mat(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
+// used only by k2split 
+static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   assert(!k2is_empty(a));
@@ -251,12 +284,12 @@ void clone_k2mat(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   assert(!c->read_only);
   *c = *a; // copy all fields
   c->offset = start;     // actual starting position of c in buffer
-  c->pos = end;          // actual ending position of b in buffer 
-  c->read_only = true; // b is read only
+  c->pos = end;          // actual ending position of c in buffer 
+  c->read_only = true;   // c is read only
 }
 
 
-// split the matrix a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
+// split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside a, so no memory is allocated
 void k2split(int size, const k2mat_t *a, k2mat_t b[2][2])
 {
@@ -269,10 +302,10 @@ void k2split(int size, const k2mat_t *a, k2mat_t b[2][2])
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
   // if root is all 1's create 4 all 1's submatrices and stop
-  // this code could change if we want to optimize for all 1's matrices
+  // ??? this code could change if we want to optimize for all 1's matrices
   if(root==ALL_ONES) {
     // if root is all 1's create 4 all 1's submatrices 
-    // point to the same root and stop
+    // pointing to the same root and stop
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
       k2clone(a, pos-1, pos, &b[i][j]); // ????? check this
     return;
@@ -293,13 +326,13 @@ void k2split(int size, const k2mat_t *a, k2mat_t b[2][2])
 }
 
 
-// NO LONGER USED normalization done in split_and_rec()
+// NO LONGER USED normalization now done in split_and_rec()
 // normalize a k2 matrix representation 
 // normalize a (sub)matrix stored in :c with the root node
 // stored in position :rootpos. 
 // :size is the submatrix size  
 // must be called only for  size>MMsize
-void k2normalize(int size, k2mat_t *c, size_t rootpos)
+static void _xxx_k2normalize(int size, k2mat_t *c, size_t rootpos)
 {
   assert(!c->read_only);
   // MMsize matrices cannot be normalized
