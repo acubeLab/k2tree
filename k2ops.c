@@ -1,7 +1,7 @@
 /* Routines for arithmetic/logical operations on binary matrices 
    represented as k^2 trees 
 
-   This file contains the defintion of the operations and makes use of
+   This file contains the defintion of the operations that make use of
    the basic operations defined in k2.c
 
    Matrix dimensions are assumed to be power of 2, of size at least
@@ -92,16 +92,15 @@ minimat_t mmult2x2(minimat_t a, minimat_t b) {
 }
 
 
-// copy matrix a to b: used instead of sum when one of the matrices is all 0s
+// copy matrix a: to b: used instead of sum when one of the matrices is all 0s
 void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 {
-  assert(size>2*MMsize);
+  assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a));
   assert(!b->read_only);
   size_t pos = 0;
   k2copy_rec(size,a,&pos,b);
-  assert(pos==k2pos(a));
  }
 
 
@@ -168,7 +167,7 @@ void _XXX_msum_base(int size, const k2mat_t *a, size_t *posa,
 }
 
 
-// recursive sum of two k2 matrices
+// recursive sum of two k2 (sub)matrices
 // a and b must not be all 0s (sub)matrices
 //   (if a or b is all 0s this function is not called because the sum is a copy) 
 // a and b can be all 1's 
@@ -176,16 +175,16 @@ void _XXX_msum_base(int size, const k2mat_t *a, size_t *posa,
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + subtrees in DFS order   
-void msum(int size, const k2mat_t *a, size_t *posa, 
+void msum_rec(int size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
-  assert(size>=2*MMsize);
+  assert(size>=2*MMsize); // there must be the root node 
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2submatrx_empty(a,*posa) && !k2submatrix_empty(b,*posb));
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
-  size_t tmp1,tmp2; // not used, defined to pass to k2dfs_visit
+  size_t tmp1=0,tmp2=0; // not used, defined to pass to k2dfs_visit
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
@@ -198,11 +197,12 @@ void msum(int size, const k2mat_t *a, size_t *posa,
     k2dfs_visit(size,a,posa,&tmp1,&tmp2); //scan but ignore a content
     return;
   }
+  assert(roota!=ALL_ONES && rootb!=ALL_ONES);
   // a and b are not all 1s, merge children
   *posa += 1; *posb += 1; // skip root nodes already read
   node_t rootc = roota | rootb; // root node of c, correct except when c is all 1s
   assert(rootc!=NO_CHILDREN);   // at least one child is nonzero
-  size_t rootpos = k2add_node(c,rootc);  // save root and its position
+  size_t rootpos = k2add_node(c,rootc);  // save c root and its position
   bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
   if(size==2*MMsize) { // children are minimat matrices
     minimat_t ax[4], bx[4];
@@ -224,8 +224,8 @@ void msum(int size, const k2mat_t *a, size_t *posa,
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion
     for(int k=0;k<4;k++) {
       if (roota |= (1 << k)) {
-        if(rootb |= (1<<k)) 
-          msum(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
+        if(rootb |= (1 << k)) 
+          msum_rec(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
         else 
           k2copy_rec(size/2,a,posa,c); // k-th child of c is kth child of a
       }
@@ -234,10 +234,11 @@ void msum(int size, const k2mat_t *a, size_t *posa,
       else 
         assert(rootc & (1 << k) == 0); // both children are 0s, nothing to do 
     }
-    // check is all children are all 1's
+    // check if all children of rootc are all 1's
+    // done checking that the subtree contains just 5 nodes 
     all_ones =  rootc==ALL_CHILDREN && k2pos(c)==rootpos+5;
   }
-  // possible normalization if c is all 1s
+  // normalize if c is all 1s (cover all sizes)
   if(all_ones) {
     assert(rootc==ALL_CHILDREN);
     k2setpos(c,rootpos);       // discard current root and children
@@ -247,18 +248,20 @@ void msum(int size, const k2mat_t *a, size_t *posa,
 }
 
 // base case of matrix multiplication: matrices of size 2*MMmin
-// a and b must be non all 0s (ie empty)
+// a and b must be not all 0s (ie empty)
 //   (if a or b is 0s this function is not called because the product is 0) 
 // a and b can be all 1's 
 // the output matrix c is normalized as ususal
 //  if c is all 0s nothing is written
 //  if c is all 1s the root ALL_ONES is written
-//  otherwise we follow the standard rule: root node + nonzero minisize matrices   
+//  otherwise we follow the standard rule: root node + nonzero minisize matrices 
+// ??? remove the size parameter ???  
 void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size==2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
+  assert(!c->read_only);
   assert(k2pos(c)==0);  // c is always an empty matrix because a product 
                         // is never written directly to a result matrix  
   minimat_t ax[2][2];
@@ -301,7 +304,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   for(int k=0;k<4;k++) {  
     int i=k/2; int j=k%2;
     cx[i][j] = mmult2x2(ax[i][0],bx[0][j]);
-    cx[i][j] |= mmult2x2(ax[i][1],bx[1][j]);
+    cx[i][j] |= mmult2x2(ax[i][1],bx[1 ][j]);
     if(cx[i][j]!=MINIMAT0s) {
       rootc |= (1<<k);
       k2add_minimat(c,cx[i][j]);
@@ -340,8 +343,8 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
                       K2MAT_INITIALIZER, K2MAT_INITIALIZER};
   k2mat_t bx[2][2] = {K2MAT_INITIALIZER, K2MAT_INITIALIZER, 
                       K2MAT_INITIALIZER, K2MAT_INITIALIZER}; 
-  k2_split(size,a,ax[2][2]);  
-  k2_split(size,b,bx[2][2]);
+  k2split(size,a,ax);  
+  k2split(size,b,bx);
   // temporary matrices for products
   k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;
   

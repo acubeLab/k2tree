@@ -196,7 +196,7 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
 }
 
 // read minimat matrix starting from position p
-minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
+static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
   assert(Minimat_node_ratio==1);   // otherwise this code must change
   return (minimat_t) k2read_node(b,p);
 }
@@ -206,7 +206,7 @@ minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
 // we are implicitly assuming we are at the last level of the tree
 void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 {
-  assert(roota!=ALL_ONES);
+  assert(roota!=ALL_ONES); //??? true when called by msum_rec, but in general???
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) {
       ax[i] = k2read_minimat(a,*posa);
