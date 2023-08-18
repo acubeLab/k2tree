@@ -196,15 +196,16 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
 }
 
 // read minimat matrix starting from position p
+// used by k2split_minimats
 static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
   assert(Minimat_node_ratio==1);   // otherwise this code must change
   return (minimat_t) k2read_node(b,p);
 }
 
-// read all the minimats of a submatrix starting at position *posa
-// and write them to ax[] assuming we have already read the root node roota 
+// split the submatrix :a starting at position *posa into 4 minimats
+// and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree
-void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
+void k2split_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 {
   assert(roota!=ALL_ONES); //??? true when called by msum_rec, but in general???
   for(int i=0;i<4;i++) 
@@ -222,7 +223,7 @@ void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 
 
 
-// visit a size x size submatrix sarting from its root (in *pos)
+// visit a size x size submatrix starting from its root (in *pos)
 // the visit is done recursively in depth first order 
 // count the number of nodes and minimatrices visited incrementing *nodes and *minimats
 // used to split a matrix into 4 submatrices, but also for debugging/info
@@ -291,7 +292,9 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside a, so no memory is allocated
-void k2split(int size, const k2mat_t *a, k2mat_t b[2][2])
+// the submatrices are not minimats, but k2mat_t structs
+// so we are not at the last level of the tree
+void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL);
@@ -302,7 +305,7 @@ void k2split(int size, const k2mat_t *a, k2mat_t b[2][2])
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
   // if root is all 1's create 4 all 1's submatrices and stop
-  // ??? this code could change if we want to optimize for all 1's matrices
+  // ??? this could change if we want to optimize for all 1's matrices
   if(root==ALL_ONES) {
     // if root is all 1's create 4 all 1's submatrices 
     // pointing to the same root and stop

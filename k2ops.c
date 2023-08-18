@@ -251,11 +251,10 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
 // a and b must be not all 0s (ie empty)
 //   (if a or b is 0s this function is not called because the product is 0) 
 // a and b can be all 1's 
-// the output matrix c is normalized as ususal
+// the output matrix c is normalized as usual:
 //  if c is all 0s nothing is written
 //  if c is all 1s the root ALL_ONES is written
-//  otherwise we follow the standard rule: root node + nonzero minisize matrices 
-// ??? remove the size parameter ???  
+//  otherwise we follow the standard rule: root node + nonzero minisize matrices  
 void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size==2*MMsize);
@@ -301,10 +300,12 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   bool all_ones=true; // true if all submatrices cx[i][j] are all 1's
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;        // actual root node to be computed
+  // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
     int i=k/2; int j=k%2;
-    cx[i][j] = mmult2x2(ax[i][0],bx[0][j]);
-    cx[i][j] |= mmult2x2(ax[i][1],bx[1 ][j]);
+    assert(size==4); // implies that minimats are 2x2 
+    cx[i][j]  = mmult2x2(ax[i][0],bx[0][j]);
+    cx[i][j] |= mmult2x2(ax[i][1],bx[1][j]);
     if(cx[i][j]!=MINIMAT0s) {
       rootc |= (1<<k);
       k2add_minimat(c,cx[i][j]);
@@ -319,7 +320,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   }
   if(all_ones) {
     assert(rootc==ALL_CHILDREN);
-    assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); // we wrote root + 4 minimat
+    assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); // we wrote root + 4 minimats
     k2setpos(c,rootpos+1);       // discard children
     assert(k2read_node(c,rootpos)==ALL_ONES);
     return; // all 1s matrix is represented by the ALL_ONES root only 
@@ -343,14 +344,15 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
                       K2MAT_INITIALIZER, K2MAT_INITIALIZER};
   k2mat_t bx[2][2] = {K2MAT_INITIALIZER, K2MAT_INITIALIZER, 
                       K2MAT_INITIALIZER, K2MAT_INITIALIZER}; 
-  k2split(size,a,ax);  
-  k2split(size,b,bx);
+  k2split_k2(size,a,ax);  
+  k2split_k2(size,b,bx);
   // temporary matrices for products
   k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;
   
   // start building c
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;                 // actual root node to be computed
+  // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {
     int i=k/2, j=k%2;
     k2make_empty(&v1); k2make_empty(&v2);    // reset temporary matrices
@@ -370,8 +372,8 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
         mcopy(size,&v2,c);  // copy v2 -> block c[i][j]  
       else { // v1 and v2 are both not empty
         size_t tmp = k2pos(c),p1=0,p2=0;
-        msum(size,&v1,&p1,&v2,&p2,c);
-        assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were complteley read
+        msum_rec(size,&v1,&p1,&v2,&p2,c);
+        assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
         assert(tmp<k2pos(c));  // implied by v1+v2!=0
       }
     }
@@ -382,16 +384,19 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   k2_free(&v2);
   
   // final normalization of c
-  if(rootc==NO_CHILDREN) {
+  if(rootc==NO_CHILDREN) {    // case c is all 0's
     // this is an all 0 matrix, its representation is empty
     assert(k2pos(c)==rootpos+1); // only root was written to c 
     k2setpos(c,rootpos);         // delete root
   }
-  else if(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5)  { 
-    // root has 4 children nodes which are all 1's
+  // case c is all 1's
+  else if(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5)  {
+    // to check if this is an all 1's matrix we need to check that
+    // the root is ALL_CHILDREN and that the 4 children are all 1's
+    // hence are represented by a single ALL_ONES node
     for(size_t i=rootpos+1;i<rootpos+5;i++)
        assert(k2read_node(c,i)==ALL_ONES);
-    k2setpos(c,rootpos+1);      // only keep root which was ALL_ONES
+    k2setpos(c,rootpos+1);      // only keep root which was already ALL_ONES
     assert(k2read_node(c,rootpos)==ALL_ONES);
   }    
   else {
@@ -406,6 +411,8 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // multiply size x size k2 compressed matrices a and b storing
 // the result in c 
 // must be called with an initialized and empty c
+// :a and :b must be of size at least 2*MMsize but their content can be 
+// arbitrary: all 0's, all 1's, or generic
 // at exit:
 //    if the result is a zero matrix c is left empty
 //    if the result is an all one's matrix c contains a single ALL_ONES node
@@ -413,7 +420,7 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
-  assert(size>MMsize);
+  assert(size>MMsize); // inputs cannot be minimats 
   assert(size%2==0);
   assert(k2is_empty(c));
   
