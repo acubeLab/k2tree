@@ -87,3 +87,5 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
 int mequals(int size, const k2mat_t *a, const k2mat_t *b);
+// get statistics on a matrix
+int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);

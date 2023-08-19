@@ -12,13 +12,12 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include "k2.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
-// #include <limits.h>
+#include "k2.h"
 
 
 static void quit(const char *msg, int line, char *file);
@@ -172,7 +171,7 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 
 
 
-// visit a size x size submatrix starting from its root (in *pos)
+// visit a size x size non-empty submatrix starting from its root (in *pos)
 // the visit is done recursively in depth first order 
 // count the number of nodes and minimatrices visited incrementing *nodes and *minimats
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize

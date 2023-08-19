@@ -2,10 +2,10 @@
    represented as k^2 trees 
 
    This file contains the defintion of the operations that make use of
-   the basic operations defined in k2.c
+   the basic operations defined in k2aux.c
 
    Matrix dimensions are assumed to be power of 2, of size at least
-   MMSize (minimatrix size), ie, the size of the last level of recursion. 
+   2*MMSize (minimatrix size), ie, the size of the last level of recursion. 
 
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
@@ -34,7 +34,7 @@ typedef uint8_t *matrix;
 //   0   if the submatrix is all 0's (nothing is written to b)
 //  -1   if the submatrix is all 1's (only the root is written to b)
 //  n>0  otherwise, n items are written to b 
-int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
+/*int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
   assert(size%2==0);
   if(size==2) {
     uint64_t t = m[i][j] + (m[i+1][j]<<1) + (m[i+1][j]<<2) + (m[i+1][j+1]<<3);
@@ -63,7 +63,7 @@ int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
     return -1;
   }
 }
-
+*/
 
 
 
@@ -520,4 +520,14 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   split_and_rec(size,a,b,c);
 }
 
-
+// return statistics on matrix a
+// write number of used pos,nomde, and minimats in the variables passed by reference
+// and return the number of levels
+int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
+{
+  *pos=*nodes=*minimats=0;
+  if(!k2is_empty(a)) k2dfs_visit(size,a,pos,nodes,minimats);
+  int eq = mequals(size,a,a);
+  assert(eq<0);
+  return -eq;
+}
