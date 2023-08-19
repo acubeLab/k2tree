@@ -9,75 +9,23 @@
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
-
-
-// ----------------------------------------------
-// global variable storing the size of a mini-matrix 
-// ie. the last level of recursion
-// possibly this will be a command line parameter
-static const int MMsize = 2; 
-// global variable storing how many nodes takes a minimat:
-// since nodes have 4 bits (not likely to change)
-// this amounts to how many nibbles takes a minimat 
-// a 2x2 binary matrix takes one nibble, so here the constant is 1
-static const int Minimat_node_ratio = 1;
-#if ((MMsize*MMsize) != 4*Minimat_node_ratio)
-#error "MMsize vs Minimat_node_ratio mismatch"
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
-
-// node constants (depend on node arity, here 4 and not likely to change) 
-#define NO_CHILDREN   0x0   // node representing a submatrix of all 0's 
-                            // before normalization
-#define ALL_ONES      0x0   // node representing a submatrix of all 1's
-                            // it is the same as NO_CHILDREN since
-                            // after normalization that code is available 
-#define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
-                            // with all the 4 submatrices non-empty
-#define ILLEGAL_NODE  0x10  // illegal node (more than 4 bits)
-// minimat constants (depend on size, here are 2x2)
-#define MINIMAT0s      0x0   // minimat containing all 0's  
-#define MINIMAT1s      0xF   // minimat containing all 1's  
-
-// the type representing a (temporary) minimat matrix must be an integer
-// so that two minimat matrices can be summed with a single
-// bitwise OR operation
-typedef uint64_t minimat_t; // explict matrix aka minimat (currently 2x2)
-// check that minimat_t is large enough to store a minimat
-#if ((MMsize*MMsize) > (8*sizeof(minimat_t)))
-#error "MMsize too large for minimat_t"
-#endif
-
-// an internal node must have a number of bits at least equal to the arity
-// of the k2-tree (here 4 and it is unlikely to change)
-// here we use an uint64_t but only the 4 lower order bits are ever used  
-typedef uint64_t node_t;   // non leaf node 
-
-// struct representing a k2-tree: nodes and minimat are stored in a single
-// buffer of bytes. offset is used to create a "pointer" to a submatrix
-// without copying the buffer during the splitting phase. 
-// read_only is currently used only for these pointer matrices. 
-// By changing b, offset can be restricted to the 0/1 values
-// so offeset+read_only could be stored in a single byte to save space.
-// ??? use read_only also for the input matrices to avoid accidental changes
-// or using the const modifier is enough??? 
-typedef struct k2mat {
-  uint8_t *b;
-  size_t pos;   // position where next node is written
-  size_t size;  // number of nodes that can be written without rallocating
-  size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
-                // only read only matrices can have a positive offset 
-  bool read_only; // if true write and add operations are not allowed
-                  // all matrices created by splitting are read only            
-} k2mat_t;
-// initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0,0,0,false}
+#include "k2.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
+// #include <limits.h>
 
 
 static void quit(const char *msg, int line, char *file);
 
 
 // ------------------------------------------------------------------- 
-// elementary operationson k2mat structures, operating on single items
+// elementary operationson on k2mat structures, operating on single items
 
 
 // return current pos (where the next item will be written 
@@ -142,7 +90,7 @@ size_t k2add_node(k2mat_t *m, node_t n)
   if(m->pos >= m->size) {
     assert(m->pos ==m->size);
     m->size = 16+2*m->size;          // more than double number of positions
-    assert(m->size%2==0)             // #positions must be even 
+    assert(m->size%2==0);             // #positions must be even 
     m->b = realloc(m->b, m->size/2); // each byte stores two positions
     if(m->b==NULL) quit("Unable to enlarge k2-tree",__LINE__,__FILE__);
   }
@@ -206,15 +154,15 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree
 // called by msum_rec, mequals_rec and mmult_base
-void k2split_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
+void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax[2][2])
 {
   assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) {
-      ax[i] = k2read_minimat(a,*posa);
+      ax[i/2][i%2] = k2read_minimat(a,*posa);
       *posa += Minimat_node_ratio;
     }
-    else ax[i] = MINIMAT0s;
+    else ax[i/2][i%2] = MINIMAT0s;
 }
 
 
@@ -258,7 +206,7 @@ void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
   assert(size>MMsize);
   assert(*posa<a->pos); // implies a is non-empty
   // copy root node
-  node_t roota = k2read_node(a,*posa); *posa++;
+  node_t roota = k2read_node(a,*posa); *posa +=1;
   k2add_node(b,roota);
   if(roota==ALL_ONES) return;  // all 1's matrix consits of root only
   for(int i=0;i<4;i++) {
@@ -316,7 +264,7 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
     return;
   }
   // root is not all 1's: we have the standard structure
-  ssize_t next = pos, nodes=0, minimats=0;
+  size_t next = pos, nodes=0, minimats=0;
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
@@ -337,7 +285,7 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
 // stored in position :rootpos. 
 // :size is the submatrix size  
 // must be called only for  size>MMsize
-static void _xxx_k2normalize(int size, k2mat_t *c, size_t rootpos)
+void _xxx_k2normalize(int size, k2mat_t *c, size_t rootpos)
 {
   assert(!c->read_only);
   // MMsize matrices cannot be normalized

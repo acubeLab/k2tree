@@ -13,32 +13,13 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <errno.h>
-#include <string.h>
-#include <assert.h>
-
-#include "k2.c"
+#include "k2aux.c"
 
 
 
 // fixme: type for the input matrix
 typedef uint8_t *matrix;
 
-
-// prototypes
-
-// multiply two k2 matrices a and b writing the result to c
-// multiplication is done replacing scalar */+ by logical and/or 
-void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
-// sum two k2 matrices a and b writing the result to c
-// multiplication is done replacing scalar + by logical or 
-void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
 
 // Incomplete 
@@ -56,7 +37,7 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
   assert(size%2==0);
   if(size==2) {
-    uint64_t t = m[i][j] + m[i+1][j]<<1 + m[i+1][j+1]<<2 + m[1][+1]<<3;
+    uint64_t t = m[i][j] + (m[i+1][j]<<1) + (m[i+1][j]<<2) + (m[i+1][j+1]<<3);
     if(t==0) return 0;  // controllare....
     badd(b,t);
     if(t==15) return -1;   // all 1's
@@ -73,16 +54,14 @@ int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
   int i1 = encode(m, i+hsize, j, hsize, b);
   int i2 = encode(m, i, j+hsize, hsize, b);
   int i3 = encode(m, i+hsize, j+hsize, hsize, b);
-  if (i0==0 & i1==0 && i2==0 & i3==0) {
+  if (i0==0 && i1==0 && i2==0 && i3==0) {
     bset(b,pos); // delete t
     return 0;
   }
-  if (i0<0 && i1<00 && i2<0 & i3<0) {
+  if (i0<0 && i1<00 && i2<0 && i3<0) {
     bset(b,pos+1); // only keep t = 0000 which means all 1's 
     return -1;
   }
-  
-
 }
 
 
@@ -116,7 +95,7 @@ void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + nonzero minisize matrices   
-void _XXX_msum_base(int size, const k2mat_t *a, size_t *posa, 
+void _xxx_msum_base(int size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
   assert(size==2*MMsize);
@@ -183,7 +162,7 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
 {
   assert(size>=2*MMsize); // there must be the root node 
   assert(a!=NULL && b!=NULL && c!=NULL);
-  assert(!k2submatrx_empty(a,*posa) && !k2submatrix_empty(b,*posb));
+  assert(!k2submatrix_empty(a,*posa) && !k2submatrix_empty(b,*posb));
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
@@ -208,17 +187,17 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
   size_t rootpos = k2add_node(c,rootc);  // save c root and its position
   bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
   if(size==2*MMsize) { // children are minimat matrices
-    minimat_t ax[4], bx[4];
+    minimat_t ax[2][2], bx[2][2];
     k2split_minimats(a,posa,roota,ax);
     k2split_minimats(b,posb,rootb,bx);
     for(int k=0;k<4;k++) {
-      minimat_t cx = ax[k] | bx[k]; // compute bitwise or of corresponding minimat
+      minimat_t cx = ax[k/2][k%2] | bx[k/2][k%2]; // compute bitwise or of corresponding minimat
       if (cx != MINIMAT0s)
       { // save cx if nonzero
         assert(rootc & (1 << k)); // implied by  cx = ax | bx 
         k2add_minimat(c, cx);
       }
-      else assert(rootc & (1 << k) == 0);
+      else assert((rootc & (1 << k)) == 0);
       if (cx != MINIMAT1s) all_ones = false;
     }
     assert(all_ones==false || rootc==ALL_CHILDREN); // all_ones => rootc==ALL_CHILDREN
@@ -237,7 +216,7 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
       else if (rootb | (1 << k))
         k2copy_rec(size/2,b,posb,c); // k-th child of c is kth child of b
       else 
-        assert(rootc & (1 << k) == 0); // both children are 0s, nothing to do 
+        assert( (rootc & (1 << k)) == 0); // both children are 0s, nothing to do 
     }
     // check if all children of rootc are all 1's
     // done checking that the subtree contains just 5 nodes 
@@ -274,7 +253,7 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   else if(k2is_empty(a))    
     mcopy(size,b,c);        // if a==0: c=b
   else { // a and b are both not empty, call msum_rec
-    size_t tmp = k2pos(c),posa=0,posb=0;
+    size_t posa=0,posb=0;
     msum_rec(size,a,&posa,b,&posb,c);
     assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completeley read
     assert(!k2is_empty(c));  // implied by a+b!=0
@@ -298,7 +277,7 @@ int mequals_rec(int size, const k2mat_t *a, size_t *posa,
     return -1; // if root nodes are both all 1's: a==b and there are no other levels 
   // root nodes are equal and have children, check children recursively
   if(size==2*MMsize) { // children are minimat matrices
-    minimat_t ax[4], bx[4];
+    minimat_t ax[2][2], bx[2][2];
     k2split_minimats(a,posa,roota,ax);
     k2split_minimats(b,posb,rootb,bx);
     for(int k=0;k<4;k++) 
@@ -368,8 +347,8 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   // c is always an empty matrix because a product is never written directly to a result matrix 
   assert(k2pos(c)==0);  
   // initialize a[][] and b[][] to cover the case when the matrix is all 1s                       
-  minimat_t ax[2][2] = {MINIMAT1s,MINIMAT1s,MINIMAT1s,MINIMAT1s};
-  minimat_t bx[2][2] = {MINIMAT1s,MINIMAT1s,MINIMAT1s,MINIMAT1s};
+  minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
+  minimat_t bx[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   //both matrices are all 1s ?
@@ -381,9 +360,9 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   // split a and b
   size_t posa=1,posb=1; // we have already read the root node
   if(roota!=ALL_ONES)   // case ALL_ONES is coverede by initialization above
-    k2split_minimats(a,posa,roota,ax);
+    k2split_minimats(a,&posa,roota,ax);
   if(rootb!=ALL_ONES) 
-    k2split_minimats(b,posb,rootb,bx);
+    k2split_minimats(b,&posb,rootb,bx);
   // split done, now multiply and store c 
   // optimization on all 1's submatrices still missing 
   minimat_t cx[2][2];
@@ -430,10 +409,10 @@ static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
   // split a and b into 4 blocks of half size  
-  k2mat_t ax[2][2] = {K2MAT_INITIALIZER, K2MAT_INITIALIZER, 
-                      K2MAT_INITIALIZER, K2MAT_INITIALIZER};
-  k2mat_t bx[2][2] = {K2MAT_INITIALIZER, K2MAT_INITIALIZER, 
-                      K2MAT_INITIALIZER, K2MAT_INITIALIZER}; 
+  k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
+                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
+  k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
+                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
   k2split_k2(size,a,ax);  
   k2split_k2(size,b,bx);
   // temporary matrices for products
