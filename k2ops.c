@@ -145,10 +145,10 @@ void _XXX_msum_base(int size, const k2mat_t *a, size_t *posa,
   minimat_t ax, bx;
   bool all_ones=true; // true if all submatrices cx[i][j] are all 1's
   for(int k=0;k<4;k++) {
-    if(roota |= (1<<k)) {
+    if(roota | (1<<k)) {
       ax = k2read_minimat(a,*posa); *posa += Minimat_node_ratio;
     } else ax = MINIMAT0s;
-    if(rootb |= (1<<k)) {
+    if(rootb | (1<<k)) {
       bx = k2read_minimat(b,*posb); *posb += Minimat_node_ratio;
     } else bx = MINIMAT0s;
     minimat_t cx = ax | bx;   // compute or of correposnding children
@@ -170,7 +170,7 @@ void _XXX_msum_base(int size, const k2mat_t *a, size_t *posa,
 }
 
 
-// recursive sum of two k2 (sub)matrices
+// recursive sum of two k2 (sub)matrices 
 // a and b must not be all 0s (sub)matrices
 //   (if a or b is all 0s this function is not called because the sum is a copy) 
 // a and b can be all 1's 
@@ -209,8 +209,8 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
   bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
   if(size==2*MMsize) { // children are minimat matrices
     minimat_t ax[4], bx[4];
-    k2read_minimats(a,posa,roota,ax);
-    k2read_minimats(b,posb,rootb,bx);
+    k2split_minimats(a,posa,roota,ax);
+    k2split_minimats(b,posb,rootb,bx);
     for(int k=0;k<4;k++) {
       minimat_t cx = ax[k] | bx[k]; // compute bitwise or of corresponding minimat
       if (cx != MINIMAT0s)
@@ -228,13 +228,13 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
     // we could split a and b in 4 submatrices and sum them, but it is more efficient 
     // to compute the sum without building submatrices (which requires a scan of a and b)
     for(int k=0;k<4;k++) {
-      if (roota |= (1 << k)) {
-        if(rootb |= (1 << k)) 
+      if (roota | (1 << k)) {
+        if(rootb | (1 << k)) 
           msum_rec(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
         else 
           k2copy_rec(size/2,a,posa,c); // k-th child of c is kth child of a
       }
-      else if (rootb |= (1 << k))
+      else if (rootb | (1 << k))
         k2copy_rec(size/2,b,posb,c); // k-th child of c is kth child of b
       else 
         assert(rootc & (1 << k) == 0); // both children are 0s, nothing to do 
@@ -243,7 +243,7 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
     // done checking that the subtree contains just 5 nodes 
     all_ones =  rootc==ALL_CHILDREN && k2pos(c)==rootpos+5;
   }
-  // normalize if c is all 1s (cover all sizes)
+  // normalize if c is all 1s (regardless of size)
   if(all_ones) {
     assert(rootc==ALL_CHILDREN);
     k2setpos(c,rootpos);       // discard current root and children
@@ -273,11 +273,11 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     mcopy(size,a,c);        // if b==0: c=a
   else if(k2is_empty(a))    
     mcopy(size,b,c);        // if a==0: c=b
-  else { // v1 and v2 are both not empty
+  else { // a and b are both not empty, call msum_rec
     size_t tmp = k2pos(c),posa=0,posb=0;
     msum_rec(size,a,&posa,b,&posb,c);
     assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completeley read
-    assert(!k2is_empty);  // implied by a+b!=0
+    assert(!k2is_empty(c));  // implied by a+b!=0
   }
   return;
 }
@@ -294,13 +294,13 @@ int mequals_rec(int size, const k2mat_t *a, size_t *posa,
   node_t roota = k2read_node(a,*posa); *posa +=1;
   node_t rootb = k2read_node(b,*posb); *posb +=1;
   if(roota!=rootb) return 0; // if root nodes are different: a!=b at this level
-  if(roota==ALL_ONES && rootb == ALL_ONES) 
-    return -1; // if root nodes are both all 1's: a==b and threre are no other levels 
-  // root nodes as equal and have children, check children recursively
+  if(roota==ALL_ONES)        // implies rootb == ALL_ONES 
+    return -1; // if root nodes are both all 1's: a==b and there are no other levels 
+  // root nodes are equal and have children, check children recursively
   if(size==2*MMsize) { // children are minimat matrices
     minimat_t ax[4], bx[4];
-    k2read_minimats(a,posa,roota,ax);
-    k2read_minimats(b,posb,rootb,bx);
+    k2split_minimats(a,posa,roota,ax);
+    k2split_minimats(b,posb,rootb,bx);
     for(int k=0;k<4;k++) 
       if(ax[k]!=bx[k]) return 1; // if corresponding minimats are different: a!=b
     return -2; // all minimats are equal: a==b, traversed 2 levels 
@@ -308,14 +308,14 @@ int mequals_rec(int size, const k2mat_t *a, size_t *posa,
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion
     int eq = 0;
     for(int k=0;k<4;k++) {
-      if (roota |= (1 << k)) {
-        assert(rootb |= (1 << k)); 
+      if (roota | (1 << k)) {
+        assert(rootb | (1 << k)); 
         int eqr = mequals_rec(size/2,a,posa,b,posb);
         if(eqr>0) return eqr+1; // a and b are different at level eqr+1
         if(eqr < eq) eq = eqr;  // keep track of deepest level reached
       }
     }
-    return eq -2; 
+    return eq -1; // increase depth by one 
   }
 }
 
@@ -365,10 +365,11 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
   assert(!c->read_only);
-  assert(k2pos(c)==0);  // c is always an empty matrix because a product 
-                        // is never written directly to a result matrix  
-  minimat_t ax[2][2];
-  minimat_t bx[2][2];
+  // c is always an empty matrix because a product is never written directly to a result matrix 
+  assert(k2pos(c)==0);  
+  // initialize a[][] and b[][] to cover the case when the matrix is all 1s                       
+  minimat_t ax[2][2] = {MINIMAT1s,MINIMAT1s,MINIMAT1s,MINIMAT1s};
+  minimat_t bx[2][2] = {MINIMAT1s,MINIMAT1s,MINIMAT1s,MINIMAT1s};
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   //both matrices are all 1s ?
@@ -376,28 +377,13 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     k2add_node(c,ALL_ONES);
     return;
   }
+  // ??? here possible code for case when one matrix is all 1s and the other is not
   // split a and b
   size_t posa=1,posb=1; // we have already read the root node
-  for(int k=0;k<4;k++) {
-    int i=k/2; int j=k%2;
-    if(roota==ALL_ONES)      // roota has no explicit children 
-      ax[i][j] = MINIMAT1s;   // all 1s
-    else if((roota & (1<<k))==0) // roota has a 0 k-th child
-      ax[i][j] = MINIMAT0s;
-    else {
-      ax[i][j] = k2read_minimat(a,posa); //read k-th child of roota
-      posa += Minimat_node_ratio;       // advance to next item
-    }
-    // same as above for b
-    if(rootb==ALL_ONES) 
-      bx[i][j] = MINIMAT1s;   // all 1s
-    else if((rootb & (1<<k))==0)
-      bx[i][j] = MINIMAT0s;
-    else {
-      bx[i][j] = k2read_minimat(b,posb);
-      posb += Minimat_node_ratio;
-    }
-  }
+  if(roota!=ALL_ONES)   // case ALL_ONES is coverede by initialization above
+    k2split_minimats(a,posa,roota,ax);
+  if(rootb!=ALL_ONES) 
+    k2split_minimats(b,posb,rootb,bx);
   // split done, now multiply and store c 
   // optimization on all 1's submatrices still missing 
   minimat_t cx[2][2];

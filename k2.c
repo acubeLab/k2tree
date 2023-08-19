@@ -205,9 +205,10 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
 // split the submatrix :a starting at position *posa into 4 minimats
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree
-void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
+// called by msum_rec, mequals_rec and mmult_base
+void k2split_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 {
-  assert(roota!=ALL_ONES); //??? true when called by msum_rec, but in general???
+  assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) {
       ax[i] = k2read_minimat(a,*posa);
