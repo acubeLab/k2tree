@@ -73,7 +73,7 @@ typedef struct k2mat {
 #define K2MAT_INITIALIZER {NULL,0,0,0,false}
 
 
-void quit(const char *msg, int line, char *file);
+static void quit(const char *msg, int line, char *file);
 
 
 // ------------------------------------------------------------------- 
@@ -196,7 +196,7 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
 }
 
 // read minimat matrix starting from position p
-// used by k2split_minimats
+// used by k2read_minimats and k2copy_rec
 static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
   assert(Minimat_node_ratio==1);   // otherwise this code must change
   return (minimat_t) k2read_node(b,p);
@@ -205,7 +205,7 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
 // split the submatrix :a starting at position *posa into 4 minimats
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree
-void k2split_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
+void k2read_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 {
   assert(roota!=ALL_ONES); //??? true when called by msum_rec, but in general???
   for(int i=0;i<4;i++) 
@@ -226,8 +226,8 @@ void k2split_minimats(k2mat_t *a,size_t *posa, node_t roota, minimat_t ax[4])
 // visit a size x size submatrix starting from its root (in *pos)
 // the visit is done recursively in depth first order 
 // count the number of nodes and minimatrices visited incrementing *nodes and *minimats
-// used to split a matrix into 4 submatrices, but also for debugging/info
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
+// used to split a matrix into 4 submatrices, but also for debugging/info
 void k2dfs_visit(int size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats)
 {
   assert(size>MMsize);
@@ -250,8 +250,8 @@ void k2dfs_visit(int size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t 
 
 // copy the subtree of :a starting at *posa to :b
 // *posa should always point to the next item to be read
-// used when summing two matrices and a submatrix is all zeros 
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
+// used when summing two matrices and a submatrix is all zeros 
 void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
@@ -276,7 +276,7 @@ void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 
 // clone a k2 (sub)matrix of :a starting at position :start and ending at :end-1
 // creating a read only copy :c which is a pointer inside :a
-// used only by k2split 
+// used only by k2split_k2 
 static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
@@ -294,6 +294,7 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 // the submatrices are "pointers" inside a, so no memory is allocated
 // the submatrices are not minimats, but k2mat_t structs
 // so we are not at the last level of the tree
+// :a is not all 0's, it could be all 1's (for now)
 void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
 {
   assert(size>2*MMsize);
@@ -305,7 +306,7 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
   // if root is all 1's create 4 all 1's submatrices and stop
-  // ??? this could change if we want to optimize for all 1's matrices
+  // this will disappear if we optimize all operations for all 1's matrices
   if(root==ALL_ONES) {
     // if root is all 1's create 4 all 1's submatrices 
     // pointing to the same root and stop
@@ -313,7 +314,7 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
       k2clone(a, pos-1, pos, &b[i][j]); // ????? check this
     return;
   }
-  // root is not all 1's we have the standard structure
+  // root is not all 1's: we have the standard structure
   ssize_t next = pos, nodes=0, minimats=0;
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
@@ -372,7 +373,7 @@ static void _xxx_k2normalize(int size, k2mat_t *c, size_t rootpos)
   
 
 // write error message and exit
-void quit(const char *msg, int line, char *file) {
+static void quit(const char *msg, int line, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
   else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
                strerror(errno));

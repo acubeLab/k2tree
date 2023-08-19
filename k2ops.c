@@ -36,6 +36,9 @@ typedef uint8_t *matrix;
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+// sum two k2 matrices a and b writing the result to c
+// multiplication is done replacing scalar + by logical or 
+void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
 
 // Incomplete 
@@ -222,6 +225,8 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
     if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio);
   }
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion
+    // we could split a and b in 4 submatrices and sum them, but it is more efficient 
+    // to compute the sum without building submatrices (which requires a scan of a and b)
     for(int k=0;k<4;k++) {
       if (roota |= (1 << k)) {
         if(rootb |= (1 << k)) 
@@ -246,6 +251,105 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
   }
   return; 
 }
+
+// main entry point for matrix addition
+// sum size x size k2 compressed matrices :a and :b storing
+// the result in c, must be called with an initialized and empty :c
+// :a and :b must be of size at least 2*MMsize but their content can be 
+// arbitrary: all 0's, all 1's, or generic
+// at exit:
+//    if the result is a zero matrix c is left empty
+//    if the result is an all one's matrix c contains a single ALL_ONES node
+//    otherwise c is a node + the recursive description of its subtree  
+void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && b!=NULL && c!=NULL);
+  assert(k2is_empty(c) && !c->read_only);
+
+  if(k2is_empty(a) && k2is_empty(b)) 
+    return;                 // if a==0 && b==0: c=0
+  else if(k2is_empty(b))      
+    mcopy(size,a,c);        // if b==0: c=a
+  else if(k2is_empty(a))    
+    mcopy(size,b,c);        // if a==0: c=b
+  else { // v1 and v2 are both not empty
+    size_t tmp = k2pos(c),posa=0,posb=0;
+    msum_rec(size,a,&posa,b,&posb,c);
+    assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completeley read
+    assert(!k2is_empty);  // implied by a+b!=0
+  }
+  return;
+}
+
+// recursive test for equality test of two k2 matrices both nonzero
+// see mequals for details
+int mequals_rec(int size, const k2mat_t *a, size_t *posa, 
+                          const k2mat_t *b, size_t *posb)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && b!=NULL);
+  assert(!k2is_empty(a) && !k2is_empty(b));
+  // read root nodes of a and b
+  node_t roota = k2read_node(a,*posa); *posa +=1;
+  node_t rootb = k2read_node(b,*posb); *posb +=1;
+  if(roota!=rootb) return 0; // if root nodes are different: a!=b at this level
+  if(roota==ALL_ONES && rootb == ALL_ONES) 
+    return -1; // if root nodes are both all 1's: a==b and threre are no other levels 
+  // root nodes as equal and have children, check children recursively
+  if(size==2*MMsize) { // children are minimat matrices
+    minimat_t ax[4], bx[4];
+    k2read_minimats(a,posa,roota,ax);
+    k2read_minimats(b,posb,rootb,bx);
+    for(int k=0;k<4;k++) 
+      if(ax[k]!=bx[k]) return 1; // if corresponding minimats are different: a!=b
+    return -2; // all minimats are equal: a==b, traversed 2 levels 
+  }
+  else { // size>2*MMsize: children are k2 matrices, possibly use recursion
+    int eq = 0;
+    for(int k=0;k<4;k++) {
+      if (roota |= (1 << k)) {
+        assert(rootb |= (1 << k)); 
+        int eqr = mequals_rec(size/2,a,posa,b,posb);
+        if(eqr>0) return eqr+1; // a and b are different at level eqr+1
+        if(eqr < eq) eq = eqr;  // keep track of deepest level reached
+      }
+    }
+    return eq -2; 
+  }
+}
+
+
+
+// main entry point for matrix equality
+// check if size x size k2 compressed matrices :a and :b are equal
+// if a==b return -d, where d>0 is the number of levels traversed  
+// if a!=b return the level>=0 containing the first difference
+// (first in the sense of the first level encountered in dfs order)
+// Note that if a==b we return the number of visited levels (tree depth), 
+// while if a!=b we return the level of the first difference counting from 0 (root)
+// these two values differ by one (these can be seen in the returned value)
+// :a and :b must be of size at least 2*MMsize but their content can be
+// arbitrary: all 0's, all 1's, or generic
+// note: here all 0's matrices are considered of depth 1 even if they are empty
+int mequals(int size, const k2mat_t *a, const k2mat_t *b)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && b!=NULL);
+  if(k2is_empty(a) && k2is_empty(b)) 
+    return -1;                 // if a==0 && b==0: a==b and one level traversed
+  else if(k2is_empty(b))      
+    return 0;                 // if b==0 && a!=0: a!=b and difference at level 0
+  else if(k2is_empty(a))    
+    return 0;                 // if a==0 && b!=0: a!=b as above
+  // a and b are both not zero
+  size_t posa=0,posb=0;
+  int eq = mequals_rec(size,a,&posa,b,&posb);
+  // do extra checks if the matrices are equal
+  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && posa==posb));
+  return eq;
+}
+
 
 // base case of matrix multiplication: matrices of size 2*MMmin
 // a and b must be not all 0s (ie empty)
@@ -333,7 +437,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // split input matrices and recurse matrix multiplication  
 //   an input 0 matrix is represented as NULL
 //   an output 0 matrix is represented as an empty matrix (no root node)   
-void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -357,13 +461,13 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     int i=k/2, j=k%2;
     k2make_empty(&v1); k2make_empty(&v2);    // reset temporary matrices
     // a[i][0]*b[0][j]
-    if(!k2is_empty(&ax[i][0]) && !k2is_empty(&bx[0][j]) )
+    if(!k2is_empty(&ax[i][0]) && !k2is_empty(&bx[0][j]) ) // avoid call if one is nonzero: can be removed
       mmult(size/2, &ax[i][0], &bx[0][j], &v1);
     // a[i][1]*b[1][j]
     if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
       mmult(size/2, &ax[i][1], &bx[1][j], &v2);
     // sum to c[i][j] ie block k 
-    if(!k2is_empty(&v1) || !k2is_empty(&v2)) {
+    if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // sum if at least one is nonzero
       rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
       // compute v1+v2
       if(k2is_empty(&v2)) 
@@ -407,10 +511,9 @@ void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 
 
 
-
-// multiply size x size k2 compressed matrices a and b storing
-// the result in c 
-// must be called with an initialized and empty c
+// main entry point for matrix multiplication. 
+// multiply size x size k2 compressed matrices :a and :b storing
+// the result in c, must be called with an initialized and empty :c
 // :a and :b must be of size at least 2*MMsize but their content can be 
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
@@ -450,5 +553,6 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     right1_mmult(size,a,c);
   }*/
   split_and_rec(size,a,b,c);
-} 
+}
+
 
