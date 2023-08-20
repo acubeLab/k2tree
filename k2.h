@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <assert.h>
+
 
 
 // node constants (depend on node arity, here 4 and not likely to change) 
@@ -55,6 +55,8 @@ typedef struct k2mat {
 
 // init minimatrices: must be called once with the size of the minimats
 void minimats_init(int msize);
+// compute the size of the smallest k2mat containing a matrix of size msize
+int getk2size(int msize);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);

@@ -20,7 +20,7 @@ typedef uint8_t *matrix;
 
 
 
-// Incomplete 
+// Incomplete !!!!
 // encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte per entry 
 // format into a k2mat_t structure
 // Parameters:
@@ -32,13 +32,20 @@ typedef uint8_t *matrix;
 //   0   if the submatrix is all 0's (nothing is written to b)
 //  -1   if the submatrix is all 1's (only the root is written to b)
 //  n>0  otherwise, n items are written to b 
-/*int encode(matrix *m, int i, int j, int size, k2mat_t *b) {
+#define Mtrx(m,i,j,size)  ((minimat_t) m[i*size+j])
+int k2encode(matrix *m, int i, int j, int msize, int size, k2mat_t *b) {
   assert(size%2==0);
-  if(size==2) {
-    uint64_t t = m[i][j] + (m[i+1][j]<<1) + (m[i+1][j]<<2) + (m[i+1][j+1]<<3);
-    if(t==0) return 0;  // controllare....
-    badd(b,t);
-    if(t==15) return -1;   // all 1's
+  if(size==MMsize) 
+  {
+    assert(MMsize==2); // only works for 2x2 matrices 
+    // read single elements 
+    minimat_t m00 = Mtrx(m,i,j,msize),   m01 = Mtrx(m,i,j+1,msize);
+    minimat_t m10 = Mtrx(m,i+1,j,msize), m11 = Mtrx(m,i+1,j+1,msize);
+    // create minimatrix
+    minimat_t t = m00 + (m01<<1) + (m10<<2) + (m11<<3);
+    if(t==MINIMAT0s) return 0;  // controllare....
+    // ???? badd(b,t);
+    if(t==MINIMAT1s) return -1;   // all 1's
     return 1;             // mixed 
   }
   assert(size>=4);
@@ -53,16 +60,30 @@ typedef uint8_t *matrix;
   int i2 = encode(m, i, j+hsize, hsize, b);
   int i3 = encode(m, i+hsize, j+hsize, hsize, b);
   if (i0==0 && i1==0 && i2==0 && i3==0) {
-    bset(b,pos); // delete t
+    //\\ ???? bset(b,pos); // delete t
     return 0;
   }
   if (i0<0 && i1<00 && i2<0 && i3<0) {
-    bset(b,pos+1); // only keep t = 0000 which means all 1's 
+    //\\ bset(b,pos+1); // only keep t = 0000 which means all 1's 
     return -1;
   }
 }
-*/
 
+
+// read the uncomressed matrix *m of size msize into the k2mat_t structure *a 
+// m scould be an integer array of size msize*msize 
+int k2read_uncompressed(matrix *m, int msize, k2mat_t *a)
+{
+  assert(msize>1);
+  assert(k2is_empty(a));
+  assert(!a->read_only);
+  if(msize>(1<<30)) quit("k2read_uncompressed: matrix too large",__LINE__,__FILE__);
+  int size = getk2size(msize);
+  assert(size>=2*MMsize);
+  // read matrix m into a
+  k2encode(m,0,0,msize,size,a);
+  return size;
+}
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
 void mcopy(int size, const k2mat_t *a, k2mat_t *b)

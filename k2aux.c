@@ -14,12 +14,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include "k2.h"
-#include "minimats.h"
+#include "minimats.c"
 
 
 

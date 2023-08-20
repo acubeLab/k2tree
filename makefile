@@ -17,7 +17,7 @@ all: $(EXECS)
 k2test.o: k2test.c k2.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-k2ops.o: k2ops.c k2aux.h minimats.h k2.h
+k2ops.o: k2ops.c k2aux.c minimats.c k2.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
