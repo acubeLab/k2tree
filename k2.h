@@ -11,21 +11,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <assert.h>
 
-
-// ----------------------------------------------
-// global variable storing the size of a mini-matrix 
-// ie. the last level of recursion
-// possibly this will be a command line parameter
-static int MMsize = 2; 
-// global variable storing how many nodes takes a minimat:
-// since nodes have 4 bits (not likely to change)
-// this amounts to how many nibbles takes a minimat 
-// a 2x2 binary matrix takes one nibble, so here the constant is 1
-static const int Minimat_node_ratio = 1;
-#if ((MMsize*MMsize) != 4*Minimat_node_ratio)
-#error "MMsize vs Minimat_node_ratio mismatch"
-#endif
 
 // node constants (depend on node arity, here 4 and not likely to change) 
 #define NO_CHILDREN   0x0   // node representing a submatrix of all 0's 
@@ -36,23 +23,12 @@ static const int Minimat_node_ratio = 1;
 #define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
                             // with all the 4 submatrices non-empty
 #define ILLEGAL_NODE  0x10  // illegal node (more than 4 bits)
-// minimat constants (depend on size, here are 2x2)
-#define MINIMAT0s      0x0   // minimat containing all 0's  
-#define MINIMAT1s      0xF   // minimat containing all 1's  
-
-// the type representing a (temporary) minimat matrix must be an integer
-// so that two minimat matrices can be summed with a single
-// bitwise OR operation
-typedef uint64_t minimat_t; // explict matrix aka minimat (currently 2x2)
-// check that minimat_t is large enough to store a minimat
-#if ((MMsize*MMsize) > 64 ) // 64=8*sizeof(minimat_t), update if minimat_t changes
-#error "MMsize too large for minimat_t"
-#endif
 
 // an internal node must have a number of bits at least equal to the arity
 // of the k2-tree (here 4 and it is unlikely to change)
 // here we use an uint64_t but only the 4 lower order bits are ever used  
 typedef uint64_t node_t;   // non leaf node 
+
 
 // struct representing a k2-tree: nodes and minimat are stored in a single
 // buffer of bytes. offset is used to create a "pointer" to a submatrix
@@ -77,6 +53,8 @@ typedef struct k2mat {
 
 // prototypes
 
+// init minimatrices: must be called once with the size of the minimats
+void minimats_init(int msize);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
@@ -89,3 +67,4 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 int mequals(int size, const k2mat_t *a, const k2mat_t *b);
 // get statistics on a matrix
 int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);
+

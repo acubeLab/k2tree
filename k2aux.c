@@ -6,6 +6,8 @@
    Matrix dimensions are assumed to be power of 2, of size at least
    MMSize (minimatrix size), ie, the size of the last level of recursion. 
 
+   This file can be comiled separately or included as in k2ops.c
+
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -16,11 +18,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <assert.h>
 #include "k2.h"
+#include "minimats.h"
 
-
-static void quit(const char *msg, int line, char *file);
 
 
 // ------------------------------------------------------------------- 
@@ -320,12 +320,3 @@ void _xxx_k2normalize(int size, k2mat_t *c, size_t rootpos)
 }
   
 
-// write error message and exit
-static void quit(const char *msg, int line, char *file) {
-  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
-  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
-               strerror(errno));
-  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
-
-  exit(1);
-}

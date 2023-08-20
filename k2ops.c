@@ -14,7 +14,6 @@
 #endif
 #include "k2aux.c"
 
-#include "minimats.h"
 
 // fixme: type for the input matrix
 typedef uint8_t *matrix;
