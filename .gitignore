@@ -51,6 +51,9 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# compressed file
-*.R
-*.C
+# compressed and test files
+*.k2b
+*.bbm
+
+# my executables 
+*.x

@@ -17,7 +17,7 @@
 // global variable storing the size of a mini-matrix 
 // ie. the last level of recursion
 // possibly this will be a command line parameter
-static const int MMsize = 2; 
+static int MMsize = 2; 
 // global variable storing how many nodes takes a minimat:
 // since nodes have 4 bits (not likely to change)
 // this amounts to how many nibbles takes a minimat 

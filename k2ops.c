@@ -7,7 +7,6 @@
    Matrix dimensions are assumed to be power of 2, of size at least
    2*MMSize (minimatrix size), ie, the size of the last level of recursion. 
 
-
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
@@ -15,7 +14,7 @@
 #endif
 #include "k2aux.c"
 
-
+#include "minimats.h"
 
 // fixme: type for the input matrix
 typedef uint8_t *matrix;
@@ -64,14 +63,6 @@ typedef uint8_t *matrix;
   }
 }
 */
-
-
-
-
-// multiply two minimat matrices of size 2*2
-minimat_t mmult2x2(minimat_t a, minimat_t b) {
-  return a & b;  //WRONG, replace by table lookup
-}
 
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
