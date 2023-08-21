@@ -1,10 +1,11 @@
 /* Testing of arithmetic/logical operations on binary matrices 
    represented as k^2 trees 
 
-   Testo of the operations in k2ops.c
+   Test of the operations in k2ops.c
 
-   Matrix dimensions are assumed to be power of 2, of size at least
-   2*MMSize (minimatrix size), ie, the size of the last level of recursion. 
+   Note: internally matrix dimensions are always of the form 2^k times the size 
+   of a minimatrix (those stored at the leaves of the tree), with k>0, 
+   but the input can be of any size, and the matrix will be padded with 0's 
 
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
@@ -28,22 +29,24 @@
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] leftmatrix rightmatrix outmatrix\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-v             verbose\n\n");
+    fprintf(stderr,"\t-m M    minimatrix size (def. 2)\n");
+    fprintf(stderr,"\t-v      verbose\n\n");
     exit(1);
 }
 
 // write error message and exit
-void quit(const char *s)
-{
-  if(errno==0) fprintf(stderr,"%s\n",s);
-  else  perror(s);
+static void quit(const char *msg, int line, char *file) {
+  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
+               strerror(errno));
+  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
   exit(1);
 }
 
 // compute integer square root
-int intsqrt(int n) {
+static int intsqrt(int n) {
   assert(n>=0);
   int x = n;
   int y = (x + 1) / 2;
@@ -55,7 +58,40 @@ int intsqrt(int n) {
   return x;
 }
 
+// given a file name of a matrix in bbm format
+// return byte array and its size
+// exit program on error 
+uint8_t *bbm_read(char *name, int *psize)
+{
+  FILE *f = fopen(name,"rb");
+  if(f==NULL) 
+    quit("Cannot open matrix file",__LINE__,__FILE__);
+  // get file size
+  fseek(f, 0, SEEK_END);
+  size_t length = ftell(f);
+  // check if square
+  int size = intsqrt(length);
+  if(size*size != length) 
+    quit("Non square input matrix",__LINE__,__FILE__);  
 
+  // save matrix size
+  *psize = size;
+  // read file into buffer
+  rewind(f);
+  uint8_t *buffer = malloc(length);
+  if(buffer==NULL) quit("Out of memory",__LINE__,__FILE__);
+  size_t r = fread(buffer, 1, length, f);
+  if(r!=length) quit("Cannot read matrix file",__LINE__,__FILE__);  
+  fclose(f);
+  return buffer;
+}
+
+void show_stats(int size, k2mat_t *a, char *name) {
+  size_t pos, nodes, minimats;
+  int levels = mstats(size,a,&pos,&nodes,&minimats);
+  printf("%s -- Levels: %d, Pos: %zd, Nodes: %zd, Minimats: %zd\n",
+         name,levels,pos,nodes,minimats);
+}
 
 int main (int argc, char **argv) { 
   extern char *optarg;
@@ -66,9 +102,12 @@ int main (int argc, char **argv) {
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
-  while ((c=getopt(argc, argv, "b:cfinv")) != -1) {
+  int mmsize = 2;
+  while ((c=getopt(argc, argv, "m:v")) != -1) {
     switch (c) 
       {
+      case 'm':
+        mmsize = atoi(optarg); break;
       case 'v':
         verbose++; break;
       case '?':
@@ -85,18 +124,21 @@ int main (int argc, char **argv) {
 
   // virtually get rid of options from the command line 
   optind -=1;
-  if (argc-optind != 1) usage_and_exit(argv[0]); 
+  if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
-  minimat_init(2); // minimatrix size = 2x2
+  // init k2 library
+  minimat_init(mmsize);
+  // read matrix from file
+  int size;
+  uint8_t *buffer = bbm_read(argv[1],&size);
+  // convert to k2mat_t
   k2mat_t a = K2MAT_INITIALIZER, b = K2MAT_INITIALIZER;
-  int size =4;
-  mmult(size ,&a,&a,&b); // b = a*a
-  size_t pos, nodes, minimats;
-  int levels = mstats(size,&b,&pos,&nodes,&minimats);
-  printf("Levels: %d, Pos: %zd, Nodes: %zd, Minimats: %zd\n",levels,pos,nodes,minimats);
-  
-  // ----------- read and check # rows and cols 
+  int asize = mread_from_bbm(buffer,size,&a);
+  show_stats(asize,&a,"A");
+  mmult(asize ,&a,&a,&b); // b = a*a
+  show_stats(asize,&b,"A*A");
+   
   // statistics
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   fprintf(stderr,"==== Done\n");

@@ -17,8 +17,8 @@
 
 
 
-// encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte per entry 
-// format into a k2mat_t structure
+// recursively encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte 
+// per entry format into a k2mat_t structure
 // Parameters:
 //   m matrix to encode of size mszie*msize
 //   i,j submatrix top left corner
@@ -28,7 +28,8 @@ void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  // if we are outside its an all 0 submatrix and there is nothing to do
+  printf("mencode: i=%d j=%d size=%d\n",i,j,size);
+  // if we are outside m it's an all 0 submatrix and there is nothing to do
   if(i>=msize || j>=msize) return;
   // start building c
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
@@ -45,11 +46,23 @@ void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
       }
       if(cx!=MINIMAT1s) all_ones = false;
     } // size>2*MMsize: use recursion
-    else mencode(m,msize,ii,jj,size/2,c);
+    else {
+      size_t tmp = k2pos(c); // save current position
+      mencode(m,msize,ii,jj,size/2,c);
+      if(tmp!=k2pos(c)) { // something was written
+        assert(k2pos(c)>tmp);
+        rootc |= (1<<k);
+        if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false;
+        else assert(k2pos(c)==tmp+1);
+      }
+      else all_ones = false; // nothing was written
+    }
   }
   // compute (or check) all_ones
-  if(size!=2*MMsize) all_ones =  rootc==ALL_CHILDREN && k2pos(c)==rootpos+5;
-  else  if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio);
+  if(size!=2*MMsize) {
+    if(all_ones)  assert(rootc==ALL_CHILDREN && k2pos(c)==rootpos+5);}
+  else {
+    if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); }
   // fix root and normalize matrix
   if(rootc==NO_CHILDREN) { // all 0s matrix is represented as an empty matrix
     assert(k2pos(c)==rootpos+1); // we wrote only root to c 
@@ -66,7 +79,7 @@ void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 // m should be an integer array of size msize*msize 
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
-int mread_uncompressed(uint8_t *m, int msize, k2mat_t *a)
+int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 {
   assert(msize>1);
   assert(k2is_empty(a));
@@ -75,7 +88,7 @@ int mread_uncompressed(uint8_t *m, int msize, k2mat_t *a)
   int size = k2get_k2size(msize);
   assert(size>=2*MMsize);
   // read matrix m into a
-  mencode(m,0,0,msize,size,a);
+  mencode(m,msize,0,0,size,a);
   return size;
 }
 
@@ -286,14 +299,14 @@ int mequals_rec(int size, const k2mat_t *a, size_t *posa,
     k2split_minimats(a,posa,roota,ax);
     k2split_minimats(b,posb,rootb,bx);
     for(int k=0;k<4;k++) 
-      if(ax[k]!=bx[k]) return 1; // if corresponding minimats are different: a!=b
+      if(ax[k/2][k%2]!=bx[k/2][k%2]) return 1; // if corresponding minimats are different: a!=b
     return -2; // all minimats are equal: a==b, traversed 2 levels 
   }
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion
     int eq = 0;
     for(int k=0;k<4;k++) {
-      if (roota | (1 << k)) {
-        assert(rootb | (1 << k)); 
+      if (roota & (1 << k)) {
+        assert(rootb & (1 << k)); 
         int eqr = mequals_rec(size/2,a,posa,b,posb);
         if(eqr>0) return eqr+1; // a and b are different at level eqr+1
         if(eqr < eq) eq = eqr;  // keep track of deepest level reached

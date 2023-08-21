@@ -1,5 +1,5 @@
 # compilation flags
-CFLAGS=-O2 -Wall -std=c11 -g
+CFLAGS=-O0 -Wall -std=c11 -g
 CC=gcc
 
 # main executables 
