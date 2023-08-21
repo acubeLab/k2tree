@@ -15,73 +15,67 @@
 #include "k2aux.c"
 
 
-// fixme: type for the input matrix
-typedef uint8_t *matrix;
 
 
-
-// Incomplete !!!!
 // encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte per entry 
 // format into a k2mat_t structure
 // Parameters:
-//   m matrix to encode (top level)
+//   m matrix to encode of size mszie*msize
 //   i,j submatrix top left corner
-//   size submatrix size (power of 2)
-//   *b output k2mat_t structure 
-// return:
-//   0   if the submatrix is all 0's (nothing is written to b)
-//  -1   if the submatrix is all 1's (only the root is written to b)
-//  n>0  otherwise, n items are written to b 
-#define Mtrx(m,i,j,size)  ((minimat_t) m[i*size+j])
-int k2encode(matrix *m, int i, int j, int msize, int size, k2mat_t *b) {
-  assert(size%2==0);
-  if(size==MMsize) 
-  {
-    assert(MMsize==2); // only works for 2x2 matrices 
-    // read single elements 
-    minimat_t m00 = Mtrx(m,i,j,msize),   m01 = Mtrx(m,i,j+1,msize);
-    minimat_t m10 = Mtrx(m,i+1,j,msize), m11 = Mtrx(m,i+1,j+1,msize);
-    // create minimatrix
-    minimat_t t = m00 + (m01<<1) + (m10<<2) + (m11<<3);
-    if(t==MINIMAT0s) return 0;  // controllare....
-    // ???? badd(b,t);
-    if(t==MINIMAT1s) return -1;   // all 1's
-    return 1;             // mixed 
+//   size submatrix size (has the form 2^k*MMsize)
+//   *c output k2mat_t structure to be filled in dfs order 
+void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
+  assert(size%2==0 && size>=2*MMsize);
+  assert(i%MMsize==0 && j%MMsize==0);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  // if we are outside its an all 0 submatrix and there is nothing to do
+  if(i>=msize || j>=msize) return;
+  // start building c
+  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
+  node_t rootc=NO_CHILDREN;                 // actual root node to be computed
+  bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(int k=0;k<4;k++) {  
+    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    if(size==2*MMsize) {
+      minimat_t cx = minimat_read(m,msize,ii,jj,size/2);
+      if(cx!=MINIMAT0s) {
+        rootc |= (1<<k);
+        k2add_minimat(c,cx);
+      }
+      if(cx!=MINIMAT1s) all_ones = false;
+    } // size>2*MMsize: use recursion
+    else mencode(m,msize,ii,jj,size/2,c);
   }
-  assert(size>=4);
-  // save position where next item is written
-  uint64_t pos = b->pos;
-  uint64_t t=0;
-  badd(b,t);        // temporarily write 0's
-  int written = 1;
-  int hsize = size>>1;
-  int i0 = encode(m, i, j, hsize, b);
-  int i1 = encode(m, i+hsize, j, hsize, b);
-  int i2 = encode(m, i, j+hsize, hsize, b);
-  int i3 = encode(m, i+hsize, j+hsize, hsize, b);
-  if (i0==0 && i1==0 && i2==0 && i3==0) {
-    //\\ ???? bset(b,pos); // delete t
-    return 0;
+  // compute (or check) all_ones
+  if(size!=2*MMsize) all_ones =  rootc==ALL_CHILDREN && k2pos(c)==rootpos+5;
+  else  if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio);
+  // fix root and normalize matrix
+  if(rootc==NO_CHILDREN) { // all 0s matrix is represented as an empty matrix
+    assert(k2pos(c)==rootpos+1); // we wrote only root to c 
+    k2setpos(c,rootpos); // delete root  
   }
-  if (i0<0 && i1<00 && i2<0 && i3<0) {
-    //\\ bset(b,pos+1); // only keep t = 0000 which means all 1's 
-    return -1;
+  else if(all_ones) {   // all 1s matrix is represented by the ALL_ONES root only
+    assert(rootc==ALL_CHILDREN);
+    k2setpos(c,rootpos+1);       // discard children
+    assert(k2read_node(c,rootpos)==ALL_ONES); // ALL_ONES was the defualt root 
   }
+  else k2write_node(c,rootpos,rootc); // just fix root 
 }
 
-
-// read the uncomressed matrix *m of size msize into the k2mat_t structure *a 
-// m scould be an integer array of size msize*msize 
-int k2read_uncompressed(matrix *m, int msize, k2mat_t *a)
+// read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
+// m should be an integer array of size msize*msize 
+// return the size of the k2 matrix (which has the form 2**k*MMsize)
+int mread_uncompressed(uint8_t *m, int msize, k2mat_t *a)
 {
   assert(msize>1);
   assert(k2is_empty(a));
   assert(!a->read_only);
   if(msize>(1<<30)) quit("k2read_uncompressed: matrix too large",__LINE__,__FILE__);
-  int size = getk2size(msize);
+  int size = k2get_k2size(msize);
   assert(size>=2*MMsize);
   // read matrix m into a
-  k2encode(m,0,0,msize,size,a);
+  mencode(m,0,0,msize,size,a);
   return size;
 }
 
@@ -392,21 +386,18 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     }
     if(cx[i][j]!=MINIMAT1s) all_ones = false;
   }
-  // fix root and normalize matrix
-  if(rootc==NO_CHILDREN) {
+  // fix root normalize matrix and return 
+  if(rootc==NO_CHILDREN) {   // all 0s matrix is represented as a an empty matrix
     assert(k2pos(c)==rootpos+1); // we wrote only root to c 
     k2setpos(c,rootpos); // delete root 
-    return;  // 0s matrix is represented as a an empty matrix
   }
-  if(all_ones) {
+  else if(all_ones) {    // all 1s matrix is represented by the ALL_ONES root only 
     assert(rootc==ALL_CHILDREN);
     assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); // we wrote root + 4 minimats
     k2setpos(c,rootpos+1);       // discard children
     assert(k2read_node(c,rootpos)==ALL_ONES);
-    return; // all 1s matrix is represented by the ALL_ONES root only 
   }
-  k2write_node(c,rootpos,rootc); // just fix root 
-  return;
+  else k2write_node(c,rootpos,rootc); // just fix root 
 }
 
 

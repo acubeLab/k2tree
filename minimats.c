@@ -75,7 +75,7 @@ void init_mprods2x2(void) {
     }
 }
 
-void minimats_init(int msize) {
+void minimat_init(int msize) {
   // msize must be even to ensure that a mimimats has a bit size multiple of 4
   // ie a size multiple of the size of a tree node. 
   if(msize%2!=0) 
@@ -100,7 +100,7 @@ void minimats_init(int msize) {
 
 // compute the size of the smallest k2mat containing a matrix of size msize
 // the size depends on the size of the minimat and grows with powers of 2
-int getk2size(int msize) 
+int k2get_k2size(int msize) 
 {
   if(4*Minimat_node_ratio != (MMsize*MMsize)) 
     quit("getk2size: minimats_init not called",__LINE__,__FILE__);
@@ -112,6 +112,23 @@ int getk2size(int msize)
   if(s>(1<<30)) quit("getk2size: overflow",__LINE__,__FILE__);
   return s;
 }
+
+// read a minimat from a submatrix of an compressed matrix m
+// entries outsize the matrix m are considered to be 0
+minimat_t minimat_read(uint8_t *m, int msize, int i, int j, int size) {
+  assert(size==MMsize);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  minimat_t res = 0;
+  for(int ii=0; ii<size; ii++)
+    for(int jj=0; jj<size; jj++) {
+      res <<= 1;
+      if(i+ii<msize && j+jj<msize && m[(i+ii)*msize + j+jj])
+        res |= 1;
+    }
+  return res;
+}
+
+
 
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {

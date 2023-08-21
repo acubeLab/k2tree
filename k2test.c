@@ -88,7 +88,7 @@ int main (int argc, char **argv) {
   if (argc-optind != 1) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
-  minimats_init(2); // minimatrix size = 2x2
+  minimat_init(2); // minimatrix size = 2x2
   k2mat_t a = K2MAT_INITIALIZER, b = K2MAT_INITIALIZER;
   int size =4;
   mmult(size ,&a,&a,&b); // b = a*a
