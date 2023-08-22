@@ -113,9 +113,9 @@ int k2get_k2size(int msize)
   return s;
 }
 
-// read a minimat from a submatrix of an compressed matrix m
+// read a minimat from a submatrix of an bbm matrix m
 // entries outsize the matrix m are considered to be 0
-minimat_t minimat_read(uint8_t *m, int msize, int i, int j, int size) {
+minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
   assert(size==MMsize);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
   minimat_t res = 0;
@@ -127,6 +127,24 @@ minimat_t minimat_read(uint8_t *m, int msize, int i, int j, int size) {
     }
   return res;
 }
+
+// write the content of a minimat to a bbm matrix m
+// entries outsize the matrix m should not be written
+void minimat_to_bbm(uint8_t *m, int msize, int i, int j, int size, minimat_t a) {
+  assert(size==MMsize);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  for(int ii=0; ii<size; ii++)
+    for(int jj=0; jj<size; jj++)
+      if(i+ii<msize && j+jj<msize) {       // inside the matrix
+        int bit = a & (1<<(ii*size+jj));   // read bit a[ii][jj]
+        m[(i+ii)*msize + j+jj] = bit ? 1 : 0;  // if nonzero set m[i+ii][j+jj] to 1
+        // if m initialized with 0s we can use the following line and save some writes
+        // if(bit) m[(i+ii)*msize + j+jj]=1;  // if nonzero set m[i+ii][j+jj] to 1
+      }
+}
+
+
+
 
 
 

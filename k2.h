@@ -53,10 +53,10 @@ typedef struct k2mat {
 
 // prototypes
 
-// init minimatrices: must be called once with the size of the minimats
+// init minimatrices: must be called only once with the size of the minimats
 void minimat_init(int msize);
-// compute the size of the smallest k2mat containing a matrix of size msize
-// int k2get_k2size(int msize);
+// write the content of a k2 matrix in a bbm matrix
+void mwrite_to_bbm(uint8_t *m, int msize, int size, k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a);
 // multiply two k2 matrices a and b writing the result to c

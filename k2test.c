@@ -27,6 +27,7 @@
 
 
 
+
 static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
@@ -93,6 +94,23 @@ void show_stats(int size, k2mat_t *a, char *name) {
          name,levels,pos,nodes,minimats);
 }
 
+// write the content of a bbm submatrix m to a file f
+void bbm_to_ascii(uint8_t *m, int msize, int i, int j, int size, FILE *f)
+{
+  assert(i>=0 && j>=0 && i<msize && j<msize);
+  fprintf(f,"Submatrix at (%d,%d) of size %d\n",i,j,size);  
+  for(int ii=0; ii<size; ii++) {
+    for(int jj=0; jj<size; jj++) {
+      if(i+ii<msize && j+jj<msize) 
+        fprintf(f,"%d",m[(i+ii)*msize + j+jj]);  
+      else fprintf(f,".");
+    }
+    fprintf(f,"\n");
+  }
+}
+
+
+
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
@@ -132,11 +150,16 @@ int main (int argc, char **argv) {
   // read matrix from file
   int size;
   uint8_t *buffer = bbm_read(argv[1],&size);
+  if(verbose>0) bbm_to_ascii(buffer,size,0,0,size,stderr);
   // convert to k2mat_t
   k2mat_t a = K2MAT_INITIALIZER, b = K2MAT_INITIALIZER;
   int asize = mread_from_bbm(buffer,size,&a);
+  mwrite_to_bbm(buffer,size,asize,&a);
+  if(verbose>0) bbm_to_ascii(buffer,size,0,0,asize,stderr);
   show_stats(asize,&a,"A");
   mmult(asize ,&a,&a,&b); // b = a*a
+  mwrite_to_bbm(buffer,size,asize,&b);
+  if(verbose>0) bbm_to_ascii(buffer,size,0,0,asize,stderr);
   show_stats(asize,&b,"A*A");
    
   // statistics

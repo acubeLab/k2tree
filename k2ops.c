@@ -14,7 +14,66 @@
 #endif
 #include "k2aux.c"
 
+// write a size x size submtrix containing the value b inside a bbm matrix m
+// starting at position i,j entries outsize the matrix m should not be written 
+void byte_to_bbm(uint8_t *m, int msize, int i, int j, int size, uint8_t b) {
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  for(int ii=0; ii<size; ii++)
+    for(int jj=0; jj<size; jj++)
+      if(i+ii<msize && j+jj<msize) 
+        m[(i+ii)*msize + j+jj]=b;  // set m[i+ii][j+jj] to b
+}
 
+
+
+// recursively decode a k2 submatrix into a binary submatrix
+// m[i,i+size)[j,j+size) in one-byte per entry format into 
+// Parameters:
+//   m output matrix of (overall) size mszie*msize
+//   i,j submatrix top left corner
+//   size submatrix size (has the form 2^k*MMsize)
+//   *c input k2mat_t structure
+//   *pos position in *c where the submatrix starts
+void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos) {
+  assert(size%2==0 && size>=2*MMsize);
+  assert(i%MMsize==0 && j%MMsize==0);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  printf("mdecode: i=%d j=%d size=%d\n",i,j,size);
+  // read c root
+  node_t rootc=k2read_node(c,*pos); *pos +=1;
+  if(rootc==ALL_ONES) { // all 1s matrix
+    byte_to_bbm(m,msize,i,j,size,1);
+    return;
+  }
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(int k=0;k<4;k++) {  
+    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    if(rootc & (1<<k)) { // read a submatrix
+      if(size==2*MMsize) { // read a minimatrix
+        minimat_t cx = k2read_minimat(c,*pos); *pos += Minimat_node_ratio;
+        assert(cx!=MINIMAT0s); // should not happen
+        minimat_to_bbm(m,msize,ii,jj,size/2,cx);
+      }
+      else { // decode submatrix
+        mdecode(m,msize,ii,jj,size/2,c,pos);
+      }
+    }
+    else { // the k-th chilldren is 0: write a 0 submatrix
+      // if m initialized with 0s we can skip the following line and save some writes
+      byte_to_bbm(m,msize,ii,jj,size/2,0);
+    }
+  }
+}
+
+// write the content of the k2 matrix a to the bbm matrix m 
+// of size msize*msize. It is assumed m was already correctly initialized 
+void mwrite_to_bbm(uint8_t *m, int msize, int size, k2mat_t *a)
+{
+  byte_to_bbm(m,msize,0,0,msize,0); // fill m with illegal value 2
+  size_t pos = 0;
+  mdecode(m,msize,0,0,size,a,&pos);
+  assert(pos==k2pos(a)); // check we read all the k2mat_t structure
+}
 
 
 // recursively encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte 
@@ -28,7 +87,6 @@ void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  printf("mencode: i=%d j=%d size=%d\n",i,j,size);
   // if we are outside m it's an all 0 submatrix and there is nothing to do
   if(i>=msize || j>=msize) return;
   // start building c
@@ -39,7 +97,7 @@ void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
   for(int k=0;k<4;k++) {  
     int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
     if(size==2*MMsize) {
-      minimat_t cx = minimat_read(m,msize,ii,jj,size/2);
+      minimat_t cx = minimat_from_bbm(m,msize,ii,jj,size/2);
       if(cx!=MINIMAT0s) {
         rootc |= (1<<k);
         k2add_minimat(c,cx);
