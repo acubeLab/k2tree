@@ -15,14 +15,14 @@
 #include "k2aux.c"
 #include "bbm.h"
 
-static void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos);
+static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t *c, size_t *pos);
 static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c);
 static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized 
-void mwrite_to_bbm(uint8_t *m, int msize, int size, k2mat_t *a)
+void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
 {
   assert(size>=msize);
   if(k2is_empty(a)) {  // an empty k2 matrix is all 0s
@@ -368,6 +368,68 @@ int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minim
 }
 
 
+// save the matrix :a to file :filename
+// the format is
+// 1) the actual size of the matrix (an int)
+// 2) the size of the last level of recursion, aka the size of a minimat,  (an int)
+// 3) the total number of positions (a size_t)
+// 4) the array of positions (an uint8_t array, each uint8 stores 2 positions)
+void msave(int size, const k2mat_t *a, const char *filename)
+{
+  assert(a!=NULL);
+  FILE *f = fopen(filename,"w");
+  if(f==NULL) quit("msave: cannot open file", __LINE__,__FILE__);
+  int e = fwrite(&size,sizeof(int),1,f);
+  if(e!=1) quit("msave: cannot write size",__LINE__,__FILE__);
+  e = fwrite(&MMsize, sizeof(int),1,f);
+  if(e!=1) quit("msave: cannot write MMsize",__LINE__,__FILE__);
+  e = fwrite(&a->pos,sizeof(size_t),1,f);
+  if(e!=1) quit("msave: cannot write number of positions",__LINE__,__FILE__);
+  if(a->pos>0) {
+    size_t bytes = (a->pos+1)/2;
+    e = fwrite(a->b,sizeof(uint8_t),bytes,f);
+    if(e!=bytes) quit("msave: cannot write positions",__LINE__,__FILE__);
+  }
+  fclose(f);
+}
+
+// load a matrix stored in file :filename into the k2mat_t structure :a
+// return the actual size of the matrix, see msave() for the file format
+// must be called after minimat_init() since it checks that the correct MMsize is used
+int mload(k2mat_t *a, const char *filename)
+{
+  assert(a!=NULL);
+  k2_free(a);
+  FILE *f = fopen(filename,"r");
+  if(f==NULL) quit("mload: cannot open file", __LINE__,__FILE__);
+  int size, mmsize;
+  int e = fread(&size,sizeof(int),1,f);
+  if(e!=1) quit("mload: cannot read matrix size",__LINE__,__FILE__);
+  if(size<=1) quit("mload: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
+  e = fread(&mmsize, sizeof(int),1,f);
+  if(e!=1) quit("mload: cannot read minimatrix size",__LINE__,__FILE__);
+  if(mmsize!=MMsize) quit("mload: wrong minimatrix size",__LINE__,__FILE__);
+  if(size<2*MMsize) quit("mload: matrix size incompatible with minimatrix size, wrong format?",
+                         __LINE__,__FILE__);
+  e = fread(&a->pos,sizeof(size_t),1,f);
+  if(e!=1) quit("mload: cannot read number of positions",__LINE__,__FILE__);
+  if(a->pos>0) {
+    size_t bytes = (a->pos+1)/2;
+    a->lenb = 2*bytes;  // equivalent to:   a->lenb = a->pos%2 ? a->pos+1: a->pos;
+    a->b = malloc(bytes);
+    if(a->b==NULL) quit("mload: cannot allocate memory",__LINE__,__FILE__);
+    e = fread(a->b,sizeof(uint8_t),bytes,f);
+    if(e!=bytes) quit("mload: cannot read positions",__LINE__,__FILE__);
+  }
+  fclose(f);
+  return size;
+}
+
+
+
+
+// ----------- static auxiliary functions ------------
+
 // recursively encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte 
 // per entry format into a k2mat_t structure
 // Parameters:
@@ -434,7 +496,7 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
 //   size submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-static void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos) {
+static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
