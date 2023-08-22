@@ -67,10 +67,10 @@ void init_mprods2x2(void) {
       arow[0] = a&3; arow[1] = a>>2;
       bcol[0] = (b&1) | (b&4)>>1; 
       bcol[1] = (b&2)>>1 | (b&8)>>2;
-      c =  (arow[0] | bcol[0]) ? 1 : 0; // c[0][0] = a[0]*b[0]
-      c |= (arow[0] | bcol[1]) ? 2 : 0; // c[0][1] = a[0]*b[1]
-      c |= (arow[1] | bcol[0]) ? 4 : 0; // c[1][0] = a[1]*b[0]
-      c |= (arow[1] | bcol[1]) ? 8 : 0; // c[1][1] = a[1]*b[1]
+      c =  (arow[0] & bcol[0]) ? 1 : 0; // c[0][0] = a[0]*b[0]
+      c |= (arow[0] & bcol[1]) ? 2 : 0; // c[0][1] = a[0]*b[1]
+      c |= (arow[1] & bcol[0]) ? 4 : 0; // c[1][0] = a[1]*b[0]
+      c |= (arow[1] & bcol[1]) ? 8 : 0; // c[1][1] = a[1]*b[1]
       mprods2x2[a<<4 | b] = c;
     }
 }
@@ -119,8 +119,8 @@ minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
   assert(size==MMsize);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
   minimat_t res = 0;
-  for(int ii=0; ii<size; ii++)
-    for(int jj=0; jj<size; jj++) {
+  for(int ii=size-1; ii>=0; ii--)
+    for(int jj=size-1; jj>=0; jj--) {
       res <<= 1;
       if(i+ii<msize && j+jj<msize && m[(i+ii)*msize + j+jj])
         res |= 1;

@@ -25,37 +25,10 @@
 // extension for boolean byte matrix format
 #define File_ext ".bbm"
 
+static void usage_and_exit(char *name);
+static void quit(const char *msg, int line, char *file);
+static int intsqrt(int n);
 
-static void usage_and_exit(char *name)
-{
-    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
-    fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-m M    minimatrix size (def. 2)\n");
-    fprintf(stderr,"\t-v      verbose\n\n");
-    exit(1);
-}
-
-// write error message and exit
-static void quit(const char *msg, int line, char *file) {
-  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
-  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
-               strerror(errno));
-  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
-  exit(1);
-}
-
-// compute integer square root
-static int intsqrt(int n) {
-  assert(n>=0);
-  int x = n;
-  int y = (x + 1) / 2;
-  while (y < x) {
-    x = y;
-    y = (x + n / x) / 2;
-  }
-  assert(x*x <= n && (x+1)*(x+1) > n);
-  return x;
-}
 
 // given a file name of a matrix in bbm format
 // return byte array and its size
@@ -150,4 +123,35 @@ int main (int argc, char **argv) {
   fprintf(stderr,"==== Done\n");
   
   return EXIT_SUCCESS;
+}
+
+static void usage_and_exit(char *name)
+{
+    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+    fputs("Options:\n",stderr);
+    fprintf(stderr,"\t-m M    minimatrix size (def. 2)\n");
+    fprintf(stderr,"\t-v      verbose\n\n");
+    exit(1);
+}
+
+// write error message and exit
+static void quit(const char *msg, int line, char *file) {
+  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
+               strerror(errno));
+  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
+  exit(1);
+}
+
+// compute integer square root
+static int intsqrt(int n) {
+  assert(n>=0);
+  int x = n;
+  int y = (x + 1) / 2;
+  while (y < x) {
+    x = y;
+    y = (x + n / x) / 2;
+  }
+  assert(x*x <= n && (x+1)*(x+1) > n);
+  return x;
 }

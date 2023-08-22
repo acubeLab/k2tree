@@ -17,6 +17,7 @@
 
 static void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos);
 static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c);
+static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
@@ -24,7 +25,11 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c);
 void mwrite_to_bbm(uint8_t *m, int msize, int size, k2mat_t *a)
 {
   assert(size>=msize);
-  byte_to_bbm(m,msize,0,0,msize,0); // fill m with illegal value 2
+  if(k2is_empty(a)) {  // an empty k2 matrix is all 0s
+    byte_to_bbm(m,msize,0,0,msize,0);
+    return;
+  }
+  byte_to_bbm(m,msize,0,0,msize,2); // fill m with illegal value 2
   size_t pos = 0;
   mdecode(m,msize,0,0,size,a,&pos);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
@@ -254,7 +259,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(!k2is_empty(a) && !k2is_empty(b));
   assert(!c->read_only);
   // c is always an empty matrix because a product is never written directly to a result matrix 
-  assert(k2pos(c)==0);  
+  assert(k2is_empty(c));  
   // initialize a[][] and b[][] to cover the case when the matrix is all 1s                       
   minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   minimat_t bx[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
@@ -274,7 +279,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     k2split_minimats(b,&posb,rootb,bx);
   // split done, now multiply and store c 
   // optimization on all 1's submatrices still missing 
-  minimat_t cx[2][2];
+  minimat_t cx[2][2]; // can be replaced by a single minimat_t
   bool all_ones=true; // true if all submatrices cx[i][j] are all 1's
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;        // actual root node to be computed
@@ -302,82 +307,6 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     assert(k2read_node(c,rootpos)==ALL_ONES);
   }
   else k2write_node(c,rootpos,rootc); // just fix root 
-}
-
-
-// split input matrices and recurse matrix multiplication  
-//   an input 0 matrix is represented as NULL
-//   an output 0 matrix is represented as an empty matrix (no root node)   
-static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
-{
-  assert(size>2*MMsize);
-  assert(a!=NULL && b!=NULL && c!=NULL);
-  // never called with an input empty matrix
-  assert(!k2is_empty(a) && !k2is_empty(b));
-  // split a and b into 4 blocks of half size  
-  k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
-                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
-  k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
-                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
-  k2split_k2(size,a,ax);  
-  k2split_k2(size,b,bx);
-  // temporary matrices for products
-  k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;
-  
-  // start building c
-  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
-  node_t rootc=NO_CHILDREN;                 // actual root node to be computed
-  // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {
-    int i=k/2, j=k%2;
-    k2make_empty(&v1); k2make_empty(&v2);    // reset temporary matrices
-    // a[i][0]*b[0][j]
-    if(!k2is_empty(&ax[i][0]) && !k2is_empty(&bx[0][j]) ) // avoid call if one is nonzero: can be removed
-      mmult(size/2, &ax[i][0], &bx[0][j], &v1);
-    // a[i][1]*b[1][j]
-    if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
-      mmult(size/2, &ax[i][1], &bx[1][j], &v2);
-    // sum to c[i][j] ie block k 
-    if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // sum if at least one is nonzero
-      rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
-      // compute v1+v2
-      if(k2is_empty(&v2)) 
-        mcopy(size,&v1,c);  // copy v1 -> block c[i][j]  
-      else if(k2is_empty(&v1)) 
-        mcopy(size,&v2,c);  // copy v2 -> block c[i][j]  
-      else { // v1 and v2 are both not empty
-        size_t tmp = k2pos(c),p1=0,p2=0;
-        msum_rec(size,&v1,&p1,&v2,&p2,c);
-        assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
-        assert(tmp<k2pos(c));  // implied by v1+v2!=0
-      }
-    }
-    // if v1==0 && v2==0 then v1+v2=0 and there is nothing to write 
-  }
-  // all computation done, deallocate temporary matrices
-  k2_free(&v1);
-  k2_free(&v2);
-  
-  // final normalization of c
-  if(rootc==NO_CHILDREN) {    // case c is all 0's
-    // this is an all 0 matrix, its representation is empty
-    assert(k2pos(c)==rootpos+1); // only root was written to c 
-    k2setpos(c,rootpos);         // delete root
-  }
-  // case c is all 1's
-  else if(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5)  {
-    // to check if this is an all 1's matrix we need to check that
-    // the root is ALL_CHILDREN and that the 4 children are all 1's
-    // hence are represented by a single ALL_ONES node
-    for(size_t i=rootpos+1;i<rootpos+5;i++)
-       assert(k2read_node(c,i)==ALL_ONES);
-    k2setpos(c,rootpos+1);      // only keep root which was already ALL_ONES
-    assert(k2read_node(c,rootpos)==ALL_ONES);
-  }    
-  else {
-    // no all 0's or all 1's, just write the correct root 
-    k2write_node(c,rootpos,rootc); // fix root
-  }  
 }
 
 
@@ -534,4 +463,79 @@ static void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, s
       byte_to_bbm(m,msize,ii,jj,size/2,0);
     }
   }
+}
+
+// split input matrices and recurse matrix multiplication  
+//   an input 0 matrix is represented as NULL
+//   an output 0 matrix is represented as an empty matrix (no root node)   
+static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+{
+  assert(size>2*MMsize);
+  assert(a!=NULL && b!=NULL && c!=NULL);
+  // never called with an input empty matrix
+  assert(!k2is_empty(a) && !k2is_empty(b));
+  // split a and b into 4 blocks of half size  
+  k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
+                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
+  k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
+                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
+  k2split_k2(size,a,ax);  
+  k2split_k2(size,b,bx);
+  // temporary matrices for products
+  k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;
+  
+  // start building c
+  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
+  node_t rootc=NO_CHILDREN;                 // actual root node to be computed
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(int k=0;k<4;k++) {
+    int i=k/2, j=k%2;
+    k2make_empty(&v1); k2make_empty(&v2);    // reset temporary matrices
+    // a[i][0]*b[0][j]
+    if(!k2is_empty(&ax[i][0]) && !k2is_empty(&bx[0][j]) ) // avoid call if one is nonzero: can be removed
+      mmult(size/2, &ax[i][0], &bx[0][j], &v1);
+    // a[i][1]*b[1][j]
+    if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
+      mmult(size/2, &ax[i][1], &bx[1][j], &v2);
+    // sum to c[i][j] ie block k 
+    if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // sum if at least one is nonzero
+      rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
+      // compute v1+v2
+      if(k2is_empty(&v2)) 
+        mcopy(size/2,&v1,c);  // copy v1 -> block c[i][j]  
+      else if(k2is_empty(&v1)) 
+        mcopy(size/2,&v2,c);  // copy v2 -> block c[i][j]  
+      else { // v1 and v2 are both not empty
+        size_t tmp = k2pos(c),p1=0,p2=0;
+        msum_rec(size/2,&v1,&p1,&v2,&p2,c);
+        assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
+        assert(tmp<k2pos(c));  // implied by v1+v2!=0
+      }
+    }
+    // if v1==0 && v2==0 then v1+v2=0 and there is nothing to write 
+  }
+  // all computation done, deallocate temporary matrices
+  k2_free(&v1);
+  k2_free(&v2);
+  
+  // final normalization of c
+  if(rootc==NO_CHILDREN) {    // case c is all 0's
+    // this is an all 0 matrix, its representation is empty
+    assert(k2pos(c)==rootpos+1); // only root was written to c 
+    k2setpos(c,rootpos);         // delete root
+  }
+  // case c is all 1's
+  else if(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5)  {
+    // to check if this is an all 1's matrix we need to check that
+    // the root is ALL_CHILDREN and that the 4 children are all 1's
+    // hence are represented by a single ALL_ONES node
+    for(size_t i=rootpos+1;i<rootpos+5;i++)
+       assert(k2read_node(c,i)==ALL_ONES);
+    k2setpos(c,rootpos+1);      // only keep root which was already ALL_ONES
+    assert(k2read_node(c,rootpos)==ALL_ONES);
+  }    
+  else {
+    // no all 0's or all 1's, just write the correct root 
+    k2write_node(c,rootpos,rootc); // fix root
+  }  
 }

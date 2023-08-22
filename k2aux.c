@@ -62,7 +62,7 @@ void k2_free(k2mat_t *m)
   assert(!m->read_only); // read only matrices are pointers to other matrices
   if(m->b!=NULL) free(m->b);
   m->b=NULL;
-  m->pos = m->size = 0;
+  m->pos = m->lenb = 0;
 }
 
 // nodes are added at the end of a matrix:
@@ -81,14 +81,14 @@ size_t k2add_node(k2mat_t *m, node_t n)
   assert(!m->read_only);
   assert(n<ILLEGAL_NODE);
   // make sure there is space
-  if(m->pos >= m->size) {
-    assert(m->pos ==m->size);
-    m->size = 16+2*m->size;          // more than double number of positions
-    assert(m->size%2==0);             // #positions must be even 
-    m->b = realloc(m->b, m->size/2); // each byte stores two positions
+  if(m->pos >= m->lenb) {
+    assert(m->pos ==m->lenb);
+    m->lenb = 16+2*m->lenb;          // more than double number of positions
+    assert(m->lenb%2==0);             // #positions must be even 
+    m->b = realloc(m->b, m->lenb/2); // each byte stores two positions
     if(m->b==NULL) quit("Unable to enlarge k2-tree",__LINE__,__FILE__);
   }
-  assert(m->pos<m->size);
+  assert(m->pos<m->lenb);
   // since a node is stored in 4 bits, we store two nodes in a byte
   if(m->pos%2==0)
     m->b[m->pos/2] = n;
@@ -102,7 +102,7 @@ size_t k2add_node(k2mat_t *m, node_t n)
 node_t k2read_node(const k2mat_t *m, size_t p)
 {
   p+=m->offset;
-  assert(p<m->pos && p<m->size);
+  assert(p<m->pos && p<m->lenb);
   if(p%2==0)
     return m->b[p/2] & 0xF;
   else 
@@ -114,7 +114,7 @@ void k2write_node(k2mat_t *m, size_t p, node_t n)
 {
   assert(!m->read_only);
   assert(n<ILLEGAL_NODE);
-  assert(p<m->pos && p<m->size);
+  assert(p<m->pos && p<m->lenb);
   assert(m->offset==0);   // if m->offset>0 node should be read only 
   if(p%2==0)
     m->b[p/2] = (m->b[p/2]  & 0xF0) | n;
