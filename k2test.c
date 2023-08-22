@@ -20,12 +20,10 @@
 #include <assert.h>
 #include <time.h>
 #include "k2.h"
-
+#include "bbm.h"
 
 // extension for boolean byte matrix format
 #define File_ext ".bbm"
-
-
 
 
 static void usage_and_exit(char *name)
@@ -92,21 +90,6 @@ void show_stats(int size, k2mat_t *a, char *name) {
   int levels = mstats(size,a,&pos,&nodes,&minimats);
   printf("%s -- Levels: %d, Pos: %zd, Nodes: %zd, Minimats: %zd\n",
          name,levels,pos,nodes,minimats);
-}
-
-// write the content of a bbm submatrix m to a file f
-void bbm_to_ascii(uint8_t *m, int msize, int i, int j, int size, FILE *f)
-{
-  assert(i>=0 && j>=0 && i<msize && j<msize);
-  fprintf(f,"Submatrix at (%d,%d) of size %d\n",i,j,size);  
-  for(int ii=0; ii<size; ii++) {
-    for(int jj=0; jj<size; jj++) {
-      if(i+ii<msize && j+jj<msize) 
-        fprintf(f,"%d",m[(i+ii)*msize + j+jj]);  
-      else fprintf(f,".");
-    }
-    fprintf(f,"\n");
-  }
 }
 
 

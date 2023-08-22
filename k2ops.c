@@ -13,126 +13,23 @@
 #define _GNU_SOURCE
 #endif
 #include "k2aux.c"
+#include "bbm.h"
 
-// write a size x size submtrix containing the value b inside a bbm matrix m
-// starting at position i,j entries outsize the matrix m should not be written 
-void byte_to_bbm(uint8_t *m, int msize, int i, int j, int size, uint8_t b) {
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  for(int ii=0; ii<size; ii++)
-    for(int jj=0; jj<size; jj++)
-      if(i+ii<msize && j+jj<msize) 
-        m[(i+ii)*msize + j+jj]=b;  // set m[i+ii][j+jj] to b
-}
+static void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos);
+static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c);
 
 
-
-// recursively decode a k2 submatrix into a binary submatrix
-// m[i,i+size)[j,j+size) in one-byte per entry format into 
-// Parameters:
-//   m output matrix of (overall) size mszie*msize
-//   i,j submatrix top left corner
-//   size submatrix size (has the form 2^k*MMsize)
-//   *c input k2mat_t structure
-//   *pos position in *c where the submatrix starts
-void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos) {
-  assert(size%2==0 && size>=2*MMsize);
-  assert(i%MMsize==0 && j%MMsize==0);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  printf("mdecode: i=%d j=%d size=%d\n",i,j,size);
-  // read c root
-  node_t rootc=k2read_node(c,*pos); *pos +=1;
-  if(rootc==ALL_ONES) { // all 1s matrix
-    byte_to_bbm(m,msize,i,j,size,1);
-    return;
-  }
-  // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {  
-    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
-    if(rootc & (1<<k)) { // read a submatrix
-      if(size==2*MMsize) { // read a minimatrix
-        minimat_t cx = k2read_minimat(c,*pos); *pos += Minimat_node_ratio;
-        assert(cx!=MINIMAT0s); // should not happen
-        minimat_to_bbm(m,msize,ii,jj,size/2,cx);
-      }
-      else { // decode submatrix
-        mdecode(m,msize,ii,jj,size/2,c,pos);
-      }
-    }
-    else { // the k-th chilldren is 0: write a 0 submatrix
-      // if m initialized with 0s we can skip the following line and save some writes
-      byte_to_bbm(m,msize,ii,jj,size/2,0);
-    }
-  }
-}
-
-// write the content of the k2 matrix a to the bbm matrix m 
+// write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized 
 void mwrite_to_bbm(uint8_t *m, int msize, int size, k2mat_t *a)
 {
+  assert(size>=msize);
   byte_to_bbm(m,msize,0,0,msize,0); // fill m with illegal value 2
   size_t pos = 0;
   mdecode(m,msize,0,0,size,a,&pos);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
 
-
-// recursively encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte 
-// per entry format into a k2mat_t structure
-// Parameters:
-//   m matrix to encode of size mszie*msize
-//   i,j submatrix top left corner
-//   size submatrix size (has the form 2^k*MMsize)
-//   *c output k2mat_t structure to be filled in dfs order 
-void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
-  assert(size%2==0 && size>=2*MMsize);
-  assert(i%MMsize==0 && j%MMsize==0);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  // if we are outside m it's an all 0 submatrix and there is nothing to do
-  if(i>=msize || j>=msize) return;
-  // start building c
-  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
-  node_t rootc=NO_CHILDREN;                 // actual root node to be computed
-  bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
-  // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {  
-    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
-    if(size==2*MMsize) {
-      minimat_t cx = minimat_from_bbm(m,msize,ii,jj,size/2);
-      if(cx!=MINIMAT0s) {
-        rootc |= (1<<k);
-        k2add_minimat(c,cx);
-      }
-      if(cx!=MINIMAT1s) all_ones = false;
-    } // size>2*MMsize: use recursion
-    else {
-      size_t tmp = k2pos(c); // save current position
-      mencode(m,msize,ii,jj,size/2,c);
-      if(tmp!=k2pos(c)) { // something was written
-        assert(k2pos(c)>tmp);
-        rootc |= (1<<k);
-        if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false;
-        else assert(k2pos(c)==tmp+1);
-      }
-      else all_ones = false; // nothing was written
-    }
-  }
-  // compute (or check) all_ones
-  if(size!=2*MMsize) {
-    if(all_ones)  assert(rootc==ALL_CHILDREN && k2pos(c)==rootpos+5);}
-  else {
-    if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); }
-  // fix root and normalize matrix
-  if(rootc==NO_CHILDREN) { // all 0s matrix is represented as an empty matrix
-    assert(k2pos(c)==rootpos+1); // we wrote only root to c 
-    k2setpos(c,rootpos); // delete root  
-  }
-  else if(all_ones) {   // all 1s matrix is represented by the ALL_ONES root only
-    assert(rootc==ALL_CHILDREN);
-    k2setpos(c,rootpos+1);       // discard children
-    assert(k2read_node(c,rootpos)==ALL_ONES); // ALL_ONES was the defualt root 
-  }
-  else k2write_node(c,rootpos,rootc); // just fix root 
-}
 
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 // m should be an integer array of size msize*msize 
@@ -603,4 +500,102 @@ int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minim
   int eq = mequals(size,a,a);
   assert(eq<0);
   return -eq;
+}
+
+
+// recursively encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte 
+// per entry format into a k2mat_t structure
+// Parameters:
+//   m matrix to encode of size mszie*msize
+//   i,j submatrix top left corner
+//   size submatrix size (has the form 2^k*MMsize)
+//   *c output k2mat_t structure to be filled in dfs order 
+static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
+  assert(size%2==0 && size>=2*MMsize);
+  assert(i%MMsize==0 && j%MMsize==0);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  // if we are outside m it's an all 0 submatrix and there is nothing to do
+  if(i>=msize || j>=msize) return;
+  // start building c
+  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
+  node_t rootc=NO_CHILDREN;                 // actual root node to be computed
+  bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(int k=0;k<4;k++) {  
+    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    if(size==2*MMsize) {
+      minimat_t cx = minimat_from_bbm(m,msize,ii,jj,size/2);
+      if(cx!=MINIMAT0s) {
+        rootc |= (1<<k);
+        k2add_minimat(c,cx);
+      }
+      if(cx!=MINIMAT1s) all_ones = false;
+    } // size>2*MMsize: use recursion
+    else {
+      size_t tmp = k2pos(c); // save current position
+      mencode(m,msize,ii,jj,size/2,c);
+      if(tmp!=k2pos(c)) { // something was written
+        assert(k2pos(c)>tmp);
+        rootc |= (1<<k);
+        if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false;
+        else assert(k2pos(c)==tmp+1);
+      }
+      else all_ones = false; // nothing was written
+    }
+  }
+  // compute (or check) all_ones
+  if(size!=2*MMsize) {
+    if(all_ones)  assert(rootc==ALL_CHILDREN && k2pos(c)==rootpos+5);}
+  else {
+    if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); }
+  // fix root and normalize matrix
+  if(rootc==NO_CHILDREN) { // all 0s matrix is represented as an empty matrix
+    assert(k2pos(c)==rootpos+1); // we wrote only root to c 
+    k2setpos(c,rootpos); // delete root  
+  }
+  else if(all_ones) {   // all 1s matrix is represented by the ALL_ONES root only
+    assert(rootc==ALL_CHILDREN);
+    k2setpos(c,rootpos+1);       // discard children
+    assert(k2read_node(c,rootpos)==ALL_ONES); // ALL_ONES was the defualt root 
+  }
+  else k2write_node(c,rootpos,rootc); // just fix root 
+}
+
+// recursively decode a k2 submatrix into a binary submatrix
+// m[i,i+size)[j,j+size) in one-byte per entry format into 
+// Parameters:
+//   m output matrix of (overall) size mszie*msize
+//   i,j submatrix top left corner
+//   size submatrix size (has the form 2^k*MMsize)
+//   *c input k2mat_t structure
+//   *pos position in *c where the submatrix starts
+static void mdecode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c, size_t *pos) {
+  assert(size%2==0 && size>=2*MMsize);
+  assert(i%MMsize==0 && j%MMsize==0);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  printf("mdecode: i=%d j=%d size=%d\n",i,j,size);
+  // read c root
+  node_t rootc=k2read_node(c,*pos); *pos +=1;
+  if(rootc==ALL_ONES) { // all 1s matrix
+    byte_to_bbm(m,msize,i,j,size,1);
+    return;
+  }
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(int k=0;k<4;k++) {  
+    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    if(rootc & (1<<k)) { // read a submatrix
+      if(size==2*MMsize) { // read a minimatrix
+        minimat_t cx = k2read_minimat(c,*pos); *pos += Minimat_node_ratio;
+        assert(cx!=MINIMAT0s); // should not happen
+        minimat_to_bbm(m,msize,ii,jj,size/2,cx);
+      }
+      else { // decode submatrix
+        mdecode(m,msize,ii,jj,size/2,c,pos);
+      }
+    }
+    else { // the k-th chilldren is 0: write a 0 submatrix
+      // if m initialized with 0s we can skip the following line and save some writes
+      byte_to_bbm(m,msize,ii,jj,size/2,0);
+    }
+  }
 }
