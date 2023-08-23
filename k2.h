@@ -5,6 +5,8 @@
    Matrix dimensions are assumed to be power of 2, of size at least
    MMSize (minimatrix size), ie, the size of the last level of recursion. 
 
+   Technical note: matrix sizes are int, therefore limited to 2^31, but values related to
+   the overall number of elements is always stored into a size_t variable (usually 64 bits))  
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -57,9 +59,9 @@ typedef struct k2mat {
 // it is the first k2-related function to be called
 void minimat_init(int msize);
 // save a k2-matrix to file
-void msave(int size, const k2mat_t *a, const char *filename);
+void msave(int size, int asize, const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
-int mload(k2mat_t *a, const char *filename);
+int mload(int *asize, k2mat_t *a, const char *filename);
 // write the content of a k2 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
@@ -76,4 +78,5 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 int mequals(int size, const k2mat_t *a, const k2mat_t *b);
 // get statistics on a matrix
 int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);
-
+// free a k2 matrix
+void k2_free(k2mat_t *m);

@@ -1,4 +1,8 @@
-// functions for bbm matrices
+/* functions for bbm matrices
+
+   Technical note: matrix sizes are int, therefore limited to 2^31, but values related to
+   the overall number of elements is always stored into a size_t variable (usually 64 bits))  
+*/
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -8,6 +12,80 @@
 #include <string.h>
 #include <assert.h>
 #include "bbm.h"
+
+
+
+// write error message and exit
+static void quit(const char *msg, int line, char *file) {
+  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
+               strerror(errno));
+  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
+  exit(1);
+}
+
+// compute integer square root
+static int intsqrt(int n) {
+  assert(n>=0);
+  int x = n;
+  int y = (x + 1) / 2;
+  while (y < x) {
+    x = y;
+    y = (x + n / x) / 2;
+  }
+  assert(x*x <= n && (x+1)*(x+1) > n);
+  return x;
+}
+
+// alloc memory for a size x size bbm matrix
+uint8_t *bbm_alloc(int size)
+{
+  size_t length = ((size_t) size)*size;
+  uint8_t *buffer = malloc(length);
+  if(buffer==NULL) quit("Out of memory",__LINE__,__FILE__);
+  return buffer;
+}
+
+void bbm_write(uint8_t *m, size_t msize, char *name)
+{
+  FILE *f = fopen(name,"wb");
+  if(f==NULL) 
+    quit("Cannot open matrix file",__LINE__,__FILE__);
+  size_t w = fwrite(m, 1, msize*msize, f);
+  if(w!=msize*msize) 
+    quit("Cannot write matrix file",__LINE__,__FILE__);
+  fclose(f);
+}
+
+
+// given a file name of a matrix in bbm format
+// return byte array and its size
+// exit program on error 
+uint8_t *bbm_read(char *name, int *psize)
+{
+  FILE *f = fopen(name,"rb");
+  if(f==NULL) 
+    quit("Cannot open matrix file",__LINE__,__FILE__);
+  // get file size
+  fseek(f, 0, SEEK_END);
+  size_t length = ftell(f);
+  // check if square
+  int size = intsqrt(length);
+  if(size*size != length) 
+    quit("Non square input matrix",__LINE__,__FILE__);  
+
+  // save matrix size
+  *psize = size;
+  // read file into buffer
+  rewind(f);
+  uint8_t *buffer = malloc(length);
+  if(buffer==NULL) quit("Out of memory",__LINE__,__FILE__);
+  size_t r = fread(buffer, 1, length, f);
+  if(r!=length) quit("Cannot read matrix file",__LINE__,__FILE__);  
+  fclose(f);
+  return buffer;
+}
+
 
 
 // write a size x size submatrix containing the value b inside a bbm matrix m

@@ -103,7 +103,7 @@ void minimat_init(int msize) {
 int k2get_k2size(int msize) 
 {
   if(4*Minimat_node_ratio != (MMsize*MMsize)) 
-    quit("getk2size: minimats_init not called",__LINE__,__FILE__);
+    quit("k2get_size: minimats_init not called",__LINE__,__FILE__);
   int s = 2*MMsize;    // size of the smallest legal k2mat
   while(s < msize) {
     s*=2;

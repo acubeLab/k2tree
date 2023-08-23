@@ -52,8 +52,8 @@ Mkfile.old
 dkms.conf
 
 # compressed and test files
-*.k2b
-*.bbm
+data/
+.vscode/
 
 # my executables 
 *.x

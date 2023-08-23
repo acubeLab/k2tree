@@ -1,14 +1,9 @@
-/* Testing of arithmetic/logical operations on binary matrices 
-   represented as k^2 trees 
-
-   Test of the operations in k2ops.c
+/* Compression and decompression of boolean matrices using k2 trees
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0, 
    but the input can be of any size, and the matrix will be padded with 0's 
 
-   Technical note: matrix sizes are int, therefore limited to 2^31, but values related to
-   the overall number of elements is always stored into a size_t variable (usually 64 bits))  
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -25,12 +20,15 @@
 #include "k2.h"
 #include "bbm.h"
 
-// extension for boolean byte matrix format
-#define File_ext ".bbm"
+// default extensions
+#define InputFile_ext ".bin"
+#define OutFile_ext ".k2x"
+
 
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
-static int intsqrt(int n);
+
+
 
 
 
@@ -48,16 +46,28 @@ int main (int argc, char **argv) {
   extern int optind, opterr, optopt;
   int verbose=0;
   int c;
+  char iname[PATH_MAX], oname[PATH_MAX];
   time_t start_wc = time(NULL);
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
   int mmsize = 2;
-  while ((c=getopt(argc, argv, "m:v")) != -1) {
+  bool decompress = false, check = false;
+  char *iext = InputFile_ext;
+  char *oext = OutFile_ext;
+  while ((c=getopt(argc, argv, "i:o:m:dcv")) != -1) {
     switch (c) 
       {
+      case 'i':
+        iext = optarg; break;        
+      case 'o':
+        oext = optarg; break;        
       case 'm':
         mmsize = atoi(optarg); break;
+      case 'd':
+        decompress = true; break;
+      case 'c':
+        check = true; break;      
       case 'v':
         verbose++; break;
       case '?':
@@ -71,33 +81,50 @@ int main (int argc, char **argv) {
      fprintf(stderr," %s",argv[i]);
     fputs("\n",stderr);  
   }
+  if(check  && decompress)
+    quit("Options -c and -d are incompatible",__LINE__,__FILE__);
+
 
   // virtually get rid of options from the command line 
   optind -=1;
   if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
-
-
-
+  // create file names
+  sprintf(iname,"%s%s",argv[1],iext);
+  sprintf(oname,"%s%s",argv[1],oext); 
 
   // init k2 library
   minimat_init(mmsize);
-  // read matrix from file
-  int size;
-  uint8_t *buffer = bbm_read(argv[1],&size);
-  if(verbose>0) bbm_to_ascii(buffer,size,0,0,size,stderr);
-  // convert to k2mat_t
-  k2mat_t a = K2MAT_INITIALIZER, b = K2MAT_INITIALIZER;
-  int asize = mread_from_bbm(buffer,size,&a);
-  mwrite_to_bbm(buffer,size,asize,&a);
-  if(verbose>0) bbm_to_ascii(buffer,size,0,0,asize,stderr);
-  show_stats(asize,&a,"A");
-  mmult(asize ,&a,&a,&b); // b = a*a
-  mwrite_to_bbm(buffer,size,asize,&b);
-  if(verbose>0) bbm_to_ascii(buffer,size,0,0,asize,stderr);
-  show_stats(asize,&b,"A*A");
-   
+  k2mat_t a = K2MAT_INITIALIZER;
+  int size, asize = 0;
+  uint8_t *b = NULL;
+  if(decompress) {
+    size = mload(&asize, &a, iname);
+    if (verbose) show_stats(asize,&a,"A");
+    b= bbm_alloc(size);
+    mwrite_to_bbm(b,size,asize, &a);
+    bbm_write(b,size,oname);
+  }
+  else {
+    b= bbm_read(iname,&size); // file  ->bbm
+    if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
+    asize = mread_from_bbm(b,size,&a);
+    if (verbose) show_stats(asize,&a,"A");
+    msave(size,asize,&a,oname);
+    if(check) {
+      uint8_t *bx = bbm_alloc(size);
+      mwrite_to_bbm(bx,size,asize, &a);
+      bool eq = mequals_bbm(b,size,bx);
+      free(bx);
+      if(eq) fprintf(stderr,"Decompressed matrix is equal to original!\n"); 
+      else  quit("Decompressed matrix is different from original",__LINE__,__FILE__);
+    }
+  }
+  if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
+  free(b);
+  k2_free(&a);
+
   // statistics
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   fprintf(stderr,"==== Done\n");
@@ -107,10 +134,16 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] basename\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-m M    minimatrix size (def. 2)\n");
+    fprintf(stderr,"\t-c      compress->decompress->check\n");
+    fprintf(stderr,"\t-d      decompress\n");
+    fprintf(stderr,"\t-i ext  extension for the input file  (def. .bin)\n");
+    fprintf(stderr,"\t-o ext  extension for the output file (def. .k2x)\n");
+    fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
     fprintf(stderr,"\t-v      verbose\n\n");
+    fprintf(stderr,"Default action is to compress basename.bin to basename.k2x\n"
+    "To decompress use -d option and appropriate extensions eg \"-d -i .k2x -o .k2d\"\n\n");
     exit(1);
 }
 
@@ -123,15 +156,3 @@ static void quit(const char *msg, int line, char *file) {
   exit(1);
 }
 
-// compute integer square root
-static int intsqrt(int n) {
-  assert(n>=0);
-  int x = n;
-  int y = (x + 1) / 2;
-  while (y < x) {
-    x = y;
-    y = (x + n / x) / 2;
-  }
-  assert(x*x <= n && (x+1)*(x+1) > n);
-  return x;
-}

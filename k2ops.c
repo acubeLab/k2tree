@@ -26,7 +26,7 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
 {
   assert(size>=msize);
   if(k2is_empty(a)) {  // an empty k2 matrix is all 0s
-    byte_to_bbm(m,msize,0,0,msize,0);
+    byte_to_bbm(m,msize,0,0,msize,0); // fill m with 0s
     return;
   }
   byte_to_bbm(m,msize,0,0,msize,2); // fill m with illegal value 2
@@ -36,20 +36,20 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
 }
 
 
-// read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
+// compress the matrix *m of size msize into the k2mat_t structure *a 
 // m should be an integer array of size msize*msize 
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
 int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 {
+  assert(a!=NULL && m!=NULL);
+  k2_free(a); // free previous content of a
   assert(msize>1);
-  assert(k2is_empty(a));
-  assert(!a->read_only);
-  if(msize>(1<<30)) quit("k2read_uncompressed: matrix too large",__LINE__,__FILE__);
-  int size = k2get_k2size(msize);
-  assert(size>=2*MMsize);
+  if(msize>(1<<30)) quit("mread_from_bbm: matrix too large",__LINE__,__FILE__);
+  int asize = k2get_k2size(msize);
+  assert(asize>=2*MMsize);
   // read matrix m into a
-  mencode(m,msize,0,0,size,a);
-  return size;
+  mencode(m,msize,0,0,asize,a);
+  return asize;
 }
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
@@ -358,11 +358,11 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // return statistics on matrix a
 // write number of used pos,nomde, and minimats in the variables passed by reference
 // and return the number of levels
-int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
+int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
 {
   *pos=*nodes=*minimats=0;
-  if(!k2is_empty(a)) k2dfs_visit(size,a,pos,nodes,minimats);
-  int eq = mequals(size,a,a);
+  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats);
+  int eq = mequals(asize,a,a);
   assert(eq<0);
   return -eq;
 }
@@ -372,9 +372,10 @@ int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minim
 // the format is
 // 1) the actual size of the matrix (an int)
 // 2) the size of the last level of recursion, aka the size of a minimat,  (an int)
-// 3) the total number of positions (a size_t)
-// 4) the array of positions (an uint8_t array, each uint8 stores 2 positions)
-void msave(int size, const k2mat_t *a, const char *filename)
+// 3) the size of the k2 matrix (an int) 
+// 4) the total number of positions (a size_t)
+// 5) the array of positions (an uint8_t array, each uint8 stores 2 positions)
+void msave(int size, int asize, const k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   FILE *f = fopen(filename,"w");
@@ -383,6 +384,8 @@ void msave(int size, const k2mat_t *a, const char *filename)
   if(e!=1) quit("msave: cannot write size",__LINE__,__FILE__);
   e = fwrite(&MMsize, sizeof(int),1,f);
   if(e!=1) quit("msave: cannot write MMsize",__LINE__,__FILE__);
+  e = fwrite(&asize, sizeof(int),1,f);
+  if(e!=1) quit("msave: cannot write asize",__LINE__,__FILE__);
   e = fwrite(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("msave: cannot write number of positions",__LINE__,__FILE__);
   if(a->pos>0) {
@@ -393,10 +396,10 @@ void msave(int size, const k2mat_t *a, const char *filename)
   fclose(f);
 }
 
-// load a matrix stored in file :filename into the k2mat_t structure :a
+// load a k2 matrix stored in file :filename into the k2mat_t structure :a
 // return the actual size of the matrix, see msave() for the file format
 // must be called after minimat_init() since it checks that the correct MMsize is used
-int mload(k2mat_t *a, const char *filename)
+int mload(int *asize, k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   k2_free(a);
@@ -411,6 +414,9 @@ int mload(k2mat_t *a, const char *filename)
   if(mmsize!=MMsize) quit("mload: wrong minimatrix size",__LINE__,__FILE__);
   if(size<2*MMsize) quit("mload: matrix size incompatible with minimatrix size, wrong format?",
                          __LINE__,__FILE__);
+  e = fread(asize, sizeof(int),1,f);
+  if(e!=1) quit("mload: cannot read k2 matrix size",__LINE__,__FILE__);
+  if(*asize!=k2get_k2size(size)) quit("mload: wrong k2 matrix size",__LINE__,__FILE__ );                       
   e = fread(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("mload: cannot read number of positions",__LINE__,__FILE__);
   if(a->pos>0) {
@@ -500,7 +506,6 @@ static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  printf("mdecode: i=%d j=%d size=%d\n",i,j,size);
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(rootc==ALL_ONES) { // all 1s matrix
