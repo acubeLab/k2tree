@@ -121,13 +121,13 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
     // we could split a and b in 4 submatrices and sum them, but it is more efficient 
     // to compute the sum without building submatrices (which requires a scan of a and b)
     for(int k=0;k<4;k++) {
-      if (roota | (1 << k)) {
-        if(rootb | (1 << k)) 
+      if (roota & (1 << k)) {
+        if(rootb & (1 << k)) 
           msum_rec(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
         else 
           k2copy_rec(size/2,a,posa,c); // k-th child of c is kth child of a
       }
-      else if (rootb | (1 << k))
+      else if (rootb & (1 << k))
         k2copy_rec(size/2,b,posb,c); // k-th child of c is kth child of b
       else 
         assert( (rootc & (1 << k)) == 0); // both children are 0s, nothing to do 
@@ -352,7 +352,8 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   else if(nb==ALL_ONES) {
     right1_mmult(size,a,c);
   }*/
-  split_and_rec(size,a,b,c);
+  else 
+    split_and_rec(size,a,b,c);
 }
 
 // return statistics on matrix a
@@ -411,7 +412,10 @@ int mload(int *asize, k2mat_t *a, const char *filename)
   if(size<=1) quit("mload: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
   e = fread(&mmsize, sizeof(int),1,f);
   if(e!=1) quit("mload: cannot read minimatrix size",__LINE__,__FILE__);
-  if(mmsize!=MMsize) quit("mload: wrong minimatrix size",__LINE__,__FILE__);
+  if(MMsize==INT32_MAX)
+    minimat_init(mmsize); // initialize minimat library if not already done
+  else 
+    if(mmsize!=MMsize) quit("mload: wrong minimatrix size",__LINE__,__FILE__);
   if(size<2*MMsize) quit("mload: matrix size incompatible with minimatrix size, wrong format?",
                          __LINE__,__FILE__);
   e = fread(asize, sizeof(int),1,f);

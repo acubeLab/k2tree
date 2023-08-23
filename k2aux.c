@@ -53,6 +53,7 @@ bool k2submatrix_empty(const k2mat_t *m, size_t pos)
 void k2make_empty(k2mat_t *m)
 {
   assert(!m->read_only);
+  assert(m->offset==0);
   m->pos = 0;
 }
 
@@ -228,8 +229,8 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   assert(k2is_empty(c));
   assert(!c->read_only);
   *c = *a; // copy all fields
-  c->offset = start;     // actual starting position of c in buffer
-  c->pos = end;          // actual ending position of c in buffer 
+  c->pos = c->offset + end;     // actual ending position of c in buffer
+  c->offset += start;           // actual starting position of c in buffer
   c->read_only = true;   // c is read only
 }
 
@@ -270,5 +271,5 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
       nodes = minimats = 0; // reset number of matrices and nodes
     }
   }
-  assert(next==k2pos(a));
+  assert(next+a->offset==k2pos(a));
 }

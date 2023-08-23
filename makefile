@@ -3,7 +3,7 @@ CFLAGS=-O0 -Wall -std=c11 -g
 CC=gcc
 
 # main executables 
-EXECS=k2test.x k2comp.x
+EXECS=k2test.x k2comp.x k2mult.x
 
 # targets not producing a file declared phony
 .PHONY: all clean

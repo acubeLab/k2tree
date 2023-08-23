@@ -76,6 +76,7 @@ void init_mprods2x2(void) {
 }
 
 void minimat_init(int msize) {
+  if(MMsize!=INT32_MAX) quit("minimats_init: already initialized",__LINE__,__FILE__);
   // msize must be even to ensure that a mimimats has a bit size multiple of 4
   // ie a size multiple of the size of a tree node. 
   if(msize%2!=0) 

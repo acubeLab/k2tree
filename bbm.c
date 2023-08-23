@@ -38,9 +38,9 @@ static int intsqrt(int n) {
 }
 
 // alloc memory for a size x size bbm matrix
-uint8_t *bbm_alloc(int size)
+uint8_t *bbm_alloc(size_t size)
 {
-  size_t length = ((size_t) size)*size;
+  size_t length = size*size;
   uint8_t *buffer = malloc(length);
   if(buffer==NULL) quit("Out of memory",__LINE__,__FILE__);
   return buffer;
