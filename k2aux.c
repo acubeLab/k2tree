@@ -92,9 +92,9 @@ size_t k2add_node(k2mat_t *m, node_t n)
   assert(m->pos<m->lenb);
   // since a node is stored in 4 bits, we store two nodes in a byte
   if(m->pos%2==0)
-    m->b[m->pos/2] = n;
+    m->b[m->pos/2] = n;    // note: we are writing 0 at m->pos+1, it's ok we are at the end 
   else
-    m->b[m->pos/2] |= (n<<4);
+    m->b[m->pos/2] = (m->b[m->pos/2] & 0x0F) | (n<<4);
   // return position where node was stored and advance by 1
   return m->pos++; 
 }

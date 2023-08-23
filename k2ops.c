@@ -450,7 +450,7 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
   // if we are outside m it's an all 0 submatrix and there is nothing to do
   if(i>=msize || j>=msize) return;
   // start building c
-  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
+  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_ONES as root placeholder 
   node_t rootc=NO_CHILDREN;                 // actual root node to be computed
   bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
   // here we are assuming that the submatrices are in the order 00,01,10,11
