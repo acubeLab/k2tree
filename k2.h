@@ -59,13 +59,15 @@ typedef struct k2mat {
 // it is the first k2-related function to be called
 void minimat_init(int msize);
 // save a k2-matrix to file
-void msave(int size, int asize, const k2mat_t *a, const char *filename);
+void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
-int mload(int *asize, k2mat_t *a, const char *filename);
+int mload_from_file(int *asize, k2mat_t *a, const char *filename);
 // write the content of a k2 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a);
+// write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
+void mshow_stats(int size, const k2mat_t *a, const char *mname,FILE *file);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
@@ -80,3 +82,5 @@ int mequals(int size, const k2mat_t *a, const k2mat_t *b);
 int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);
 // free a k2 matrix
 void k2_free(k2mat_t *m);
+// make a read-only copy of a k2 matrix without allocating new memory
+void k2make_pointer(const k2mat_t *a, k2mat_t *c);

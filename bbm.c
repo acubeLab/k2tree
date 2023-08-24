@@ -1,7 +1,13 @@
-/* functions for bbm matrices
+/* functions for bbm matrices (binary byte matrix)
 
-   Technical note: matrix sizes are int, therefore limited to 2^31, but values related to
-   the overall number of elements is always stored into a size_t variable (usually 64 bits))  
+   Technical note: matrix sizes are int, therefore limited to 2^31, but values related
+   to the overall number of elements can be up to 2^61 therefore are always 
+   stored into a size_t variable (usually 64 bits))  
+
+   Hence a size x size bbm matrix is represented by a one-dimensional uint8_t array b[]
+   and of its length, equals to size*size, stored in a size_t variable
+   The entries should be 0/1, ie two different nonzero values are considered 
+   different by mequals_bbm(). 
 */
 #include <stdint.h>
 #include <unistd.h>
@@ -14,7 +20,6 @@
 #include "bbm.h"
 
 
-
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
@@ -25,10 +30,10 @@ static void quit(const char *msg, int line, char *file) {
 }
 
 // compute integer square root
-static int intsqrt(int n) {
-  assert(n>=0);
-  int x = n;
-  int y = (x + 1) / 2;
+static size_t intsqrt(size_t n) {
+  // assert(n>=0);
+  size_t x = n;
+  size_t y = (x + 1) / 2;
   while (y < x) {
     x = y;
     y = (x + n / x) / 2;
@@ -46,7 +51,7 @@ uint8_t *bbm_alloc(size_t size)
   return buffer;
 }
 
-void bbm_write(uint8_t *m, size_t msize, char *name)
+void bbm_write(const uint8_t *m, size_t msize, const char *name)
 {
   FILE *f = fopen(name,"wb");
   if(f==NULL) 
@@ -61,7 +66,7 @@ void bbm_write(uint8_t *m, size_t msize, char *name)
 // given a file name of a matrix in bbm format
 // return byte array and its size
 // exit program on error 
-uint8_t *bbm_read(char *name, int *psize)
+uint8_t *bbm_read(const char *name, size_t *psize)
 {
   FILE *f = fopen(name,"rb");
   if(f==NULL) 
@@ -70,7 +75,7 @@ uint8_t *bbm_read(char *name, int *psize)
   fseek(f, 0, SEEK_END);
   size_t length = ftell(f);
   // check if square
-  int size = intsqrt(length);
+  size_t size = intsqrt(length);
   if(size*size != length) 
     quit("Non square input matrix",__LINE__,__FILE__);  
 
@@ -91,7 +96,7 @@ uint8_t *bbm_read(char *name, int *psize)
 // write a size x size submatrix containing the value b inside a bbm matrix m
 // starting at position i,j entries outsize the matrix m should not be written 
 // used for initliazing a matrix or for uncompressing a k2 matrix
-void byte_to_bbm(uint8_t *m, int msize, int i, int j, int size, uint8_t b) {
+void byte_to_bbm(uint8_t *m, size_t msize, int i, int j, int size, uint8_t b) {
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
   for(int ii=0; ii<size; ii++)
     for(int jj=0; jj<size; jj++)
@@ -101,7 +106,7 @@ void byte_to_bbm(uint8_t *m, int msize, int i, int j, int size, uint8_t b) {
 
 
 // write the content of a bbm submatrix m to a file f
-void bbm_to_ascii(uint8_t *m, int msize, int i, int j, int size, FILE *f)
+void bbm_to_ascii(const uint8_t *m, size_t msize, int i, int j, int size, FILE *f)
 {
   assert(i>=0 && j>=0 && i<msize && j<msize);
   fprintf(f,"Submatrix at (%d,%d) of size %d\n",i,j,size);  
@@ -117,7 +122,7 @@ void bbm_to_ascii(uint8_t *m, int msize, int i, int j, int size, FILE *f)
 
 // multiplication of bbm matrices, return number of nonzero 
 // all mustrice must have been allocated to dim size*size
-int mmult_bbm(const uint8_t *a, int size, const uint8_t *b, uint8_t *c) {
+int mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
   assert(a!=NULL && b!=NULL && c!=NULL && size>0);
   int count=0;
   for(int i=0; i<size; i++)
@@ -133,10 +138,12 @@ int mmult_bbm(const uint8_t *a, int size, const uint8_t *b, uint8_t *c) {
   return count;
 }
 
-bool mequals_bbm(const uint8_t *a, int size, const uint8_t *b) {
+// compare two bbm matrices of the same size, return the position 
+// of the first difference or -1 if they are equal 
+ssize_t mequals_bbm(const uint8_t *a, size_t size, const uint8_t *b) {
   assert(a!=NULL && b!=NULL && size>0);
-  for(int i=0; i<size*size; i++)
-      if(a[i] != b[i]) return false;
-  return true;
+  for(size_t i=0; i<size*size; i++)
+      if(a[i] != b[i]) return i;
+  return -1;
 }
 

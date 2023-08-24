@@ -52,6 +52,14 @@ int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
   return asize;
 }
 
+// write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
+void mshow_stats(int size, const k2mat_t *a, const char *mname,FILE *file) {
+  size_t pos, nodes, minimats;
+  int levels = mstats(size,a,&pos,&nodes,&minimats);
+  fprintf(file,"%s -- Levels: %d, Pos: %zd, Nodes: %zd, Minimats: %zd\n",
+         mname,levels,pos,nodes,minimats);
+}
+
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
 void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 {
@@ -376,60 +384,62 @@ int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *mini
 // 3) the size of the k2 matrix (an int) 
 // 4) the total number of positions (a size_t)
 // 5) the array of positions (an uint8_t array, each uint8 stores 2 positions)
-void msave(int size, int asize, const k2mat_t *a, const char *filename)
+void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   FILE *f = fopen(filename,"w");
-  if(f==NULL) quit("msave: cannot open file", __LINE__,__FILE__);
+  if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   int e = fwrite(&size,sizeof(int),1,f);
-  if(e!=1) quit("msave: cannot write size",__LINE__,__FILE__);
+  if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
   e = fwrite(&MMsize, sizeof(int),1,f);
-  if(e!=1) quit("msave: cannot write MMsize",__LINE__,__FILE__);
+  if(e!=1) quit("msave_to_file: cannot write MMsize",__LINE__,__FILE__);
   e = fwrite(&asize, sizeof(int),1,f);
   if(e!=1) quit("msave: cannot write asize",__LINE__,__FILE__);
   e = fwrite(&a->pos,sizeof(size_t),1,f);
-  if(e!=1) quit("msave: cannot write number of positions",__LINE__,__FILE__);
+  if(e!=1) quit("msave_to_file: cannot write number of positions",__LINE__,__FILE__);
   if(a->pos>0) {
     size_t bytes = (a->pos+1)/2;
     e = fwrite(a->b,sizeof(uint8_t),bytes,f);
-    if(e!=bytes) quit("msave: cannot write positions",__LINE__,__FILE__);
+    if(e!=bytes) quit("msave_to_file: cannot write positions",__LINE__,__FILE__);
   }
   fclose(f);
 }
 
+
 // load a k2 matrix stored in file :filename into the k2mat_t structure :a
-// return the actual size of the matrix, see msave() for the file format
+// return the actual size of the matrix, see msave_to_file() for the file format
 // must be called after minimat_init() since it checks that the correct MMsize is used
-int mload(int *asize, k2mat_t *a, const char *filename)
+int mload_from_file(int *asize, k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   k2_free(a);
   FILE *f = fopen(filename,"r");
-  if(f==NULL) quit("mload: cannot open file", __LINE__,__FILE__);
+  if(f==NULL) quit("mload_from_file: cannot open file", __LINE__,__FILE__);
   int size, mmsize;
   int e = fread(&size,sizeof(int),1,f);
-  if(e!=1) quit("mload: cannot read matrix size",__LINE__,__FILE__);
-  if(size<=1) quit("mload: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
+  if(e!=1) quit("mload_from_file: cannot read matrix size",__LINE__,__FILE__);
+  if(size<=1) quit("mload_from_file: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
   e = fread(&mmsize, sizeof(int),1,f);
-  if(e!=1) quit("mload: cannot read minimatrix size",__LINE__,__FILE__);
+  if(e!=1) quit("mload_from_file: cannot read minimatrix size",__LINE__,__FILE__);
   if(MMsize==INT32_MAX)
     minimat_init(mmsize); // initialize minimat library if not already done
   else 
-    if(mmsize!=MMsize) quit("mload: wrong minimatrix size",__LINE__,__FILE__);
-  if(size<2*MMsize) quit("mload: matrix size incompatible with minimatrix size, wrong format?",
+    if(mmsize!=MMsize) quit("mload_from_file: wrong minimatrix size",__LINE__,__FILE__);
+  if(size<2*MMsize) 
+    quit("mload_from_file: matrix size incompatible with minimatrix size, wrong format?",
                          __LINE__,__FILE__);
   e = fread(asize, sizeof(int),1,f);
-  if(e!=1) quit("mload: cannot read k2 matrix size",__LINE__,__FILE__);
-  if(*asize!=k2get_k2size(size)) quit("mload: wrong k2 matrix size",__LINE__,__FILE__ );                       
+  if(e!=1) quit("mload_from_file: cannot read k2 matrix size",__LINE__,__FILE__);
+  if(*asize!=k2get_k2size(size)) quit("mload_from_file: wrong k2 matrix size",__LINE__,__FILE__ );                       
   e = fread(&a->pos,sizeof(size_t),1,f);
-  if(e!=1) quit("mload: cannot read number of positions",__LINE__,__FILE__);
+  if(e!=1) quit("mload_from_file: cannot read number of positions",__LINE__,__FILE__);
   if(a->pos>0) {
     size_t bytes = (a->pos+1)/2;
     a->lenb = 2*bytes;  // equivalent to:   a->lenb = a->pos%2 ? a->pos+1: a->pos;
     a->b = malloc(bytes);
-    if(a->b==NULL) quit("mload: cannot allocate memory",__LINE__,__FILE__);
+    if(a->b==NULL) quit("mload_from_file: cannot allocate memory",__LINE__,__FILE__);
     e = fread(a->b,sizeof(uint8_t),bytes,f);
-    if(e!=bytes) quit("mload: cannot read positions",__LINE__,__FILE__);
+    if(e!=bytes) quit("mload_from_file: cannot read positions",__LINE__,__FILE__);
   }
   fclose(f);
   return size;

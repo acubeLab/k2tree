@@ -234,6 +234,15 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   c->read_only = true;   // c is read only
 }
 
+// make c an identical read-only image of matrix a
+// the previous content of c is freed and lost 
+void k2make_pointer(const k2mat_t *a, k2mat_t *c)
+{
+  assert(a!=NULL && c!=NULL);
+  k2_free(c);
+  *c = *a; // copy all fields
+  c->read_only = true;   // c is read only
+}
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside a, so no memory is allocated

@@ -21,8 +21,9 @@
 #include "bbm.h"
 
 // default extensions
-#define InputFile_ext ".bin"
-#define OutFile_ext ".k2x"
+#define default_cext ".k2"
+#define default_dext ".d"
+
 
 
 static void usage_and_exit(char *name);
@@ -31,13 +32,6 @@ static void quit(const char *msg, int line, char *file);
 
 
 
-
-void show_stats(int size, k2mat_t *a, char *name) {
-  size_t pos, nodes, minimats;
-  int levels = mstats(size,a,&pos,&nodes,&minimats);
-  printf("%s -- Levels: %d, Pos: %zd, Nodes: %zd, Minimats: %zd\n",
-         name,levels,pos,nodes,minimats);
-}
 
 
 
@@ -52,22 +46,21 @@ int main (int argc, char **argv) {
   /* ------------- read options from command line ----------- */
   opterr = 0;
   int mmsize = 2;
-  bool decompress = false, check = false;
-  char *iext = InputFile_ext;
-  char *oext = OutFile_ext;
-  while ((c=getopt(argc, argv, "i:o:m:dcv")) != -1) {
+  bool decompress = false, check = false, write = true;
+  char *ext = NULL;
+  while ((c=getopt(argc, argv, "e:m:dcvn")) != -1) {
     switch (c) 
       {
-      case 'i':
-        iext = optarg; break;        
-      case 'o':
-        oext = optarg; break;        
+      case 'e':
+        ext = optarg; break;        
       case 'm':
         mmsize = atoi(optarg); break;
       case 'd':
         decompress = true; break;
       case 'c':
         check = true; break;      
+      case 'n':
+        write = false; break;       
       case 'v':
         verbose++; break;
       case '?':
@@ -83,7 +76,13 @@ int main (int argc, char **argv) {
   }
   if(check  && decompress)
     quit("Options -c and -d are incompatible",__LINE__,__FILE__);
-
+  // assign defualt extension if needed  
+  if(ext==NULL) {
+    if(decompress) ext = default_dext;
+    else ext = default_cext;
+  }
+  if(strlen(ext)==0)
+    quit("Empty extension, cannot overwrite input file",__LINE__,__FILE__);
 
   // virtually get rid of options from the command line 
   optind -=1;
@@ -91,34 +90,33 @@ int main (int argc, char **argv) {
   argv += optind; argc -= optind;
 
   // create file names
-  sprintf(iname,"%s%s",argv[1],iext);
-  sprintf(oname,"%s%s",argv[1],oext); 
+  sprintf(iname,"%s",argv[1]);
+  sprintf(oname,"%s%s",argv[1],ext); 
 
-  // init k2 library
-  minimat_init(mmsize);
-  k2mat_t a = K2MAT_INITIALIZER;
-  int size, asize = 0;
-  uint8_t *b = NULL;
+  int asize;    k2mat_t a = K2MAT_INITIALIZER;
+  size_t size; uint8_t *b = NULL;
   if(decompress) {
-    size = mload(&asize, &a, iname);
-    if (verbose) show_stats(asize,&a,"A");
+    size = mload_from_file(&asize, &a, iname); // also init k2 library
+    if (verbose || !write) mshow_stats(asize,&a,iname,stderr);
     b= bbm_alloc(size);
     mwrite_to_bbm(b,size,asize, &a);
-    bbm_write(b,size,oname);
+    if(write) bbm_write(b,size,oname);
   }
-  else {
+  else { // compression
+    minimat_init(mmsize);     // init k2 library
     b= bbm_read(iname,&size); // file  ->bbm
     if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
     asize = mread_from_bbm(b,size,&a);
-    if (verbose) show_stats(asize,&a,"A");
-    msave(size,asize,&a,oname);
+    if (verbose || !write) mshow_stats(asize,&a,iname,stderr);
+    if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
     if(check) {
       uint8_t *bx = bbm_alloc(size);
       mwrite_to_bbm(bx,size,asize, &a);
-      bool eq = mequals_bbm(b,size,bx);
+      ssize_t eq = mequals_bbm(b,size,bx);
+      if(eq<0) fprintf(stderr,"Decompressed matrix is equal to original!\n"); 
+      else fprintf(stderr,"Decompressed matrix differs at position (%zd,%zd) "
+      "d:%d vs o:%d\n",eq/size,eq%size, bx[eq], b[eq]);
       free(bx);
-      if(eq) fprintf(stderr,"Decompressed matrix is equal to original!\n"); 
-      else  quit("Decompressed matrix is different from original",__LINE__,__FILE__);
     }
   }
   if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
@@ -134,16 +132,16 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] basename\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] filename\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-d      decompress\n");
-    fprintf(stderr,"\t-i ext  extension for the input file  (def. .bin)\n");
-    fprintf(stderr,"\t-o ext  extension for the output file (def. .k2x)\n");
+    fprintf(stderr,"\t-n      do not write output file, only show stats\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
+    fprintf(stderr,"\t-e ext  outfile extension (def. compr: \"%s\", decompr: \"%s\")\n",
+                   default_cext, default_dext);
     fprintf(stderr,"\t-v      verbose\n\n");
-    fprintf(stderr,"Default action is to compress basename.bin to basename.k2x\n"
-    "To decompress use -d option and appropriate extensions eg \"-d -i .k2x -o .k2d\"\n\n");
+    fprintf(stderr,"Default action is to compress filename to filename.k2x\n\n");
     exit(1);
 }
 

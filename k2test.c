@@ -29,8 +29,8 @@
 #define File_ext ".bbm"
 
 static void usage_and_exit(char *name);
-static void quit(const char *msg, int line, char *file);
-static int intsqrt(int n);
+// static void quit(const char *msg, int line, char *file);
+// static int intsqrt(int n);
 
 
 
@@ -78,13 +78,10 @@ int main (int argc, char **argv) {
   argv += optind; argc -= optind;
 
 
-
-
-
   // init k2 library
   minimat_init(mmsize);
   // read matrix from file
-  int size;
+  size_t size;
   uint8_t *buffer = bbm_read(argv[1],&size);
   if(verbose>0) bbm_to_ascii(buffer,size,0,0,size,stderr);
   // convert to k2mat_t
@@ -114,6 +111,7 @@ static void usage_and_exit(char *name)
     exit(1);
 }
 
+/*
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
@@ -134,4 +132,5 @@ static int intsqrt(int n) {
   }
   assert(x*x <= n && (x+1)*(x+1) > n);
   return x;
-}
+} 
+*/

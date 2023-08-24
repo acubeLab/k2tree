@@ -14,10 +14,13 @@ all: $(EXECS)
 %.x: %.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-k2test.o: k2test.c k2.h
+
+# rule for k2mult k2comp k2test
+%.o: %.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-k2ops.o: k2ops.c k2aux.c minimats.c k2.h
+
+k2ops.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 bbm.o: bbm.c bbm.h
