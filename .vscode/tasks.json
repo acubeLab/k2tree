@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "make all",
+      "type": "shell",
+      "command": "make all",
+      "group": "build",      
+      "problemMatcher": "$gcc",
+      "detail": "make all"
+    },
+    {
+      "label": "make single",
+      "type": "shell",
+      "command": "make",
+      "args": ["${fileBasenameNoExtension}.x"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$gcc",
+      "detail": "make a single executable"
+    }  
+  ]
+}

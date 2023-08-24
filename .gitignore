@@ -53,7 +53,9 @@ dkms.conf
 
 # compressed and test files
 data/
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # my executables 
 *.x

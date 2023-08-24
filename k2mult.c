@@ -61,7 +61,6 @@ int main (int argc, char **argv) {
     fputs("\n",stderr);  
   }
 
-
   // virtually get rid of options from the command line 
   optind -=1;
   if (argc-optind != 3) usage_and_exit(argv[0]); 
@@ -73,15 +72,15 @@ int main (int argc, char **argv) {
   sprintf( oname,"%s%s",argv[1],ext); 
 
   // init k2 variables
-  k2mat_t a = K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
+  k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
   int asize;
   size_t size;
 
   size = mload_from_file(&asize, &a, iname1); // also init k2_library
   if (verbose) mshow_stats(size,asize,&a,iname1,stderr);
-  if(strcmp(iname1,iname2)==0) {
+  if(strcmp(iname1,iname2)==0)
     k2make_pointer(&a,&b);
-  } else {
+  else {
     int bsize, size1 = mload_from_file(&bsize, &b, iname2);
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
