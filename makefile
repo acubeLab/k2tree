@@ -10,12 +10,12 @@ EXECS=k2test.x k2comp.x k2mult.x
 
 all: $(EXECS)
 
-
+# rule for executables
 %.x: %.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
 
-# rule for k2mult k2comp k2test
+# rule for k2mult.o k2comp.o k2test.o
 %.o: %.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 

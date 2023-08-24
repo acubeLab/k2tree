@@ -147,7 +147,7 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
   // normalize if c is all 1s (regardless of size)
   if(all_ones) {
     assert(rootc==ALL_CHILDREN);
-    k2setpos(c,rootpos);       // discard current root and children
+    k2setpos(c,rootpos+1);       // discard current children
     k2write_node(c,rootpos,ALL_ONES); // write ALL_ONES as root
   }
   return; 
@@ -287,21 +287,20 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     k2split_minimats(b,&posb,rootb,bx);
   // split done, now multiply and store c 
   // optimization on all 1's submatrices still missing 
-  minimat_t cx[2][2]; // can be replaced by a single minimat_t
-  bool all_ones=true; // true if all submatrices cx[i][j] are all 1's
+  bool all_ones=true; // true if all c submatrices cx[i][j] are all 1's
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;        // actual root node to be computed
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
     int i=k/2; int j=k%2;
     assert(size==4); // implies that minimats are 2x2 
-    cx[i][j]  = mmult2x2(ax[i][0],bx[0][j]);
-    cx[i][j] |= mmult2x2(ax[i][1],bx[1][j]);
-    if(cx[i][j]!=MINIMAT0s) {
+    minimat_t cx  = mmult2x2(ax[i][0],bx[0][j]);
+    cx |= mmult2x2(ax[i][1],bx[1][j]);
+    if(cx!=MINIMAT0s) {
       rootc |= (1<<k);
-      k2add_minimat(c,cx[i][j]);
+      k2add_minimat(c,cx);
     }
-    if(cx[i][j]!=MINIMAT1s) all_ones = false;
+    if(cx!=MINIMAT1s) all_ones = false;
   }
   // fix root normalize matrix and return 
   if(rootc==NO_CHILDREN) {   // all 0s matrix is represented as a an empty matrix
@@ -466,7 +465,7 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
   // start building c
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_ONES as root placeholder 
   node_t rootc=NO_CHILDREN;                 // actual root node to be computed
-  bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
+  bool all_ones=true;  // true if all c submatrices cx[i][j] are all 1's
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
     int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
@@ -568,6 +567,7 @@ static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   // start building c
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;                 // actual root node to be computed
+  bool all_ones = true;
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {
     int i=k/2, j=k%2;
@@ -578,22 +578,27 @@ static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     // a[i][1]*b[1][j]
     if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
       mmult(size/2, &ax[i][1], &bx[1][j], &v2);
-    // sum to c[i][j] ie block k 
+    // write sum v1+v2 to c[i][j] ie block k 
     if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // sum if at least one is nonzero
       rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
       // compute v1+v2
+      size_t tmp = k2pos(c); // save current position to check all 1's 
       if(k2is_empty(&v2)) 
         mcopy(size/2,&v1,c);  // copy v1 -> block c[i][j]  
       else if(k2is_empty(&v1)) 
         mcopy(size/2,&v2,c);  // copy v2 -> block c[i][j]  
       else { // v1 and v2 are both not empty
-        size_t tmp = k2pos(c),p1=0,p2=0;
+        size_t p1=0,p2=0;
         msum_rec(size/2,&v1,&p1,&v2,&p2,c);
         assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
-        assert(tmp<k2pos(c));  // implied by v1+v2!=0
       }
-    }
-    // if v1==0 && v2==0 then v1+v2=0 and there is nothing to write 
+      // check if v1+v2 is all 1's
+      assert(tmp<k2pos(c));  // implied by v1+v2!=0     
+      if(tmp+1!=k2pos(c)) all_ones = false; // more than one node was written no1 all 1s
+    } 
+    // if v1==0 && v2==0 then v1+v2=0 and there is nothing to write and all_ones is false
+    else all_ones = false;
+    
   }
   // all computation done, deallocate temporary matrices
   k2_free(&v1);
