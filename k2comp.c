@@ -24,15 +24,8 @@
 #define default_cext ".k2"
 #define default_dext ".d"
 
-
-
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
-
-
-
-
-
 
 
 int main (int argc, char **argv) { 
@@ -97,7 +90,8 @@ int main (int argc, char **argv) {
   size_t size; uint8_t *b = NULL;
   if(decompress) {
     size = mload_from_file(&asize, &a, iname); // also init k2 library
-    if (verbose || !write) mshow_stats(asize,&a,iname,stderr);
+    if (verbose || !write)  
+      mshow_stats(size, asize,&a,iname,stderr);
     b= bbm_alloc(size);
     mwrite_to_bbm(b,size,asize, &a);
     if(write) bbm_write(b,size,oname);
@@ -107,7 +101,8 @@ int main (int argc, char **argv) {
     b= bbm_read(iname,&size); // file  ->bbm
     if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
     asize = mread_from_bbm(b,size,&a);
-    if (verbose || !write) mshow_stats(asize,&a,iname,stderr);
+    if (verbose || !write)  
+      mshow_stats(size, asize,&a,iname,stderr);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
     if(check) {
       uint8_t *bx = bbm_alloc(size);

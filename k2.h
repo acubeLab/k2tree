@@ -67,7 +67,7 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a);
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-void mshow_stats(int size, const k2mat_t *a, const char *mname,FILE *file);
+void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);

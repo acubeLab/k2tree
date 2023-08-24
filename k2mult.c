@@ -20,7 +20,7 @@
 #include "k2.h"
 #include "bbm.h"
 
-#define default_ext "prod.k2"
+#define default_ext ".prod"
 
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
@@ -74,10 +74,11 @@ int main (int argc, char **argv) {
 
   // init k2 variables
   k2mat_t a = K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
-  int size, asize;
+  int asize;
+  size_t size;
 
   size = mload_from_file(&asize, &a, iname1); // also init k2_library
-  if (verbose) mshow_stats(asize,&a,iname1,stderr);
+  if (verbose) mshow_stats(size,asize,&a,iname1,stderr);
   if(strcmp(iname1,iname2)==0) {
     k2make_pointer(&a,&b);
   } else {
@@ -85,9 +86,11 @@ int main (int argc, char **argv) {
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
   }
-  if (verbose) mshow_stats(asize,&b,iname2,stderr);
+  if (verbose) mshow_stats(size, asize,&b,iname2,stderr);
   mmult(asize,&a,&b,&ab);
-  if (verbose || !write) mshow_stats(asize,&ab,oname,stderr);
+  if (verbose || !write) 
+    mshow_stats(size, asize,&ab,oname,stderr);
+
   if(write) msave_to_file(size,asize,&ab,oname);
 
   // check product if requested

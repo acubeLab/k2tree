@@ -53,11 +53,13 @@ int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 }
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-void mshow_stats(int size, const k2mat_t *a, const char *mname,FILE *file) {
+void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats;
-  int levels = mstats(size,a,&pos,&nodes,&minimats);
-  fprintf(file,"%s -- Levels: %d, Pos: %zd, Nodes: %zd, Minimats: %zd\n",
-         mname,levels,pos,nodes,minimats);
+  fprintf(stderr,"%s -- matrix size: %zd, k2size: %d\n",mname,size,asize);  
+  int levels = mstats(asize,a,&pos,&nodes,&minimats);
+  assert(pos==nodes+minimats); // check that the number of positions is correct
+  fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd\n",
+         mname,levels,nodes,minimats);
 }
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
@@ -107,28 +109,28 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
   node_t rootc = roota | rootb; // root node of c, correct except when c is all 1s
   assert(rootc!=NO_CHILDREN);   // at least one child is nonzero
   size_t rootpos = k2add_node(c,rootc);  // save c root and its position
-  bool all_ones=true;  // true if all submatrices cx[i][j] are all 1's
-  if(size==2*MMsize) { // children are minimat matrices
+  bool all_ones=true;     // true if all submatrices cx[i][j] are all 1's
+  if(size==2*MMsize) {    // children are minimat matrices
     minimat_t ax[2][2], bx[2][2];
     k2split_minimats(a,posa,roota,ax);
     k2split_minimats(b,posb,rootb,bx);
     for(int k=0;k<4;k++) {
       minimat_t cx = ax[k/2][k%2] | bx[k/2][k%2]; // compute bitwise or of corresponding minimat
-      if (cx != MINIMAT0s)
-      { // save cx if nonzero
+      if (cx != MINIMAT0s) { // save cx if nonzero
         assert(rootc & (1 << k)); // implied by  cx = ax | bx 
         k2add_minimat(c, cx);
       }
       else assert((rootc & (1 << k)) == 0);
       if (cx != MINIMAT1s) all_ones = false;
     }
-    assert(all_ones==false || rootc==ALL_CHILDREN); // all_ones => rootc==ALL_CHILDREN
-    if(all_ones) assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio);
+    // reduntant check on all_ones
+    assert(!all_ones || (rootc==ALL_CHILDREN&&k2pos(c)==rootpos+1+4*Minimat_node_ratio)); 
   }
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion
     // we could split a and b in 4 submatrices and sum them, but it is more efficient 
     // to compute the sum without building submatrices (which requires a scan of a and b)
     for(int k=0;k<4;k++) {
+      size_t tmp = k2pos(c);        // save current position
       if (roota & (1 << k)) {
         if(rootb & (1 << k)) 
           msum_rec(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
@@ -138,11 +140,16 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
       else if (rootb & (1 << k))
         k2copy_rec(size/2,b,posb,c); // k-th child of c is kth child of b
       else 
-        assert( (rootc & (1 << k)) == 0); // both children are 0s, nothing to do 
-    }
-    // check if all children of rootc are all 1's
-    // done checking that the subtree contains just 5 nodes 
-    all_ones =  rootc==ALL_CHILDREN && k2pos(c)==rootpos+5;
+        assert( (rootc & (1 << k)) == 0); // both children are 0s, nothing to do
+      // check tmp and update all_ones
+      if(tmp!=k2pos(c)) { // something was written
+        assert(k2pos(c)>tmp);
+        if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false;
+        else assert(k2pos(c)==tmp+1);
+      }
+      else all_ones = false; // nothing was written, submatrix is all 0s, all_ones is false
+    } // end for k=0..3
+    assert(!all_ones  || (rootc==ALL_CHILDREN && k2pos(c)==rootpos+5));
   }
   // normalize if c is all 1s (regardless of size)
   if(all_ones) {
@@ -579,26 +586,23 @@ static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
       mmult(size/2, &ax[i][1], &bx[1][j], &v2);
     // write sum v1+v2 to c[i][j] ie block k 
-    if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // sum if at least one is nonzero
+    if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // compute v1+v2 if at least one is nonzero
       rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
-      // compute v1+v2
       size_t tmp = k2pos(c); // save current position to check all 1's 
-      if(k2is_empty(&v2)) 
-        mcopy(size/2,&v1,c);  // copy v1 -> block c[i][j]  
-      else if(k2is_empty(&v1)) 
-        mcopy(size/2,&v2,c);  // copy v2 -> block c[i][j]  
+      if(k2is_empty(&v2))      mcopy(size/2,&v1,c);  // copy v1 -> block c[i][j]  
+      else if(k2is_empty(&v1)) mcopy(size/2,&v2,c);  // copy v2 -> block c[i][j]  
       else { // v1 and v2 are both not empty
         size_t p1=0,p2=0;
         msum_rec(size/2,&v1,&p1,&v2,&p2,c);
         assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
       }
       // check if v1+v2 is all 1's
-      assert(tmp<k2pos(c));  // implied by v1+v2!=0     
-      if(tmp+1!=k2pos(c)) all_ones = false; // more than one node was written no1 all 1s
-    } 
+      assert(k2pos(c)>tmp);  // since v1+v2!=0 something was written 
+      if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false; // v1+v2 is not all 1s
+      else assert(k2pos(c)==tmp+1); // if v1+v2 is all 1s only root was written
+    }
     // if v1==0 && v2==0 then v1+v2=0 and there is nothing to write and all_ones is false
     else all_ones = false;
-    
   }
   // all computation done, deallocate temporary matrices
   k2_free(&v1);
@@ -610,12 +614,12 @@ static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     assert(k2pos(c)==rootpos+1); // only root was written to c 
     k2setpos(c,rootpos);         // delete root
   }
-  // case c is all 1's
-  else if(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5)  {
+  else if(all_ones) {         // case c is all 1's
+    assert(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5);  
     // to check if this is an all 1's matrix we need to check that
     // the root is ALL_CHILDREN and that the 4 children are all 1's
     // hence are represented by a single ALL_ONES node
-    for(size_t i=rootpos+1;i<rootpos+5;i++)
+    for(size_t i=rootpos+1;i<rootpos+5;i++) // extra check, can be removed
        assert(k2read_node(c,i)==ALL_ONES);
     k2setpos(c,rootpos+1);      // only keep root which was already ALL_ONES
     assert(k2read_node(c,rootpos)==ALL_ONES);
