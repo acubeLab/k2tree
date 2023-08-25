@@ -62,10 +62,10 @@ int main (int argc, char **argv) {
       }
   }
   if(verbose>0) {
-    fputs("==== Command line:\n",stderr);
+    fputs("==== Command line:\n",stdout);
     for(int i=0;i<argc;i++)
-     fprintf(stderr," %s",argv[i]);
-    fputs("\n",stderr);  
+     fprintf(stdout," %s",argv[i]);
+    fputs("\n",stdout);  
   }
   if(check  && decompress)
     quit("Options -c and -d are incompatible",__LINE__,__FILE__);
@@ -91,7 +91,7 @@ int main (int argc, char **argv) {
   if(decompress) {
     size = mload_from_file(&asize, &a, iname); // also init k2 library
     if (verbose || !write)  
-      mshow_stats(size, asize,&a,iname,stderr);
+      mshow_stats(size, asize,&a,iname,stdout);
     b= bbm_alloc(size);
     mwrite_to_bbm(b,size,asize, &a);
     if(write) bbm_write(b,size,oname);
@@ -99,22 +99,22 @@ int main (int argc, char **argv) {
   else { // compression
     minimat_init(mmsize);     // init k2 library
     b= bbm_read(iname,&size); // file  ->bbm
-    if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
+    if(verbose>1) bbm_to_ascii(b,size,0,0,size,stdout);
     asize = mread_from_bbm(b,size,&a);
     if (verbose || !write)  
-      mshow_stats(size, asize,&a,iname,stderr);
+      mshow_stats(size, asize,&a,iname,stdout);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
     if(check) {
       uint8_t *bx = bbm_alloc(size);
       mwrite_to_bbm(bx,size,asize, &a);
       ssize_t eq = mequals_bbm(b,size,bx);
-      if(eq<0) fprintf(stderr,"Decompressed matrix is equal to original!\n"); 
-      else fprintf(stderr,"Decompressed matrix differs at position (%zd,%zd) "
+      if(eq<0) fprintf(stdout,"Decompressed matrix is equal to original!\n"); 
+      else fprintf(stdout,"Decompressed matrix differs at position (%zd,%zd) "
       "d:%d vs o:%d\n",eq/size,eq%size, bx[eq], b[eq]);
       free(bx);
     }
   }
-  if(verbose>1) bbm_to_ascii(b,size,0,0,size,stderr);
+  if(verbose>1) bbm_to_ascii(b,size,0,0,size,stdout);
   free(b);
   k2_free(&a);
 

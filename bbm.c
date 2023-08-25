@@ -121,7 +121,7 @@ void bbm_to_ascii(const uint8_t *m, size_t msize, int i, int j, int size, FILE *
 }
 
 // multiplication of bbm matrices, return number of nonzero 
-// all mustrice must have been allocated to dim size*size
+// all matrices must have been allocated to dim size*size
 int mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
   assert(a!=NULL && b!=NULL && c!=NULL && size>0);
   int count=0;
@@ -134,6 +134,7 @@ int mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
         c[i*size+j] = 1;
         count++;
       }
+      else c[i*size+j] = 0;
     }
   return count;
 }

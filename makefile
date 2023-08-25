@@ -1,9 +1,9 @@
 # compilation flags
-CFLAGS=-O3 -Wall -std=c11 -g
+CFLAGS=-O0 -Wall -std=c11 -g
 CC=gcc
 
 # main executables 
-EXECS=k2test.x k2comp.x k2mult.x
+EXECS=k2comp.x k2mult.x
 
 # targets not producing a file declared phony
 .PHONY: all clean
@@ -25,6 +25,12 @@ k2ops.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
 
 bbm.o: bbm.c bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# compile release version with -O3 optimization and possibly no assertions
+# (add -DNDEBUG to CFLAGS	and possibly remove -g, both also significantly reduce executable sizes)
+release: CFLAGS = -O3 -Wall -std=c11 -g
+release: clean
+release: $(EXECS)  
 
 clean:
 	rm -f $(EXECS) *.o 

@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <string.h>
 #include "k2.h"
+#include "bbm.h"
 
 static void quit(const char *msg, int line, char *file);
 
@@ -102,6 +103,7 @@ void init_mprods2x2(void) {
 // init array of transpose
 void init_mtranspose4x4(void) {
   assert(mtranspose4x4==NULL);
+  assert(MMsize==4);
   mtranspose4x4 = malloc((1<<16)*sizeof(*mtranspose4x4));
   if(mtranspose4x4==NULL) quit("init_mtranspose4x4: malloc failed",__LINE__,__FILE__);
   // fill with transpose
@@ -162,6 +164,7 @@ int k2get_k2size(int msize)
   return s;
 }
 
+
 // read a minimat from a submatrix of an bbm matrix m
 // entries outsize the matrix m are considered to be 0
 minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
@@ -191,10 +194,6 @@ void minimat_to_bbm(uint8_t *m, int msize, int i, int j, int size, minimat_t a) 
         // if(bit) m[(i+ii)*msize + j+jj]=1;  // if nonzero set m[i+ii][j+jj] to 1
       }
 }
-
-
-
-
 
 
 // write error message and exit

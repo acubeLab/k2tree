@@ -55,10 +55,10 @@ int main (int argc, char **argv) {
       }
   }
   if(verbose>0) {
-    fputs("==== Command line:\n",stderr);
+    fputs("==== Command line:\n",stdout);
     for(int i=0;i<argc;i++)
-     fprintf(stderr," %s",argv[i]);
-    fputs("\n",stderr);  
+     fprintf(stdout," %s",argv[i]);
+    fputs("\n",stdout);  
   }
 
   // virtually get rid of options from the command line 
@@ -77,7 +77,7 @@ int main (int argc, char **argv) {
   size_t size;
 
   size = mload_from_file(&asize, &a, iname1); // also init k2_library
-  if (verbose) mshow_stats(size,asize,&a,iname1,stderr);
+  if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
   if(strcmp(iname1,iname2)==0)
     k2make_pointer(&a,&b);
   else {
@@ -85,10 +85,10 @@ int main (int argc, char **argv) {
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
   }
-  if (verbose) mshow_stats(size, asize,&b,iname2,stderr);
+  if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
   mmult(asize,&a,&b,&ab);
   if (verbose || !write) 
-    mshow_stats(size, asize,&ab,oname,stderr);
+    mshow_stats(size, asize,&ab,oname,stdout);
 
   if(write) msave_to_file(size,asize,&ab,oname);
 
@@ -96,13 +96,16 @@ int main (int argc, char **argv) {
   if(check) {
     uint8_t *m1 = bbm_alloc(size), *m2 = bbm_alloc(size), *m3 = bbm_alloc(size); 
     mwrite_to_bbm(m1,size,asize,&a);
+    if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
     mwrite_to_bbm(m2,size,asize,&b);
+    if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
     mwrite_to_bbm(m3,size,asize,&ab);
+    if(verbose>1) bbm_to_ascii(m3,size,0,0,size,stdout);
     uint8_t *m4 = bbm_alloc(size);
     mmult_bbm(m1,size,m2,m4);
     ssize_t eq = mequals_bbm(m3,size,m4);
-    if(eq<0) fprintf(stderr,"Product is correct!\n");
-    else fprintf(stderr,"Product matrix differs at position (%zd,%zd) "
+    if(eq<0) fprintf(stdout,"Product is correct!\n");
+    else fprintf(stdout,"Product matrix differs at position (%zd,%zd) "
       "k2:%d vs bbm:%d\n",eq/size,eq%size, m3[eq], m4[eq]);
     free(m1); free(m2); free(m3); free(m4);
   }
@@ -114,7 +117,6 @@ int main (int argc, char **argv) {
   // report running time
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   fprintf(stderr,"==== Done\n");
-  (void) check;
   return EXIT_SUCCESS;
 }
 

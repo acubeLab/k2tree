@@ -55,7 +55,7 @@ int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats;
-  fprintf(stderr,"%s -- matrix size: %zd, k2size: %d\n",mname,size,asize);  
+  fprintf(stderr,"%s -- matrix size: %zd, mmsize: %d, k2size: %d\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
   fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd\n",
@@ -434,11 +434,11 @@ int mload_from_file(int *asize, k2mat_t *a, const char *filename)
     minimat_init(mmsize); // initialize minimat library if not already done
   else 
     if(mmsize!=MMsize) quit("mload_from_file: wrong minimatrix size",__LINE__,__FILE__);
-  if(size<2*MMsize) 
-    quit("mload_from_file: matrix size incompatible with minimatrix size, wrong format?",
-                         __LINE__,__FILE__);
   e = fread(asize, sizeof(int),1,f);
   if(e!=1) quit("mload_from_file: cannot read k2 matrix size",__LINE__,__FILE__);
+  if(*asize<2*MMsize) 
+    quit("mload_from_file: k2 matrix size incompatible with minimatrix size, wrong format?",
+                         __LINE__,__FILE__);
   if(*asize!=k2get_k2size(size)) quit("mload_from_file: wrong k2 matrix size",__LINE__,__FILE__ );                       
   e = fread(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("mload_from_file: cannot read number of positions",__LINE__,__FILE__);
