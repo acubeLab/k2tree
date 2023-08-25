@@ -57,7 +57,7 @@ void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FIL
   size_t pos, nodes, minimats;
   fprintf(stderr,"%s -- matrix size: %zd, k2size: %d\n",mname,size,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats);
-  assert(pos==nodes+minimats); // check that the number of positions is correct
+  assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
   fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd\n",
          mname,levels,nodes,minimats);
 }
@@ -266,7 +266,10 @@ int mequals(int size, const k2mat_t *a, const k2mat_t *b)
 // the output matrix c is normalized as usual:
 //  if c is all 0s nothing is written
 //  if c is all 1s the root ALL_ONES is written
-//  otherwise we follow the standard rule: root node + nonzero minisize matrices  
+//  otherwise we follow the standard rule: root node + nonzero minisize matrices 
+// Here is the only part where we call the base multiplication function
+// using the following macro, adapt of ther sizes have to be suported
+#define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
 void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size==2*MMsize);
@@ -300,9 +303,9 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
     int i=k/2; int j=k%2;
-    assert(size==4); // implies that minimats are 2x2 
-    minimat_t cx  = mmult2x2(ax[i][0],bx[0][j]);
-    cx |= mmult2x2(ax[i][1],bx[1][j]);
+    assert(size==4 || size==8); // implies that minimats are 2x2  or 4x4
+    minimat_t cx  = mmultNxN(MMsize,ax[i][0],bx[0][j]);
+    cx |= mmultNxN(MMsize,ax[i][1],bx[1][j]);
     if(cx!=MINIMAT0s) {
       rootc |= (1<<k);
       k2add_minimat(c,cx);

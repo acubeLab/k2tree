@@ -134,16 +134,40 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
 {
   assert(!b->read_only);
   assert(MMsize>7  ||  m< (1UL<<(MMsize*MMsize)));
-  // currently a 2x2 matrix takes exactly 4 bit == one node 
-  assert(Minimat_node_ratio==1); // otherwise this code must change
-  return k2add_node(b, (node_t) m);
+  if (MMsize==2) {
+    // a 2x2 matrix takes exactly 4 bit == one node 
+    assert(Minimat_node_ratio==1);
+    return k2add_node(b, (node_t) m);
+  }
+  else {
+    assert(MMsize==4);
+    assert(Minimat_node_ratio==4);
+    // save in big endian format 
+    size_t first = k2add_node(b, (node_t) ( (m>>12) &0xF));
+    for(int i=8;i>=0;i-=4 ) { // 3 more nibbles 
+      k2add_node(b, (node_t) ((m>>i)&0xF));
+    }
+    return first;
+  }
 }
 
 // read minimat matrix starting from position p
 // used by k2read_minimats and k2copy_rec
 static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
-  assert(Minimat_node_ratio==1);   // otherwise this code must change
-  return (minimat_t) k2read_node(b,p);
+  if(MMsize==2) {
+    assert(Minimat_node_ratio==1);
+    return (minimat_t) k2read_node(b,p);
+  }
+  else {
+    assert(MMsize==4);
+    assert(Minimat_node_ratio==4);
+    minimat_t res = 0;
+    for(int i=0;i<Minimat_node_ratio;i++) {
+      res <<= 4;
+      res |= (minimat_t) k2read_node(b,p++);
+    }
+    return res;
+  }    
 }
 
 // split the submatrix :a starting at position *posa into 4 minimats
