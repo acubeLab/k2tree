@@ -46,7 +46,7 @@ static minimat_t MINIMAT1s=0;  // minimat containing all 1's, incorrect value, i
 // multiplication functions for minimats of different sizes
 
 // global variable containing the product of every pair of possible minimatrices
-// to initialized in minimats_init();
+// to be initialized in minimats_init();
 static minimat_t *mprods2x2 = NULL; // will contain 256 entries  ;
 
 // multiply two minimat matrices of size 2*2
@@ -55,6 +55,30 @@ minimat_t mmult2x2(minimat_t a, minimat_t b) {
   return mprods2x2[(a<<4) | b]; // equivalent to minimat_prods[a][b]
 }
 
+// global variable containing the transpose of each 4x4 minimat 
+static uint16_t *mtranspose4x4 = NULL;
+
+minimat_t mmult4x4(minimat_t a, minimat_t b) {
+  // compute array of b columns
+  minimat_t bt = mtranspose4x4[b];
+  minimat_t bcol[4];
+  for(int j=0;j<4;j++) {
+    bcol[j] = bt & 0xF;
+    bt = bt >> 4;
+  }
+  // compute result matrix
+  minimat_t res = 0;
+  for(int i=3;i>=0;i--) { // row index
+    minimat_t rowi = (a>>(4*i)) & 0xF;
+    for(int j=3; j>=0;j--) {
+      res <<= 1;
+      if( rowi & bcol[j] ) res |= 1;
+    }
+  }
+  return res;
+}
+
+// init array of products
 void init_mprods2x2(void) {
   // create array
   assert(mprods2x2==NULL);
@@ -74,6 +98,26 @@ void init_mprods2x2(void) {
       mprods2x2[a<<4 | b] = c;
     }
 }
+
+// init array of transpose
+void init_mtranspose4x4(void) {
+  assert(mtranspose4x4==NULL);
+  mtranspose4x4 = malloc((1<<16)*sizeof(*mtranspose4x4));
+  if(mtranspose4x4==NULL) quit("init_mtranspose4x4: malloc failed",__LINE__,__FILE__);
+  // fill with transpose
+  minimat_t bt[4];      // rows of b^t   
+  for(minimat_t b=0; b<(1<<16); b++) {
+    for(int j=0;j<4;j++) { // column index in b
+      bt[j] = 0;           // the j-th column of b determines the j-th row of bt   
+      for(int r=0;r<4;r++) // row index in b
+        if(b & (1<<(j+r*4)))  // if b[r][j]!=0
+          bt[j] |= (1<<r);
+    }
+    mtranspose4x4[b] = bt[0] | (bt[1]<<4) | (bt[2]<<8) | (bt[3]<<12);
+  }
+}
+
+
 
 void minimat_init(int msize) {
   if(MMsize!=INT32_MAX) quit("minimats_init: already initialized",__LINE__,__FILE__);
@@ -95,8 +139,12 @@ void minimat_init(int msize) {
    MINIMAT1s = (((minimat_t) 1) << (msize*msize)) -1;
 
   // so far only size 2 is allowed
-  if(MMsize!=2) quit("minimats_init: MMsize!=2",__LINE__,__FILE__);  
-  init_mprods2x2();
+  if(MMsize==2)  
+    init_mprods2x2();
+  else if (MMsize==4) {
+    init_mtranspose4x4();
+  }
+  else quit("minimats_init: MMsize!=2,4",__LINE__,__FILE__); 
 }
 
 // compute the size of the smallest k2mat containing a matrix of size msize
