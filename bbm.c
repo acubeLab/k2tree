@@ -128,7 +128,8 @@ int mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
   for(int i=0; i<size; i++)
     for(int j=0; j<size; j++) {
       int sum=0;
-      for(int k=0; k<size; k++) 
+      // exit for loop as soon as we know result is one
+      for(int k=0; k<size && sum==0; k++) 
         sum |= a[i*size+k] & b[k*size+j];
       if (sum) {
         c[i*size+j] = 1;
