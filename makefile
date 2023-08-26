@@ -6,7 +6,7 @@ CC=gcc
 EXECS=k2comp.x k2mult.x
 
 # targets not producing a file declared phony
-.PHONY: all clean
+.PHONY: all clean release
 
 all: $(EXECS)
 
@@ -15,7 +15,7 @@ all: $(EXECS)
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
 
-# rule for k2mult.o k2comp.o k2test.o
+# rule for k2mult.o k2comp.o
 %.o: %.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -26,8 +26,8 @@ k2ops.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
 bbm.o: bbm.c bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# compile release version with -O3 optimization and possibly no assertions
-# (add -DNDEBUG to CFLAGS	and possibly remove -g, both also significantly reduce executable sizes)
+# compile a release version with -O3 optimization and possibly no assertions
+# (add -DNDEBUG to CFLAGS	and remove -g, this also significantly reduces executable sizes)
 release: CFLAGS = -O3 -Wall -std=c11 -g
 release: clean
 release: $(EXECS)  
