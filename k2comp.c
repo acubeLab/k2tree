@@ -108,7 +108,7 @@ int main (int argc, char **argv) {
       uint8_t *bx = bbm_alloc(size);
       mwrite_to_bbm(bx,size,asize, &a);
       ssize_t eq = mequals_bbm(b,size,bx);
-      if(eq<0) fprintf(stdout,"Decompressed matrix is equal to original!\n"); 
+      if(eq<0) fprintf(stdout,"Decompressed matrix matches the original!\n"); 
       else fprintf(stdout,"Decompressed matrix differs at position (%zd,%zd) "
       "d:%d vs o:%d\n",eq/size,eq%size, bx[eq], b[eq]);
       free(bx);
@@ -129,14 +129,14 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] filename\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-d      decompress\n");
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
     fprintf(stderr,"\t-e ext  outfile extension (def. compr: \"%s\", decompr: \"%s\")\n",
                    default_cext, default_dext);
+    fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-v      verbose\n\n");
-    fprintf(stderr,"Default action is to compress filename to filename.k2x\n\n");
+    fprintf(stderr,"Default action is to compress filename to filename%s\n\n",default_cext);
     exit(1);
 }
 

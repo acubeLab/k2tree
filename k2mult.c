@@ -104,7 +104,7 @@ int main (int argc, char **argv) {
     uint8_t *m4 = bbm_alloc(size);
     mmult_bbm(m1,size,m2,m4);
     ssize_t eq = mequals_bbm(m3,size,m4);
-    if(eq<0) fprintf(stdout,"Product is correct!\n");
+    if(eq<0) fprintf(stdout,"Product matches the one computed using byte matrices!\n");
     else fprintf(stdout,"Product matrix differs at position (%zd,%zd) "
       "k2:%d vs bbm:%d\n",eq/size,eq%size, m3[eq], m4[eq]);
     free(m1); free(m2); free(m3); free(m4);
@@ -125,9 +125,9 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] iname1 iname2\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-c      check multiplication\n");
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
     fprintf(stderr,"\t-e ext  extension for the output file (def. %s)\n",default_ext);
+    fprintf(stderr,"\t-c      check multiplication (very slow for large matrices!)\n");
     fprintf(stderr,"\t-v      verbose\n\n");
     exit(1);
 }
