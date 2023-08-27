@@ -21,7 +21,7 @@ shift 2
 echo $options
 for f in "$@"
 do 
-  echo "////\\\\ File: $f"
+  echo ">>>>>>>> File: $f"
   echo "==== compression"
   k2comp.x $options -e $ext  $f
   ls -l $f$ext

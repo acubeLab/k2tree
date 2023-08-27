@@ -17,7 +17,7 @@ fi
 
 for f in "$@"
 do 
-  echo "////\\\\ File: $f"
+  echo ">>>>>>>> File: $f"
   echo "==== compression with 2x2 leaves"
   k2comp.x -m2 -e .k2 -cn $f
   echo "==== compression with 4x4 leaves"

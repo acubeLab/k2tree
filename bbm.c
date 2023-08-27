@@ -120,23 +120,40 @@ void bbm_to_ascii(const uint8_t *m, size_t msize, int i, int j, int size, FILE *
   }
 }
 
-// multiplication of bbm matrices, return number of nonzero 
+// multiplication of bbm matrices, return 0 (it used to return the 
+// number of nonzero elements in the product but this is no longer available) 
 // all matrices must have been allocated to dim size*size
 int mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
   assert(a!=NULL && b!=NULL && c!=NULL && size>0);
-  int count=0;
+  // clean c
+  byte_to_bbm(c,size,0,0,size,0);
+  int count=0; // remove thei valriable in future versions
+  // different access pattern 
+  for(int i=0; i<size; i++)
+    for(int k=0; k<size; k++) 
+      if(a[i*size+k]) {
+        for(int j=0; j<size; j++) { 
+          if(b[k*size+j])
+            c[i*size+j] = 1;
+        }
+      }
+
+  #if 0
+  // this is very very slow because of its memory access pattern
   for(int i=0; i<size; i++)
     for(int j=0; j<size; j++) {
-      int sum=0;
       // exit for loop as soon as we know result is one
-      for(int k=0; k<size && sum==0; k++) 
-        sum |= a[i*size+k] & b[k*size+j];
-      if (sum) {
-        c[i*size+j] = 1;
-        count++;
-      }
-      else c[i*size+j] = 0;
+      for(int k=0; k<size; k++) 
+        if( a[i*size+k] & b[k*size+j] ) {
+          c[i*size+j] = 1;
+          count++;
+          break;
+        }
     }
+  #endif
+
+
+
   return count;
 }
 
