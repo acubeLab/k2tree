@@ -58,7 +58,7 @@ void k2make_empty(k2mat_t *m)
 }
 
 // free mem, *m still reusable if needed 
-void k2_free(k2mat_t *m)
+static void k2_free(k2mat_t *m)
 {
   if(m->read_only) // read only matrices are pointers to other matrices
     quit("Illegal operation: freeing a read only k2-matrix",__LINE__,__FILE__); 
@@ -260,7 +260,7 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 
 // make c an identical read-only image of matrix a
 // the previous content of c is freed and lost 
-void k2make_pointer(const k2mat_t *a, k2mat_t *c)
+static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   k2_free(c);

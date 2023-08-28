@@ -116,7 +116,7 @@ int main (int argc, char **argv) {
   }
   if(verbose>1) bbm_to_ascii(b,size,0,0,size,stdout);
   free(b);
-  k2_free(&a);
+  matrix_free(&a);
 
   // statistics
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));

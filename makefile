@@ -32,6 +32,10 @@ bbm.o: bbm.c bbm.h
 bbmmult.o: bbmmult.c bbm.h
 	$(CC) $(CFLAGS) -fopenmp -c -o $@ $<
 
+b128ops.o: b128ops.c b128.h bbm.h
+	$(CC) $(CFLAGS) -fopenmp -c -o $@ $<
+
+
 # compile a release version with -O3 optimization and possibly no assertions
 # (add -DNDEBUG to CFLAGS	and remove -g, this also significantly reduces executable sizes)
 release: CFLAGS = -O3 -Wall -std=c11 -g

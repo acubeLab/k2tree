@@ -21,7 +21,7 @@ static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
-// of size msize*msize. It is assumed m was already correctly initialized 
+// of size msize*msize. It is assumed m was already correctly initialized and allocated
 void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
 {
   assert(size>=msize);
@@ -37,7 +37,8 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
 
 
 // compress the matrix *m of size msize into the k2mat_t structure *a 
-// m should be an integer array of size msize*msize 
+// m should be an array of size msize*msize 
+// the old content of :a is lost
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
 int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 {
@@ -52,6 +53,18 @@ int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
   return asize;
 }
 
+// return statistics on matrix a
+// write number of used pos,nomde, and minimats in the variables passed by reference
+// and return the number of levels
+int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
+{
+  *pos=*nodes=*minimats=0;
+  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats);
+  int eq = mequals(asize,a,a);
+  assert(eq<0);
+  return -eq;
+}
+
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats;
@@ -62,8 +75,76 @@ void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FIL
          mname,levels,nodes,minimats);
 }
 
+// recursive test for equality test of two k2 matrices both nonzero
+// see mequals for details
+static int mequals_rec(int size, const k2mat_t *a, size_t *posa, 
+                          const k2mat_t *b, size_t *posb)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && b!=NULL);
+  assert(!k2is_empty(a) && !k2is_empty(b));
+  // read root nodes of a and b
+  node_t roota = k2read_node(a,*posa); *posa +=1;
+  node_t rootb = k2read_node(b,*posb); *posb +=1;
+  if(roota!=rootb) return 0; // if root nodes are different: a!=b at this level
+  if(roota==ALL_ONES)        // implies rootb == ALL_ONES 
+    return -1; // if root nodes are both all 1's: a==b and there are no other levels 
+  // root nodes are equal and have children, check children recursively
+  if(size==2*MMsize) { // children are minimat matrices
+    minimat_t ax[2][2], bx[2][2];
+    k2split_minimats(a,posa,roota,ax);
+    k2split_minimats(b,posb,rootb,bx);
+    for(int k=0;k<4;k++) 
+      if(ax[k/2][k%2]!=bx[k/2][k%2]) return 1; // if corresponding minimats are different: a!=b
+    return -2; // all minimats are equal: a==b, traversed 2 levels 
+  }
+  else { // size>2*MMsize: children are k2 matrices, possibly use recursion
+    int eq = 0;
+    for(int k=0;k<4;k++) {
+      if (roota & (1 << k)) {
+        assert(rootb & (1 << k)); 
+        int eqr = mequals_rec(size/2,a,posa,b,posb);
+        if(eqr>0) return eqr+1; // a and b are different at level eqr+1
+        if(eqr < eq) eq = eqr;  // keep track of deepest level reached
+      }
+    }
+    return eq -1; // increase depth by one 
+  }
+}
+
+
+
+// main entry point for matrix equality
+// check if size x size k2 compressed matrices :a and :b are equal
+// if a==b return -d, where d>0 is the number of levels traversed  
+// if a!=b return the level>=0 containing the first difference
+// (first in the sense of the first level encountered in dfs order)
+// Note that if a==b we return the number of visited levels (tree depth), 
+// while if a!=b we return the level of the first difference counting from 0 (root)
+// these two values differ by one (these can be seen in the returned value)
+// :a and :b must be of size at least 2*MMsize but their content can be
+// arbitrary: all 0's, all 1's, or generic
+// note: here all 0's matrices are considered of depth 1 even if they are empty
+int mequals(int size, const k2mat_t *a, const k2mat_t *b)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && b!=NULL);
+  if(k2is_empty(a) && k2is_empty(b)) 
+    return -1;                 // if a==0 && b==0: a==b and one level traversed
+  else if(k2is_empty(b))      
+    return 0;                 // if b==0 && a!=0: a!=b and difference at level 0
+  else if(k2is_empty(a))    
+    return 0;                 // if a==0 && b!=0: a!=b as above
+  // a and b are both not zero
+  size_t posa=0,posb=0;
+  int eq = mequals_rec(size,a,&posa,b,&posb);
+  // do extra checks if the matrices are equal
+  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && posa==posb));
+  return eq;
+}
+
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
-void mcopy(int size, const k2mat_t *a, k2mat_t *b)
+static void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
@@ -81,7 +162,7 @@ void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + subtrees in DFS order   
-void msum_rec(int size, const k2mat_t *a, size_t *posa, 
+static void msum_rec(int size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
   assert(size>=2*MMsize); // there must be the root node 
@@ -162,8 +243,8 @@ void msum_rec(int size, const k2mat_t *a, size_t *posa,
 
 // main entry point for matrix addition
 // sum size x size k2 compressed matrices :a and :b storing
-// the result in c, must be called with an initialized and empty :c
-// :a and :b must be of size at least 2*MMsize but their content can be 
+// the result in :c, the old content of :c is discarded
+// :a and :b must be of (same) size at least 2*MMsize but their content can be 
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
 //    if the result is a zero matrix c is left empty
@@ -173,8 +254,8 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  assert(k2is_empty(c) && !c->read_only);
 
+  k2_free(c); // free old content and initialize as empty
   if(k2is_empty(a) && k2is_empty(b)) 
     return;                 // if a==0 && b==0: c=0
   else if(k2is_empty(b))      
@@ -189,75 +270,6 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   }
   return;
 }
-
-// recursive test for equality test of two k2 matrices both nonzero
-// see mequals for details
-int mequals_rec(int size, const k2mat_t *a, size_t *posa, 
-                          const k2mat_t *b, size_t *posb)
-{
-  assert(size>=2*MMsize);
-  assert(a!=NULL && b!=NULL);
-  assert(!k2is_empty(a) && !k2is_empty(b));
-  // read root nodes of a and b
-  node_t roota = k2read_node(a,*posa); *posa +=1;
-  node_t rootb = k2read_node(b,*posb); *posb +=1;
-  if(roota!=rootb) return 0; // if root nodes are different: a!=b at this level
-  if(roota==ALL_ONES)        // implies rootb == ALL_ONES 
-    return -1; // if root nodes are both all 1's: a==b and there are no other levels 
-  // root nodes are equal and have children, check children recursively
-  if(size==2*MMsize) { // children are minimat matrices
-    minimat_t ax[2][2], bx[2][2];
-    k2split_minimats(a,posa,roota,ax);
-    k2split_minimats(b,posb,rootb,bx);
-    for(int k=0;k<4;k++) 
-      if(ax[k/2][k%2]!=bx[k/2][k%2]) return 1; // if corresponding minimats are different: a!=b
-    return -2; // all minimats are equal: a==b, traversed 2 levels 
-  }
-  else { // size>2*MMsize: children are k2 matrices, possibly use recursion
-    int eq = 0;
-    for(int k=0;k<4;k++) {
-      if (roota & (1 << k)) {
-        assert(rootb & (1 << k)); 
-        int eqr = mequals_rec(size/2,a,posa,b,posb);
-        if(eqr>0) return eqr+1; // a and b are different at level eqr+1
-        if(eqr < eq) eq = eqr;  // keep track of deepest level reached
-      }
-    }
-    return eq -1; // increase depth by one 
-  }
-}
-
-
-
-// main entry point for matrix equality
-// check if size x size k2 compressed matrices :a and :b are equal
-// if a==b return -d, where d>0 is the number of levels traversed  
-// if a!=b return the level>=0 containing the first difference
-// (first in the sense of the first level encountered in dfs order)
-// Note that if a==b we return the number of visited levels (tree depth), 
-// while if a!=b we return the level of the first difference counting from 0 (root)
-// these two values differ by one (these can be seen in the returned value)
-// :a and :b must be of size at least 2*MMsize but their content can be
-// arbitrary: all 0's, all 1's, or generic
-// note: here all 0's matrices are considered of depth 1 even if they are empty
-int mequals(int size, const k2mat_t *a, const k2mat_t *b)
-{
-  assert(size>=2*MMsize);
-  assert(a!=NULL && b!=NULL);
-  if(k2is_empty(a) && k2is_empty(b)) 
-    return -1;                 // if a==0 && b==0: a==b and one level traversed
-  else if(k2is_empty(b))      
-    return 0;                 // if b==0 && a!=0: a!=b and difference at level 0
-  else if(k2is_empty(a))    
-    return 0;                 // if a==0 && b!=0: a!=b as above
-  // a and b are both not zero
-  size_t posa=0,posb=0;
-  int eq = mequals_rec(size,a,&posa,b,&posb);
-  // do extra checks if the matrices are equal
-  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && posa==posb));
-  return eq;
-}
-
 
 // base case of matrix multiplication: matrices of size 2*MMmin
 // a and b must be not all 0s (ie empty)
@@ -330,7 +342,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 
 // main entry point for matrix multiplication. 
 // multiply size x size k2 compressed matrices :a and :b storing
-// the result in c, must be called with an initialized and empty :c
+// the result in :c, old content of :c is discarded
 // :a and :b must be of size at least 2*MMsize but their content can be 
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
@@ -342,11 +354,10 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(size>MMsize); // inputs cannot be minimats 
   assert(size%2==0);
-  assert(k2is_empty(c));
   
-  //if one matrix is all 0s (empty) the result is all 0's: nothing to be done  
+  k2_free(c); // free old content and initialize as empty
   if(k2is_empty(a) ||  k2is_empty(b))
-    return;
+    return;  //if one matrix is all 0s the result is all 0's: nothing to be done
   
   // recursion base step
   if(size==2*MMsize) {
@@ -371,18 +382,6 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   }*/
   else 
     split_and_rec(size,a,b,c);
-}
-
-// return statistics on matrix a
-// write number of used pos,nomde, and minimats in the variables passed by reference
-// and return the number of levels
-int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
-{
-  *pos=*nodes=*minimats=0;
-  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats);
-  int eq = mequals(asize,a,a);
-  assert(eq<0);
-  return -eq;
 }
 
 
@@ -417,6 +416,7 @@ void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename)
 
 // load a k2 matrix stored in file :filename into the k2mat_t structure :a
 // return the actual size of the matrix, see msave_to_file() for the file format
+// :a old content is discarded
 // must be called after minimat_init() since it checks that the correct MMsize is used
 int mload_from_file(int *asize, k2mat_t *a, const char *filename)
 {
@@ -454,6 +454,19 @@ int mload_from_file(int *asize, k2mat_t *a, const char *filename)
   return size;
 }
 
+// give non-k2 names to two usegul functions
+
+// free mem, *m still reusable if needed 
+void matrix_free(k2mat_t *m) {
+  k2_free(m);
+}
+
+// make c an identical read-only image of matrix a
+// the previous content of c is freed and lost 
+void mmake_pointer(const k2mat_t *a, k2mat_t *c)
+{
+  k2make_pointer(a,c);
+}
 
 
 

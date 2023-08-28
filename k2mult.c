@@ -79,7 +79,7 @@ int main (int argc, char **argv) {
   size = mload_from_file(&asize, &a, iname1); // also init k2_library
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
   if(strcmp(iname1,iname2)==0)
-    k2make_pointer(&a,&b);
+    mmake_pointer(&a,&b);
   else {
     int bsize, size1 = mload_from_file(&bsize, &b, iname2);
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
@@ -111,9 +111,9 @@ int main (int argc, char **argv) {
   }
 
   // free and terminate
-  k2_free(&a);
-  if(strcmp(iname1,iname2)) k2_free(&b);
-  k2_free(&ab);    
+  matrix_free(&a);
+  if(strcmp(iname1,iname2)) matrix_free(&b);
+  matrix_free(&ab);    
   // report running time
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   fprintf(stderr,"==== Done\n");

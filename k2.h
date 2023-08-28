@@ -79,8 +79,8 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // if a!=b return the level>=0 containing the first difference
 int mequals(int size, const k2mat_t *a, const k2mat_t *b);
 // get statistics on a matrix
-int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);
+// int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);
 // free a k2 matrix
-void k2_free(k2mat_t *m);
+void matrix_free(k2mat_t *m);
 // make a read-only copy of a k2 matrix without allocating new memory
-void k2make_pointer(const k2mat_t *a, k2mat_t *c);
+void mmake_pointer(const k2mat_t *a, k2mat_t *c);
