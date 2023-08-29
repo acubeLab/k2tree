@@ -102,20 +102,28 @@ int main (int argc, char **argv) {
 
   // check product if requested
   if(check) {
-    uint8_t *m1 = bbm_alloc(size), *m2 = bbm_alloc(size), *m3 = bbm_alloc(size); 
+    uint8_t *m2, *m1 = bbm_alloc(size), *m3 = bbm_alloc(size);
+    // read m1 
     mwrite_to_bbm(m1,size,asize,&a);
     if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
-    mwrite_to_bbm(m2,size,asize,&b);
-    if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
-    mwrite_to_bbm(m3,size,asize,&ab);
-    if(verbose>1) bbm_to_ascii(m3,size,0,0,size,stdout);
-    uint8_t *m4 = bbm_alloc(size);
-    mmult_bbm(m1,size,m2,m4);
-    ssize_t eq = mequals_bbm(m3,size,m4);
+    // read m2 if different from m2
+    if(strcmp(iname1,iname2)==0) m2=m1;
+    else {
+      m2 = bbm_alloc(size);
+      mwrite_to_bbm(m2,size,asize,&b);
+      if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
+    }
+    // compute product to m3 = m1 * m2
+    mmult_bbm(m1,size,m2,m3);
+    // uncompress product to m1
+    mwrite_to_bbm(m1,size,asize,&ab);
+    if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
+    ssize_t eq = mequals_bbm(m1,size,m3);
     if(eq<0) fprintf(stdout,"Product matches the one computed using byte matrices!\n");
     else fprintf(stdout,"Product matrix differs at position (%zd,%zd) "
-      "k2:%d vs bbm:%d\n",eq/size,eq%size, m3[eq], m4[eq]);
-    free(m1); free(m2); free(m3); free(m4);
+      "prod+uncompr:%d vs uncompr+prod:%d\n",eq/size,eq%size, m1[eq], m3[eq]);
+    free(m1); free(m3);
+    if(strcmp(iname1,iname2)) free(m2);
   }
 
   // free and terminate
