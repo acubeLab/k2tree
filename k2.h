@@ -56,7 +56,7 @@ typedef struct k2mat {
 // prototypes
 
 // init minimatrices: must be called only once with the size of the minimats
-// it is the first k2-related function to be called
+// no k2-related function can be called before this one
 void minimat_init(int msize);
 // save a k2-matrix to file
 void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename);
@@ -68,18 +68,16 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a);
 int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a);
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file);
-// multiply two k2 matrices a and b writing the result to c
-// multiplication is done replacing scalar */+ by logical and/or 
-void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
-// sum two k2 matrices a and b writing the result to c
-// multiplication is done replacing scalar + by logical or 
-void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // check if two k2 compressed matrices :a and :b are equal
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
 int mequals(int size, const k2mat_t *a, const k2mat_t *b);
-// get statistics on a matrix
-// int mstats(int size, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats);
+// sum two k2 matrices a and b writing the result to c
+// multiplication is done replacing scalar + by logical or 
+void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+// multiply two k2 matrices a and b writing the result to c
+// multiplication is done replacing scalar */+ by logical and/or 
+void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // free a k2 matrix
 void matrix_free(k2mat_t *m);
 // make a read-only copy of a k2 matrix without allocating new memory

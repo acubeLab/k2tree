@@ -9,9 +9,10 @@ This repository contains a library for working with square sparse binary matrice
 A modern `gcc` and `make`
 
 
+
 ## Installation 
 
-Clone/download then `make release`
+Clone/download the repostory then `make release`
 
 
 
@@ -34,10 +35,11 @@ The input matrix must be square and represented using one byte per entry (so the
 ```
 
 
+
 ### Converion to/from k2tree representation 
 
 
-The executable `k2comp.x` is used to compression and decode a single matrix to/from a k2tree representation. 
+The executable `k2comp.x` is used to compression and decode a single matrix to/from a k2tree representation, run them without arguments to get basic usage instructions
 ```
 Usage:
 	  k2comp.x [options] filename

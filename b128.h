@@ -28,6 +28,8 @@ typedef struct b128mat {
 
 // prototypes
 
+// do nothing, added for compatibility with k2mat
+void minimat_init(int);
 // save a b128-matrix to file
 void msave_to_file(int size, int asize, const b128mat_t *a, const char *filename);
 // load a b128-matrix from file
@@ -52,5 +54,3 @@ void mmult(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
 void matrix_free(b128mat_t *m);
 // make a read-only copy of a b128 matrix without allocating new memory
 void mmake_pointer(const b128mat_t *a, b128mat_t *c);
-// do nothing, added for compatibility with k2mat
-void minimat_init(int);
