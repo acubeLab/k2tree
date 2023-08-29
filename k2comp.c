@@ -17,13 +17,21 @@
 #include <assert.h>
 #include <time.h>
 #include <limits.h>
+// definitions to be used for b128 vs k2-encoded matrices 
+#ifdef B128MAT
+#include "b128.h"
+#define default_cext ".b128"
+#define K2MAT_INITIALIZER B128MAT_INITIALIZER
+typedef b128mat_t k2mat_t;
+#else // k2mat
 #include "k2.h"
-#include "bbm.h"
-
-// default extensions
 #define default_cext ".k2"
+#endif
+// used by both matrix type 
+#include "bbm.h"
 #define default_dext ".d"
 
+// static functions at the end of the file
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 

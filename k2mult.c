@@ -17,11 +17,19 @@
 #include <assert.h>
 #include <time.h>
 #include <limits.h>
+// definitions to be used for b128 vs k2-encoded matrices 
+#ifdef B128MAT
+#include "b128.h"
+#define K2MAT_INITIALIZER B128MAT_INITIALIZER
+typedef b128mat_t k2mat_t;
+#else // k2mat
 #include "k2.h"
+#endif
+// used by both matrix type
 #include "bbm.h"
-
 #define default_ext ".prod"
 
+// static functions at the end of the file
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 
@@ -127,7 +135,7 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
     fprintf(stderr,"\t-e ext  extension for the output file (def. %s)\n",default_ext);
-    fprintf(stderr,"\t-c      check multiplication (very slow for large matrices!)\n");
+    fprintf(stderr,"\t-c      check multiplication (can be slow for large matrices!)\n");
     fprintf(stderr,"\t-v      verbose\n\n");
     exit(1);
 }

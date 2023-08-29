@@ -86,7 +86,7 @@ void mshow_stats(size_t size, int asize, const b128mat_t *a, const char *mname,F
   (void) asize;
   if(size!=a->size) quit("mshow_stats: size mismatch",__LINE__,__FILE__);
   fprintf(stderr,"%s -- matrix size: %zd, block size: %zd, # column blocks %d\n",
-          mname,size,sizeof(*(a->b)), a->colb);  
+          mname,size,8*sizeof(*(a->b)), a->colb);  
 }
 
 // main entry point for matrix equality
@@ -169,7 +169,7 @@ void msave_to_file(int size, int asize, const b128mat_t *a, const char *filename
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
   size_t tot128 = a->size*a->colb;
   if(tot128 <=0) quit("msave_to_file: illegal bit array size",__LINE__,__FILE__);
-  e = fwrite(&a->b,sizeof(uint128_t),tot128,f);
+  e = fwrite(a->b,sizeof(uint128_t),tot128,f);
   if(e!=tot128) quit("msave_to_file: cannot write bit array",__LINE__,__FILE__);
   fclose(f);
 }
@@ -212,7 +212,11 @@ void mmake_pointer(const b128mat_t *a, b128mat_t *c) {
 
 }
 
-
+// do nothing, added for compatibility with k2mat
+void minimat_init(int m)
+{
+  (void) m;
+}
 
 // ----------- static auxiliary functions ------------
 

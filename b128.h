@@ -1,12 +1,7 @@
-/* Core routines for handling square binary matrices using k^2 trees 
+/* Core routines for handling square binary matrices using dens bit arrays
 
    type definitions and prototypes of external visible functions
-
-   Matrix dimensions are assumed to be power of 2, of size at least
-   MMSize (minimatrix size), ie, the size of the last level of recursion. 
-
-   Technical note: matrix sizes are int, therefore limited to 2^31, but values related to
-   the overall number of elements is always stored into a size_t variable (usually 64 bits))  
+   see b128ops.c for details
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -19,8 +14,9 @@ typedef __uint128_t uint128_t;
 
 
 // struct representing a binary matrix with a single bit array
-// 
-edef struct b128mat {
+// each matrix row is represente by :colb uint128's
+// and the whole matrixby :size*colb int128's
+typedef struct b128mat {
   uint128_t *b;   // bit array  
   size_t size;    // size of the matrix
   int colb;       // # column blocks, ie (size+127)/128
@@ -56,4 +52,5 @@ void mmult(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
 void matrix_free(b128mat_t *m);
 // make a read-only copy of a b128 matrix without allocating new memory
 void mmake_pointer(const b128mat_t *a, b128mat_t *c);
-
+// do nothing, added for compatibility with k2mat
+void minimat_init(int);

@@ -3,25 +3,20 @@ CFLAGS=-O0 -Wall -std=c11 -g
 CC=gcc
 
 # main executables 
-EXECS=k2comp.x k2mult.x bbmmult.x
+EXECS=k2comp.x k2mult.x bbmmult.x b128comp.x b128mult.x
 
 # targets not producing a file declared phony
 .PHONY: all clean release
 
 all: $(EXECS)
 
-# rule for executables
-%.x: %.o k2ops.o bbm.o
+# rule for k2xxx executables
+k2%.x: k2%.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-bbmmult.x: bbmmult.o bbm.o
-	$(CC) $(LDFLAGS) -fopenmp -o $@ $^ 
-
-
 # rule for k2mult.o k2comp.o
-%.o: %.c k2.h bbm.h
+k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-
 
 k2ops.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -29,15 +24,30 @@ k2ops.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
 bbm.o: bbm.c bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+
+# rules for b128comp.x & b128mult.x
+b128%.x: b128%.o b128ops.o bbm.o
+	$(CC) $(LDFLAGS) -o $@ $^ 
+
+b128ops.o: b128ops.c b128.h bbm.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+b128%.o: k2%.c bbm.h b128.h
+	$(CC) $(CFLAGS) -c -o $@ $< -DB128MAT
+
+
+# uncompressed matrix multiplication using openmp 
+bbmmult.x: bbmmult.o bbm.o
+	$(CC) $(LDFLAGS) -fopenmp -o $@ $^ 
+
 bbmmult.o: bbmmult.c bbm.h
 	$(CC) $(CFLAGS) -fopenmp -c -o $@ $<
 
-b128ops.o: b128ops.c b128.h bbm.h
-	$(CC) $(CFLAGS) -fopenmp -c -o $@ $<
 
 
 # compile a release version with -O3 optimization and possibly no assertions
-# (add -DNDEBUG to CFLAGS	and remove -g, this also significantly reduces executable sizes)
+# and debugging info (add -DNDEBUG to CFLAGS	and remove -g) 
+# these options also significantly reduce executable sizes
 release: CFLAGS = -O3 -Wall -std=c11 -g
 release: clean
 release: $(EXECS)  
