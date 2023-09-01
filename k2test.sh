@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# compress $1.bin decompress it and compare it with the original
+# compress $1.bbm decompress it and compare it with the original
 
 if [ $# -lt 1 ]
 then
@@ -11,7 +11,7 @@ then
   echo "known variants of k2-comp (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
-  echo "         $0 data\*.bin"        
+  echo "         $0 data\*.bbm"        
   exit
 fi
 

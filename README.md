@@ -1,12 +1,12 @@
 # k2tree binary matrix representation
 
 
-This repository contains a library for working with square sparse binary matrices. The matrix elements are considered logical values so the operations `+` and `*` are repalced by the logival `or` and `and`  respectively. 
+This repository contains a set of functions for working with square sparse binary matrices represented with a k$^2$-tree. Matrix sum and product operations use boolean algebra with the scalar operations `+` and `*` replaced by logical `or` and `and` respectively. A version supporting $Z_2$ arithmetic can be easily derived if needed. 
 
 
 ## Prerequisites 
 
-A modern `gcc` and `make`
+A modern `gcc` supporting `c11` and `make`
 
 
 
@@ -22,7 +22,7 @@ Clone/download the repostory then `make release`
 ### The uncompressed matrix format
 
 
-The input matrix must be square and represented using one byte per entry (so the uncompressed file lenght is the square of the matrix dimension). Each entry should be a 0 or 1 value (ie `\x00` or `\x01`). The file `t8.bin` contains an 8x8 matrix in this format, type `od -td1 -w8 -An -v t8.bin` to see its content:
+The input matrix must be square and represented using one byte per entry (so the uncompressed file lenght is the square of the matrix dimension). Each entry should be a 0 or 1 value (ie `\x00` or `\x01`). The file `t8.bbm` contains an 8x8 matrix in this format, type `od -td1 -w8 -An -v t8.bbm` to see its content:
 ```
     0    0    0    0    0    1    1    1
     0    0    0    0    0    0    1    0
@@ -33,11 +33,11 @@ The input matrix must be square and represented using one byte per entry (so the
     1    1    1    1    0    0    0    1
     1    1    1    1    0    0    1    0
 ```
+The extension `.bbm` stands for **b**inary **b**yte **m**atrix.
 
 
 
-### Converion to/from k2tree representation 
-
+### Conversion to/from k2tree representation 
 
 The executable `k2comp.x` is used to compression and decode a single matrix to/from a k2tree representation, run them without arguments to get basic usage instructions
 ```
@@ -87,14 +87,14 @@ When invoked with `-c` after computing the product in k2 format, the program unc
 
 ### Example:
 
-The following sequence of compression, matrix multiplication, decompression and display
+The following sequence of compression, matrix multiplication, decompression and display operations
 ```
-k2comp.x t8.bin
-k2mult.x t8.bin.k2 t8.bin.k2
-k2comp.x -d t8.bin.k2.prod
-od -td1 -w8 -An -v t8.bin.k2.prod.d
+k2comp.x t8.bbm
+k2mult.x t8.bbm.k2 t8.bbm.k2
+k2comp.x -d t8.bbm.k2.prod
+od -td1 -w8 -An -v t8.bbm.k2.prod.d
 ```
-should display the matrix `t8.bin` squared
+should eventually display the matrix `t8.bbm` squared:
 ```
     1    1    1    1    0    0    1    1
     1    1    1    1    0    0    0    1
@@ -109,7 +109,7 @@ should display the matrix `t8.bin` squared
 
 ### Matrices represented as bitarrays
 
-The library contains the code also for compressing and operating binary matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple the external functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transormed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`.
+The library contains the code also for compressing and operating binary matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transormed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`.
 
 The programs `b128comp.x` and `b128mult.x` works exactly like  `k2comp.c` and `k2mult.c` except that the use the bitarray representation instead that the k2 format. 
 

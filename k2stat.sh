@@ -5,13 +5,13 @@
 if [ $# -le 2 ]
 then
   echo "Usage:"
-  echo "         $0 k2compr-options extension file1 [file2 ...]"
+  echo "         $0 compr-options extension file1 [file2 ...]"
   echo
-  echo "Report the compression statstics for a single k2comp variant"
+  echo "Report the compression statistics for a single k2comp variant"
   echo "on all input files (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
-  echo "         $0 \"-m4\" \".k4\" data\*.bin"        
+  echo "         $0 \"-m4\" \".k4\" data\*.bbm"        
   exit
 fi
 
