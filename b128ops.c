@@ -2,19 +2,19 @@
    represented with a bitarray for each matrix row.
     
    These routines are a drop-in replacements (in k2comp & k2mult) 
-   for those implementing k2-matrices. To ensure complete comaptibility  
-   their prototipes have some oddities:
+   for those implementing k2-matrices. To ensure complete compatibility  
+   their prototypes have some oddities:
      1) the variable asize is not used in the body of the function   
      2) the variable size usually contains the same vaue as in m->size
         except in matrix-creating functions mwrite_to_bbm() msave_to_file()
 
    Bit array representing rows are defined as arrays of uint128_t
-   in future one could test the use of uint64_t anc compre the speed 
+   in future one could test the use of uint64_t and compare the speed 
 
    Matrix dimensions must be between 1 and 2^30
 
-   Inside the b128mat_t the filed size is represented as a size_t
-   to endure that when multiplied by a row/column index the result is 
+   Inside the b128mat_t the matrix size is represented as a size_t
+   to ensure that when multiplied by a row/column index the result is 
    computed correctly using 64 bit arithmetic 
 
 

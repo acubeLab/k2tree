@@ -14,7 +14,7 @@ typedef __uint128_t uint128_t;
 
 
 // struct representing a binary matrix with a single bit array
-// each matrix row is represente by :colb uint128's
+// each matrix row is represented by :colb uint128's
 // and the whole matrixby :size*colb int128's
 typedef struct b128mat {
   uint128_t *b;   // bit array  
