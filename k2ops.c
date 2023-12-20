@@ -54,9 +54,9 @@ int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 }
 
 // return statistics on matrix a
-// write number of used pos,nomde, and minimats in the variables passed by reference
+// write number of used pos,nodes, and minimats in the variables passed by reference
 // and return the number of levels
-int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
+static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
 {
   *pos=*nodes=*minimats=0;
   if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats);

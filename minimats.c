@@ -180,6 +180,25 @@ minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
   return res;
 }
 
+// read a minimat from an interleaved array
+minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int size) {
+  assert(size==MMsize);     // only called for minimats
+  assert(MMsize==2); // so far only size 2 is allowed
+  assert(n>0);       // not called on an empty submatrix  
+  assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
+  assert(imin>=0 && imax>=0);
+  assert(imin<imax);
+  minimat_t res = 0;
+  for(size_t i=0; i<n; i++) {
+    assert(ia[i]>=imin && ia[i]<imax);
+    int64_t ii = ia[i]-imin;
+    assert(ii>=0 && ii<size*size);
+    res |= (1UL<<ii);
+  }
+  assert(res!=MINIMAT0s);
+  return res;  
+}
+
 // write the content of a minimat to a bbm matrix m
 // entries outsize the matrix m should not be written
 void minimat_to_bbm(uint8_t *m, int msize, int i, int j, int size, minimat_t a) {
