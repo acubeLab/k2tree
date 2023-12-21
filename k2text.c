@@ -10,53 +10,101 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <inttypes.h>
 #include "k2aux.c"
 #include "bbm.h"
 
 // prototypes of static functions
-static void mencode_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int size, k2mat_t *c);
+static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize);
+static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
+static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c);
+static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
+
+// read a matrix from the text file :iname (one arc per line)
+// and store it in k2 format
+// the compressed matrix is stored to :a and it size to :msize
+// return the size of the k2 matrix (which has the form 2**k*MMsize)
+size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname)
+{
+  assert(iname!=NULL && a!=NULL);
+  FILE *f = fopen(iname,"rt");
+  if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
+  // generate interleaved array from input file
+  size_t n; // number of arcs
+  uint64_t *ia = create_ia(f,&n,msize);
+  fclose(f);
+  // compress the matrix represented by the ia[] array into a k2mat_t structure
+  size_t asize = mread_from_ia(ia,n,*msize,a);
+  free(ia);
+  return asize;
+}
+
 
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
-void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
+void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname)
 {
+  assert(outname!=NULL && a!=NULL);
   assert(size>=msize);
-  if(k2is_empty(a)) {  // an empty k2 matrix is all 0s
-    byte_to_bbm(m,msize,0,0,msize,0); // fill m with 0s
+  FILE *f = fopen(outname,"wt");
+  if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
+
+  if(k2is_empty(a)) {  // an empty k2 matrix has no arcs
+    fclose(f);
     return;
   }
-  byte_to_bbm(m,msize,0,0,msize,2); // fill m with illegal value 2
   size_t pos = 0;
-  mdecode(m,msize,0,0,size,a,&pos);
+  mdecode_to_textfile(f,msize,0,0,size,a,&pos);
+  fclose(f);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
 
 
-// compress the matrix *m of size msize represented by the interleaved
+// compress the matrix of size msize represented by the interleaved
 // array ia[0..n-1] into the k2mat_t structure *a 
 // ia[] should be an interleaved array of length n
 // the old content of :a is lost
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
-int mread_from_ia(uint64_t ia[], size_t n, int msize, k2mat_t *a)
+static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
 {
   assert(ia!=NULL && a!=NULL);
-  assert(n>0);          // we cannot represent an empty matrix
+  assert(n>0);                // we cannot represent an empty matrix
   assert(msize>1);
-  assert( n <= ((size_t)msize)*msize); // we cannot represent a matrix larger than MMsize
-  k2_free(a); // free previous content of a 
+  assert( n <= msize*msize); // entries must be less that msize**2
+  k2_free(a);                // free previous content of a 
   if(msize>(1<<30)) quit("mread_from_ia: matrix too large",__LINE__,__FILE__);
-  int asize = k2get_k2size(msize);
+  size_t asize = k2get_k2size(msize);
   assert(asize>=2*MMsize);
-  int64_t asize2 = ((int64_t) asize) *asize;
   // encode ia[] into a k2mat_t structure
-  mencode_ia(ia,n,0,asize2,asize,a);
+  mencode_ia(ia,n,0,asize*asize,asize,a);
   return asize;
 }
 
 
 // ----------- static auxiliary functions ------------
+
+
+// in a sorted uint64_t array ia[0,n-1] containing distinct values find 
+// the first entry >= x using binary search 
+// return n if no such entry exists
+static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
+  assert(ia!=NULL && n>0);
+  size_t l=0, r=n-1;
+  while(l<r) {
+    size_t m = (l+r)/2;
+    if(ia[m]<x) l=m+1;
+    else if(ia[m]==x) return m;
+    else r=m; // replace with r = m-1 and later return r+1?
+  }
+  assert(l==r);
+  if(ia[l]<x) {
+    assert(r==n-1);
+    return n;   // replace with return r+1?
+  }
+  return l;
+}
 
 // recursively encode a submatrix in interleaved format  
 // into a k2mat_t structure
@@ -65,7 +113,7 @@ int mread_from_ia(uint64_t ia[], size_t n, int msize, k2mat_t *a)
 //   imin, imax range of values in ia[0,n-1]
 //   size  submatrix size (has the form 2^k*MMsize)
 //   *c output k2mat_t structure to be filled in dfs order 
-static void mencode_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int size, k2mat_t *c) {
+static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c) {
   assert(n>0);
   assert(imin>=0 && imax>=0);
   assert(imin<imax);
@@ -81,7 +129,7 @@ static void mencode_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int s
   assert(range%4==0);
   range = range/4;
   int64_t left = imin + range;
-  int64_t mid = imin
+  int64_t mid = imin;
   int64_t right = imax - range;
   // determine range in ia[] of the 4 submatrices entries
   size_t imid = binsearch(ia,n,mid);    //   first entry of A[10]
@@ -140,139 +188,118 @@ static void mencode_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int s
 }
 
 
-// in a sorted uint64_t array ia[0,n-1] containing distinct values find 
-// the first entry >= x using binary search 
-// return n if no such entry exists
-static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
-  assert(ia!=NULL && n>0);
-  size_t l=0, r=n-1;
-  while(l<r) {
-    size_t m = (l+r)/2;
-    if(ia[m]<x) l=m+1;
-    else if(ia[m]==x) return m;
-    else r=m; // replace with r = m-1 and later return r+1?
+
+// interleaves two 32 bits integer in a unit64_t 
+// the bits of a (row index) are more significant than
+// those of b (column index) because of how we number submatrices
+static uint64_t bits_interleave(int64_t a, int64_t b)
+{
+  uint64_t r = 0;
+  assert(a<=UINT32_MAX && b <= UINT32_MAX);
+  int c = 0;
+  while(a!=0 || b!=0) {
+    r |= (a&1)<<c++;
+    r |= (b&1)<<c++;
+    a >>= 1; b>>=1;  
+    assert(c<=64);
   }
-  assert(l==r);
-  if(ia[l]<x) {
-    assert(r==n-1)
-    return n;   // replace with return r+1?
-  }
-  return l;
+  return r;
 }
 
 
-// recursively decode a k2 submatrix into a binary submatrix
-// m[i,i+size)[j,j+size) in one-byte per entry format into 
+// create an interleaved array from the list of arcs in a text file
+static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
+{
+  uint32_t maxarc = 0; // largest arc in the file
+  size_t size=10;      // current size of ia[]
+  size_t i=0;          // elements in ia[]
+  uint64_t *ia = malloc(size*sizeof(*ia));
+  if(ia==NULL) quit("create_ia: malloc failed",__LINE__,__FILE__);
+    
+  int64_t a,b; size_t line=0;  
+  while(true) {
+    line++;
+    int e = fscanf(f,"%" SCNd64 " %" SCNd64,&a,&b);
+    if(e==EOF) break;
+    // check input
+    if(e!=2) {
+      fprintf(stderr,"Invalid file content at line %zu",line);
+      exit(EXIT_FAILURE);
+    }
+    if(a<0 || b<0) {
+      fprintf(stderr,"Negative arc id at line %zu",line);
+      exit(EXIT_FAILURE);
+    }
+    if(a>UINT32_MAX || b>UINT32_MAX) {
+      fprintf(stderr,"Arc id too large at line %zu",line);
+      exit(EXIT_FAILURE);
+    }
+    // update maxarc
+    if(a>maxarc) maxarc=a;
+    if(b>maxarc) maxarc=b;
+    // compute interleaved value
+    uint64_t arc = bits_interleave(a,b);
+    // enlarge ia if necessary
+    if(i==size) {
+        size = size*2;
+        ia = realloc(ia,size*sizeof(*ia));
+        if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
+    }
+    assert(size>i);
+    ia[i++] = arc;
+  }
+  // final resize
+  size = i;
+  ia = realloc(ia,size*sizeof(*ia));
+  if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
+  // save output parameters   
+  if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
+    quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
+  *msize = maxarc+1;
+  *n = size;
+  return ia;  
+}
+
+
+// -----------------------------
+
+// recursively decode a k2 submatrix into a list of arcs
+// written to a text file
 // Parameters:
-//   m output matrix of (overall) size mszie*msize
+//   f output file 
+//   msize actual file of the matrix
 //   i,j submatrix top left corner
-//   size submatrix size (has the form 2^k*MMsize)
+//   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t *c, size_t *pos) {
+static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(rootc==ALL_ONES) { // all 1s matrix
-    byte_to_bbm(m,msize,i,j,size,1);
+    for(size_t ii=0; ii<size; ii++)
+      for(size_t jj=0; jj<size; jj++)
+        if(i+ii<msize && j+jj<msize) { 
+          int e = fprintf(outfile,"%zu %zu\n",i+ii,j+jj);
+          if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
+        }
     return;
   }
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
-    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
       if(size==2*MMsize) { // read a minimatrix
         minimat_t cx = k2read_minimat(c,*pos); *pos += Minimat_node_ratio;
         assert(cx!=MINIMAT0s); // should not happen
-        minimat_to_bbm(m,msize,ii,jj,size/2,cx);
+        minimat_to_text(outfile,msize,ii,jj,size/2,cx);
       }
       else { // decode submatrix
-        mdecode(m,msize,ii,jj,size/2,c,pos);
+        mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
       }
-    }
-    else { // the k-th chilldren is 0: write a 0 submatrix
-      // if m initialized with 0s we can skip the following line and save some writes
-      byte_to_bbm(m,msize,ii,jj,size/2,0);
     }
   }
 }
 
-// split input matrices and recurse matrix multiplication  
-//   an input 0 matrix is represented as NULL
-//   an output 0 matrix is represented as an empty matrix (no root node)   
-static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
-{
-  assert(size>2*MMsize);
-  assert(a!=NULL && b!=NULL && c!=NULL);
-  // never called with an input empty matrix
-  assert(!k2is_empty(a) && !k2is_empty(b));
-  // split a and b into 4 blocks of half size  
-  k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
-                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
-  k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
-                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
-  k2split_k2(size,a,ax);  
-  k2split_k2(size,b,bx);
-  // temporary matrices for products
-  k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;
-  
-  // start building c
-  size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
-  node_t rootc=NO_CHILDREN;                 // actual root node to be computed
-  bool all_ones = true;
-  // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {
-    int i=k/2, j=k%2;
-    k2make_empty(&v1); k2make_empty(&v2);    // reset temporary matrices
-    // a[i][0]*b[0][j]
-    if(!k2is_empty(&ax[i][0]) && !k2is_empty(&bx[0][j]) ) // avoid call if one is nonzero: can be removed
-      mmult(size/2, &ax[i][0], &bx[0][j], &v1);
-    // a[i][1]*b[1][j]
-    if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
-      mmult(size/2, &ax[i][1], &bx[1][j], &v2);
-    // write sum v1+v2 to c[i][j] ie block k 
-    if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // compute v1+v2 if at least one is nonzero
-      rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
-      size_t tmp = k2pos(c); // save current position to check all 1's 
-      if(k2is_empty(&v2))      mcopy(size/2,&v1,c);  // copy v1 -> block c[i][j]  
-      else if(k2is_empty(&v1)) mcopy(size/2,&v2,c);  // copy v2 -> block c[i][j]  
-      else { // v1 and v2 are both not empty
-        size_t p1=0,p2=0;
-        msum_rec(size/2,&v1,&p1,&v2,&p2,c);
-        assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
-      }
-      // check if v1+v2 is all 1's
-      assert(k2pos(c)>tmp);  // since v1+v2!=0 something was written 
-      if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false; // v1+v2 is not all 1s
-      else assert(k2pos(c)==tmp+1); // if v1+v2 is all 1s only root was written
-    }
-    // if v1==0 && v2==0 then v1+v2=0 and there is nothing to write and all_ones is false
-    else all_ones = false;
-  }
-  // all computation done, deallocate temporary matrices
-  k2_free(&v1);
-  k2_free(&v2);
-  
-  // final normalization of c
-  if(rootc==NO_CHILDREN) {    // case c is all 0's
-    // this is an all 0 matrix, its representation is empty
-    assert(k2pos(c)==rootpos+1); // only root was written to c 
-    k2setpos(c,rootpos);         // delete root
-  }
-  else if(all_ones) {         // case c is all 1's
-    assert(rootc==ALL_CHILDREN && k2pos(c) == rootpos+5);  
-    // to check if this is an all 1's matrix we need to check that
-    // the root is ALL_CHILDREN and that the 4 children are all 1's
-    // hence are represented by a single ALL_ONES node
-    for(size_t i=rootpos+1;i<rootpos+5;i++) // extra check, can be removed
-       assert(k2read_node(c,i)==ALL_ONES);
-    k2setpos(c,rootpos+1);      // only keep root which was already ALL_ONES
-    assert(k2read_node(c,rootpos)==ALL_ONES);
-  }    
-  else {
-    // no all 0's or all 1's, just write the correct root 
-    k2write_node(c,rootpos,rootc); // fix root
-  }  
-}

@@ -3,12 +3,20 @@ CFLAGS=-O0 -Wall -std=c11 -g
 CC=gcc
 
 # main executables 
-EXECS=k2comp.x k2mult.x bbmmult.x b128comp.x b128mult.x
+EXECS=k2comp.x k2tcomp.x k2mult.x bbmmult.x b128comp.x b128mult.x
 
 # targets not producing a file declared phony
 .PHONY: all clean release
 
 all: $(EXECS)
+
+# rules for k2tcomp
+k2tcomp.x: k2tcomp.o k2text.o k2ops.o bbm.o
+	$(CC) $(LDFLAGS) -o $@ $^ 
+
+k2text.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 
 # rule for k2xxx executables
 k2%.x: k2%.o k2ops.o bbm.o

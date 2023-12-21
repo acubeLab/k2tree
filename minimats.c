@@ -180,24 +180,26 @@ minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
   return res;
 }
 
-// read a minimat from an interleaved array
+// read a minimat from the interleaved array ia[0,n-1] containing entries in [imin,imax)
 minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int size) {
   assert(size==MMsize);     // only called for minimats
-  assert(MMsize==2); // so far only size 2 is allowed
-  assert(n>0);       // not called on an empty submatrix  
+  assert(MMsize==2);        // so far only size 2 is allowed
+  assert(n>0);              // not called on an empty submatrix  
   assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
   assert(imin>=0 && imax>=0);
   assert(imin<imax);
   minimat_t res = 0;
   for(size_t i=0; i<n; i++) {
     assert(ia[i]>=imin && ia[i]<imax);
-    int64_t ii = ia[i]-imin;
-    assert(ii>=0 && ii<size*size);
-    res |= (1UL<<ii);
+    int64_t j = ia[i]-imin; 
+    // for MMsize=2 j is the position of the corresponding 1 in res
+    assert(j>=0 && j<size*size);
+    res |= (1UL<<j);
   }
-  assert(res!=MINIMAT0s);
+  assert(res!=MINIMAT0s); // cannot be all 0's
   return res;  
 }
+
 
 // write the content of a minimat to a bbm matrix m
 // entries outsize the matrix m should not be written
@@ -213,6 +215,27 @@ void minimat_to_bbm(uint8_t *m, int msize, int i, int j, int size, minimat_t a) 
         // if(bit) m[(i+ii)*msize + j+jj]=1;  // if nonzero set m[i+ii][j+jj] to 1
       }
 }
+
+// write the content of a minimat to a text file f
+// as a list of arcs. there should be no arcs outside msizeXmsize
+// msize is the size of the orginal matrix
+// i,j is the upper left corner of the minimat
+// :size is the size of the minimat :a
+void minimat_to_text(FILE *f, size_t msize, size_t i, size_t j, size_t size, minimat_t a) {
+  assert(size==MMsize);
+  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  for(size_t ii=0; ii<size; ii++)
+    for(size_t jj=0; jj<size; jj++)
+      if(i+ii<msize && j+jj<msize) {       // inside the matrix
+        minimat_t bit = a & (1<<(ii*size+jj));   // read bit a[ii][jj]
+        if(bit) { 
+          int e = fprintf(f,"%zu %zu\n",i+ii,j+jj);
+          if(e<0) quit("minimat_to_bbm: fprintf failed",__LINE__,__FILE__);
+        }
+      }
+      else assert( (a & (1<<(ii*size+jj))) ==0); // no entry outside msize
+}
+
 
 
 // write error message and exit
