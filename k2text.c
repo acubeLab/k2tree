@@ -11,8 +11,8 @@
 #define _GNU_SOURCE
 #endif
 #include <inttypes.h>
-#include "k2aux.c"
-#include "bbm.h"
+#include "k2ops.h"
+
 
 // prototypes of static functions
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize);

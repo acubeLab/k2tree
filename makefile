@@ -11,10 +11,10 @@ EXECS=k2comp.x k2tcomp.x k2mult.x bbmmult.x b128comp.x b128mult.x
 all: $(EXECS)
 
 # rules for k2tcomp
-k2tcomp.x: k2tcomp.o k2text.o k2ops.o bbm.o
+k2tcomp.x: k2tcomp.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-k2text.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
+k2tcomp.o: k2tcomp.c k2text.c k2aux.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 

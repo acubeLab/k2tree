@@ -26,7 +26,9 @@
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
 #else // k2mat
-#include "k2.h"
+// #include "k2.h"
+#include "k2aux.c"
+#include "k2text.c"
 #define default_cext ".k2"
 #endif
 // used by both matrix type 
@@ -40,8 +42,7 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname);
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
-static void quit(const char *msg, int line, char *file);
-
+// static void quit(const char *msg, int line, char *file);
 
 
 int main (int argc, char **argv) { 
@@ -141,6 +142,7 @@ static void usage_and_exit(char *name)
     exit(1);
 }
 
+#if 0
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
@@ -149,4 +151,4 @@ static void quit(const char *msg, int line, char *file) {
   fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
   exit(1);
 }
-
+#endif
