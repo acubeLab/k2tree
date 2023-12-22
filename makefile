@@ -10,23 +10,16 @@ EXECS=k2comp.x k2tcomp.x k2mult.x bbmmult.x b128comp.x b128mult.x
 
 all: $(EXECS)
 
-# rules for k2tcomp
-k2tcomp.x: k2tcomp.o k2ops.o bbm.o
-	$(CC) $(LDFLAGS) -o $@ $^ 
-
-k2tcomp.o: k2tcomp.c k2text.c k2aux.c minimats.c k2.h bbm.h
-	$(CC) $(CFLAGS) -c -o $@ $<
-
 
 # rule for k2xxx executables
 k2%.x: k2%.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-# rule for k2mult.o k2comp.o
+# rule for k2mult.o k2comp.o k2tcomp
 k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-k2ops.o: k2ops.c k2aux.c minimats.c k2.h bbm.h
+k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 bbm.o: bbm.c bbm.h

@@ -1,7 +1,7 @@
 /* Routines for arithmetic/logical operations on binary matrices 
    represented as k^2 trees 
 
-   This file contains the functions releated to minimatrices, ie,
+   This file contains the functions related to minimatrices, ie,
    the matrices stored as leaves of the k^2 tree.
 
    minimat matrices have size MMsize which is set (and never changed)
@@ -80,7 +80,7 @@ minimat_t mmult4x4(minimat_t a, minimat_t b) {
 }
 
 // init array of products
-void init_mprods2x2(void) {
+static void init_mprods2x2(void) {
   // create array
   assert(mprods2x2==NULL);
   mprods2x2 = malloc(256*sizeof(minimat_t));
@@ -101,7 +101,7 @@ void init_mprods2x2(void) {
 }
 
 // init array of transpose
-void init_mtranspose4x4(void) {
+static void init_mtranspose4x4(void) {
   assert(mtranspose4x4==NULL);
   assert(MMsize==4);
   mtranspose4x4 = malloc((1<<16)*sizeof(*mtranspose4x4));
@@ -120,7 +120,7 @@ void init_mtranspose4x4(void) {
 }
 
 
-
+// init minimat constants
 void minimat_init(int msize) {
   if(MMsize!=INT32_MAX) quit("minimats_init: already initialized",__LINE__,__FILE__);
   // msize must be even to ensure that a mimimats has a bit size multiple of 4
@@ -147,21 +147,6 @@ void minimat_init(int msize) {
     init_mtranspose4x4();
   }
   else quit("minimats_init: MMsize!=2,4",__LINE__,__FILE__); 
-}
-
-// compute the size of the smallest k2mat containing a matrix of size msize
-// the size depends on the size of the minimat and grows with powers of 2
-int k2get_k2size(int msize) 
-{
-  if(4*Minimat_node_ratio != (MMsize*MMsize)) 
-    quit("k2get_size: minimats_init not called",__LINE__,__FILE__);
-  int s = 2*MMsize;    // size of the smallest legal k2mat
-  while(s < msize) {
-    s*=2;
-    if(s<0) quit("getk2size: overflow",__LINE__,__FILE__);
-  }
-  if(s>(1<<30)) quit("getk2size: overflow",__LINE__,__FILE__);
-  return s;
 }
 
 

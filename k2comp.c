@@ -29,7 +29,7 @@ typedef b128mat_t k2mat_t;
 #endif
 // used by both matrix type 
 #include "bbm.h"
-#define default_dext ".d"
+#define default_dext ".bbm"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);

@@ -55,9 +55,12 @@ typedef struct k2mat {
 
 // prototypes
 
+// from minimat.c
 // init minimatrices: must be called only once with the size of the minimats
 // no k2-related function can be called before this one
 void minimat_init(int msize);
+
+// from k2ops.c
 // save a k2-matrix to file
 void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
@@ -82,3 +85,7 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 void matrix_free(k2mat_t *m);
 // make a read-only copy of a k2 matrix without allocating new memory
 void mmake_pointer(const k2mat_t *a, k2mat_t *c);
+
+// from k2text.c
+void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
+size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname);

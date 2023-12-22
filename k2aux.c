@@ -19,7 +19,7 @@
 
 
 // ------------------------------------------------------------------- 
-// elementary operations  on k2mat structures, operating on single fields
+// elementary operations on k2mat structures, operating on single fields
 
 
 // return current pos (where the next item will be written 
@@ -306,3 +306,19 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
   }
   assert(next+a->offset==k2pos(a));
 }
+
+// compute the size of the smallest k2mat containing a matrix of size msize
+// the size depends on the size of the minimat and grows with powers of 2
+int k2get_k2size(int msize) 
+{
+  if(4*Minimat_node_ratio != (MMsize*MMsize)) 
+    quit("k2get_size: minimats_init not called",__LINE__,__FILE__);
+  int s = 2*MMsize;    // size of the smallest legal k2mat
+  while(s < msize) {
+    s*=2;
+    if(s<0) quit("getk2size: overflow",__LINE__,__FILE__);
+  }
+  if(s>(1<<30)) quit("getk2size: overflow",__LINE__,__FILE__);
+  return s;
+}
+

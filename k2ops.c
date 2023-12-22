@@ -13,6 +13,7 @@
 #define _GNU_SOURCE
 #endif
 #include "k2aux.c"
+#include "k2text.c"
 #include "bbm.h"
 
 static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t *c, size_t *pos);

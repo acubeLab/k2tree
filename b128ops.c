@@ -5,11 +5,13 @@
    for those implementing k2-matrices. To ensure complete compatibility  
    their prototypes have some oddities:
      1) the variable asize is not used in the body of the function   
-     2) the variable size usually contains the same vaue as in m->size
+     2) the variable size usually contains the same value as in m->size
         except in matrix-creating functions mwrite_to_bbm() msave_to_file()
 
    Bit array representing rows are defined as arrays of uint128_t
-   in future one could test the use of uint64_t and compare the speed 
+   in future one could test the use of uint64_t and compare the speed
+   The bits outsize the matrix in the last 128-bit blocks are
+   guaranteed to be zero.  
 
    Matrix dimensions must be between 1 and 2^30
 
@@ -60,7 +62,7 @@ void mwrite_to_bbm(uint8_t *m, int msize, int asize, const b128mat_t *a)
 // compress the matrix *m of size msize into the b128mat_t structure *a 
 // m should be an  array of size msize*msize 
 // the old content of :a is lost
-// fro compatibilty with k2mat return the size of the b128 matrix (ie msize)
+// for compatibilty with k2mats return the size of the b128 matrix (ie msize)
 int mread_from_bbm(uint8_t *m, int msize, b128mat_t *a)
 {
   assert(a!=NULL && m!=NULL);
@@ -212,7 +214,7 @@ void mmake_pointer(const b128mat_t *a, b128mat_t *c) {
 
 }
 
-// do nothing, added for compatibility with k2mat
+// do nothing, added for compatibility with k2 matrices
 void minimat_init(int m)
 {
   (void) m;
@@ -243,7 +245,7 @@ void b128_free(b128mat_t *m)
 void b128_init(int size, b128mat_t *a)
 {
   assert(a!=NULL);
-  if(a->b!=NULL) quit("b128_init: initalizinga non-empty matrix",__LINE__,__FILE__);
+  if(a->b!=NULL) quit("b128_init: initalizing a non-empty matrix",__LINE__,__FILE__);
   if(size<=0) quit("b128_init: illegal matrix size",__LINE__,__FILE__);
   a->size = size;
   a->colb = (size+127)/128;

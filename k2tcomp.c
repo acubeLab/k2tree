@@ -26,23 +26,16 @@
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
 #else // k2mat
-// #include "k2.h"
-#include "k2aux.c"
-#include "k2text.c"
+#include "k2.h"
 #define default_cext ".k2"
 #endif
 // used by both matrix type 
-#include "bbm.h"
-#define default_dext ".d"
-
-// external functions
-void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
-size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname);
+#define default_dext ".txt"
 
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
-// static void quit(const char *msg, int line, char *file);
+static void quit(const char *msg, int line, char *file);
 
 
 int main (int argc, char **argv) { 
@@ -113,7 +106,7 @@ int main (int argc, char **argv) {
   }
   else { // compression
     minimat_init(mmsize);     // init k2 library
-    size_t asize = mread_from_textfile(&size,&a,oname);
+    size_t asize = mread_from_textfile(&size,&a,iname);
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
@@ -142,7 +135,7 @@ static void usage_and_exit(char *name)
     exit(1);
 }
 
-#if 0
+
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
@@ -151,4 +144,4 @@ static void quit(const char *msg, int line, char *file) {
   fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
   exit(1);
 }
-#endif
+

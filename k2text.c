@@ -11,7 +11,6 @@
 #define _GNU_SOURCE
 #endif
 #include <inttypes.h>
-#include "k2ops.h"
 
 
 // prototypes of static functions
@@ -61,6 +60,7 @@ void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outna
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
 
+// ----------- static auxiliary functions ------------
 
 // compress the matrix of size msize represented by the interleaved
 // array ia[0..n-1] into the k2mat_t structure *a 
@@ -81,9 +81,6 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   mencode_ia(ia,n,0,asize*asize,asize,a);
   return asize;
 }
-
-
-// ----------- static auxiliary functions ------------
 
 
 // in a sorted uint64_t array ia[0,n-1] containing distinct values find 
@@ -206,6 +203,15 @@ static uint64_t bits_interleave(int64_t a, int64_t b)
   return r;
 }
 
+static int uint64_cmp(const void *p, const void *q)
+{
+  const uint64_t *a = p;
+  const uint64_t *b = q;
+  
+  if(*a < *b) return -1;
+  else if(*a > *b) return 1;
+  return 0;
+}
 
 // create an interleaved array from the list of arcs in a text file
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
@@ -252,6 +258,8 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
   size = i;
   ia = realloc(ia,size*sizeof(*ia));
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
+  // sort interleaved arcs
+  qsort(ia, size, sizeof(*ia), &uint64_cmp);
   // save output parameters   
   if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
     quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
