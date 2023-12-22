@@ -92,14 +92,16 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
   while(l<r) {
     size_t m = (l+r)/2;
     if(ia[m]<x) l=m+1;
-    else if(ia[m]==x) return m;
+    // else if(ia[m]==x) return m;
     else r=m; // replace with r = m-1 and later return r+1?
   }
   assert(l==r);
   if(ia[l]<x) {
     assert(r==n-1);
-    return n;   // replace with return r+1?
+    //return n;   // replace with return r+1?
+    l = n;
   }
+  printf("binsearch n: %zu x: %ld ris: %zu\n",n,x,l);
   return l;
 }
 
@@ -111,11 +113,14 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
 //   size  submatrix size (has the form 2^k*MMsize)
 //   *c output k2mat_t structure to be filled in dfs order 
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c) {
+  assert(ia!=NULL);
   assert(n>0);
   assert(imin>=0 && imax>=0);
   assert(imin<imax);
-  assert(ia[0]>=imin && ia[n-1]<imax);
+  assert(ia[0]>=imin); 
+  assert(ia[n-1]<imax);
   assert(size%2==0 && size>=2*MMsize);
+  printf("Size=%zu, n=%zu, imin=%ld imax=%ld\n",size,n,imin,imax);
   // case of a full submatrix
   if(n==size*size) {
     k2add_node(c,ALL_ONES);   // submatrix is full 
@@ -126,12 +131,13 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, siz
   assert(range%4==0);
   range = range/4;
   int64_t left = imin + range;
-  int64_t mid = imin;
+  int64_t mid = left+range;
   int64_t right = imax - range;
+  assert(right==mid+range);
   // determine range in ia[] of the 4 submatrices entries
   size_t imid = binsearch(ia,n,mid);    //   first entry of A[10]
   size_t ileft = binsearch(ia,imid,left); // first entry of A[01]
-  size_t iright = binsearch(ia+imid,n-imid,right); // first entry of A[11]
+  size_t iright = binsearch(ia+imid,n-imid,right)+imid; // first entry of A[11]
   // the four submatrices are: 
   //    ia[0,ileft-1], ia[ileft,imid-1], ia[imid,iright-1], ia[iright,n-1]
   // and contain values in the ranges
@@ -195,8 +201,8 @@ static uint64_t bits_interleave(int64_t a, int64_t b)
   assert(a<=UINT32_MAX && b <= UINT32_MAX);
   int c = 0;
   while(a!=0 || b!=0) {
-    r |= (a&1)<<c++;
     r |= (b&1)<<c++;
+    r |= (a&1)<<c++;
     a >>= 1; b>>=1;  
     assert(c<=64);
   }
@@ -260,6 +266,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
   // sort interleaved arcs
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
+  for(i=0;i<size;i++) printf("%ld ", ia[i]); puts(""); //\\ 
   // save output parameters   
   if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
     quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);

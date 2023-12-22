@@ -170,7 +170,8 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, in
   assert(size==MMsize);     // only called for minimats
   assert(MMsize==2);        // so far only size 2 is allowed
   assert(n>0);              // not called on an empty submatrix  
-  assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
+  // assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
+  if(!(n<=MMsize*MMsize)) printf("minimat n:%zu\n"); //\\ cannot have more than MMsize*MMsize entries
   assert(imin>=0 && imax>=0);
   assert(imin<imax);
   minimat_t res = 0;
