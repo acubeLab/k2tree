@@ -1,6 +1,6 @@
 /* Compression and decompression of boolean matrices using k2 trees
 
-   k2tcomp: convert to/from matrices in text form (one arc per line)
+   k2tcomp: (de)compress matrices in text form (one arc per line)
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0, 
@@ -61,7 +61,7 @@ int main (int argc, char **argv) {
       case 'd':
         decompress = true; break;
       case 'c':
-        check = true; break;      
+        check = true; break;   //\\  not yet supported   
       case 'n':
         write = false; break;       
       case 'v':

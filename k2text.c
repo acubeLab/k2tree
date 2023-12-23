@@ -101,7 +101,7 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
     //return n;   // replace with return r+1?
     l = n;
   }
-  printf("binsearch n: %zu x: %ld ris: %zu\n",n,x,l);
+  //\\ printf("binsearch n: %zu x: %ld ris: %zu\n",n,x,l);
   return l;
 }
 
@@ -120,7 +120,7 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, siz
   assert(ia[0]>=imin); 
   assert(ia[n-1]<imax);
   assert(size%2==0 && size>=2*MMsize);
-  printf("Size=%zu, n=%zu, imin=%ld imax=%ld\n",size,n,imin,imax);
+  //\\ printf("Size=%zu, n=%zu, imin=%ld imax=%ld\n",size,n,imin,imax);
   // case of a full submatrix
   if(n==size*size) {
     k2add_node(c,ALL_ONES);   // submatrix is full 
@@ -136,8 +136,8 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, siz
   assert(right==mid+range);
   // determine range in ia[] of the 4 submatrices entries
   size_t imid = binsearch(ia,n,mid);    //   first entry of A[10]
-  size_t ileft = binsearch(ia,imid,left); // first entry of A[01]
-  size_t iright = binsearch(ia+imid,n-imid,right)+imid; // first entry of A[11]
+  size_t ileft = imid>0 ? binsearch(ia,imid,left):0; // first entry of A[01]
+  size_t iright = imid<n? binsearch(ia+imid,n-imid,right)+imid:n; // first entry of A[11]
   // the four submatrices are: 
   //    ia[0,ileft-1], ia[ileft,imid-1], ia[imid,iright-1], ia[iright,n-1]
   // and contain values in the ranges
@@ -192,7 +192,7 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, siz
 
 
 
-// interleaves two 32 bits integer in a unit64_t 
+// interleaves two 32 bits integers in a single uint64_t 
 // the bits of a (row index) are more significant than
 // those of b (column index) because of how we number submatrices
 static uint64_t bits_interleave(int64_t a, int64_t b)
@@ -266,7 +266,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
   // sort interleaved arcs
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
-  for(i=0;i<size;i++) printf("%ld ", ia[i]); puts(""); //\\ 
+  //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts(""); //\\ 
   // save output parameters   
   if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
     quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
