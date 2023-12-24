@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <time.h>
 #include <limits.h>
+#include <unistd.h>
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef B128MAT
 #include "b128.h"
@@ -110,6 +111,16 @@ int main (int argc, char **argv) {
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
+    if(check) {
+      sprintf(oname,"%s%s.check",iname,ext); // create check file name  
+      mwrite_to_textfile(size,asize, &a, iname);
+      matrix_free(&a);
+      puts("--- executing arccmp");
+      execlp("arccmp.x","arccmp.x","-v", iname,iname,NULL);
+      quit("Error executiong execlp",__LINE__,__FILE__);
+    }
+
+
   }
   matrix_free(&a);
 

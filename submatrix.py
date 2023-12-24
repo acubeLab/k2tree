@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+
+import sys, argparse
+
+Description = """
+Delete from a textual matrix in one-arc-per-line
+format all arcs involving a node with id >= newdime  
+"""
+
+def main():
+  parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawTextHelpFormatter)
+  parser.add_argument('input', help='input file name', type=str)
+  parser.add_argument('newdim', help='number of expected rows in outfile', type=int)
+  parser.add_argument('-o', help='output file name (def. input.newdim)',type=str,default="" )
+  args = parser.parse_args()
+    
+  if args.newdim<=1:
+    print("The new matrix dimension must be at least 1")
+    sys.exit(1)   
+    
+  with open(args.input,"rt") as f:
+    # set output file name and output file mode
+    if args.o!="": 
+      outname = args.o
+    else:
+      outname = f"{args.input}.{args.newdim}"
+    maxinput = maxoutput = -1  
+    with open(outname,"w") as g:
+      r = 0 # number of read rows
+      wr = 0 # number of written rows
+      for line in f:
+        r += 1
+        p = line.split()
+        if len(p)!=2:
+          print("Illegal arc at line", r)
+          sys.exit(1)
+        a = int(p[0]); b = int(p[1])
+        if maxinput < 0: maxinput = max(a,b)
+        else: maxinput = max(maxinput,a,b)
+        if a<args.newdim and b < args.newdim:
+          if maxoutput < 0: maxoutput = max(a,b)
+          else: maxoutput = max(maxoutput,a,b)
+          print(f"{a} {b}",file=g)
+          wr +=1
+  print("Number of input arcs:", r)
+  print("Input size:", maxinput, "Density:", r/(maxinput*maxinput))
+  print("Number of output arcs:", wr)
+  print("Output size:", maxoutput, "Density:", wr/(maxoutput*maxoutput))
+  print("==== Done")
+
+
+if __name__ == '__main__':
+    main()

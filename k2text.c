@@ -10,6 +10,8 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <stdio.h>
+#include <stdlib.h>
 #include <inttypes.h>
 
 
@@ -266,7 +268,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
   // sort interleaved arcs
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
-  //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts(""); //\\  
+  //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts("");
   // save output parameters   
   if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
     quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
