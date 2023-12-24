@@ -1,10 +1,11 @@
 /* Compression and decompression of boolean matrices using k2 trees
 
-   k2tcomp: (de)compress matrices in text form (one arc per line)
+   k2tcomp: (de)compress matrices in text form (one entry per line)
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
-   of a minimatrix (those stored at the leaves of the tree), with k>0, 
-   but the input can be of any size, and the matrix will be padded with 0's 
+   of a minimatrix (those stored at the leaves of the tree), with k>0
+   (somewhere this is called the k2-internal-size); the input can be of any size, 
+   and the k2 matrix is padded with 0's (virtually since they are not stored)
 
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
@@ -20,6 +21,8 @@
 #include <time.h>
 #include <limits.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <libgen.h>
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef B128MAT
 #include "b128.h"
@@ -32,7 +35,7 @@ typedef b128mat_t k2mat_t;
 #endif
 // used by both matrix type 
 #define default_dext ".txt"
-
+#define matrix_checker "arccmp.x"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
@@ -112,15 +115,18 @@ int main (int argc, char **argv) {
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
     if(check) {
-      sprintf(oname,"%s%s.check",iname,ext); // create check file name  
+      sprintf(oname,"%s%s.check",argv[1],ext); // create check file name  
       mwrite_to_textfile(size,asize, &a, iname);
       matrix_free(&a);
-      puts("--- executing arccmp");
-      execlp("arccmp.x","arccmp.x","-v", iname,iname,NULL);
+      puts("==== Checking compression by calling " matrix_checker);
+      char *tmp = strdup(argv[0]);
+      char *exedir = dirname(tmp);
+      char ename[PATH_MAX];
+      sprintf(ename,"%s/%s",exedir, matrix_checker); free(tmp);
+      if(verbose>0) fprintf(stderr,"Calling: %s %s %s\n",ename,iname,iname);
+      execlp(matrix_checker,ename,iname,oname,NULL);
       quit("Error executiong execlp",__LINE__,__FILE__);
     }
-
-
   }
   matrix_free(&a);
 

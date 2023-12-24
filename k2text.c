@@ -237,15 +237,15 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
     if(e==EOF) break;
     // check input
     if(e!=2) {
-      fprintf(stderr,"Invalid file content at line %zu",line);
+      fprintf(stderr,"Invalid file content at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
     if(a<0 || b<0) {
-      fprintf(stderr,"Negative arc id at line %zu",line);
+      fprintf(stderr,"Negative arc id at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
     if(a>UINT32_MAX || b>UINT32_MAX) {
-      fprintf(stderr,"Arc id too large at line %zu",line);
+      fprintf(stderr,"Arc id too large at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
     // update maxarc

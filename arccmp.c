@@ -254,13 +254,16 @@ int main (int argc, char **argv) {
   free(m1);
   fclose(f2);
   // statistics
-  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  if(Verbose)
+    fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   // exit
-  if(err>0) {
+  if(err==0) {
     printf("%zu mismatches found\n",err);
+    if(Verbose==0)
+      printf("Rerun\n\t %s %s %s\nwith -v option for more details\n",argv[0],argv[1],argv[2]);
     return EXIT_FAILURE;
   }
+  printf("The two set of nonzero entries coincides!\n");
   return EXIT_SUCCESS;
 }
 
