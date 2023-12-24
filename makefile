@@ -1,9 +1,9 @@
 # compilation flags
-CFLAGS=-O0 -Wall -std=c11 -g
+CFLAGS=-O1 -Wall -std=c11 -g
 CC=gcc
 
 # main executables 
-EXECS=k2comp.x k2tcomp.x k2mult.x bbmmult.x b128comp.x b128mult.x arccmp.x
+EXECS=k2comp.x k2tcomp.x k2mult.x bbmmult.x b128comp.x b128mult.x matrixcmp.x
 
 # targets not producing a file declared phony
 .PHONY: all clean release
@@ -46,7 +46,7 @@ bbmmult.o: bbmmult.c bbm.h
 
 
 # compare two textual arc files
-arccmp.x: arccmp.c
+matrixcmp.x: matrixcmp.c
 	$(CC) $(CFLAGS) -o $@ $^ 
 
 # compile a release version with -O3 optimization and possibly no assertions

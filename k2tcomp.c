@@ -1,12 +1,25 @@
 /* Compression and decompression of boolean matrices using k2 trees
 
-   k2tcomp: (de)compress matrices in text form (one entry per line)
+   k2tcomp: (de)compress matrices in text form: one entry (two indices) per line
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0
-   (somewhere this is called the k2-internal-size); the input can be of any size, 
+   (somewhere this is called the k2_internal_size); the input can be of any size, 
    and the k2 matrix is padded with 0's (virtually since they are not stored)
 
+  The conversion txt->k2 is done using an auxiliary "interleaved" array:
+  each matrixc entry consits of two uint32_t (row and column indices).
+  A unique entry identifier is obtained interleaving the bits of the two indices:
+  as in:    r31 c31 ... r2 c2 r1 c1 r0 c0
+  where ri is the it-th of the row index and ci is the it-th of the column index
+  When such interleaved values are numerically sorted the entries appear in 
+  exactly the same order such entries are visited in a predorder visit of the k2 tree 
+  Hence submatrices are represented by subintervals of the interleaved array
+  
+  The conversion k2->txt is done using a visit of the tree in preorder
+  and each time a nonzero entry is found its indices are written to the output 
+
+  The input matrix in b128 format is cyrrently not supported
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -35,7 +48,7 @@ typedef b128mat_t k2mat_t;
 #endif
 // used by both matrix type 
 #define default_dext ".txt"
-#define matrix_checker "arccmp.x"
+#define matrix_checker "matrixcmp.x"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
@@ -55,7 +68,7 @@ int main (int argc, char **argv) {
   int mmsize = 2;
   bool decompress = false, check = false, write = true;
   char *ext = NULL;
-  while ((c=getopt(argc, argv, "e:m:dcvn")) != -1) {
+  while ((c=getopt(argc, argv, "e:m:dcnhv")) != -1) {
     switch (c) 
       {
       case 'e':
@@ -68,6 +81,8 @@ int main (int argc, char **argv) {
         check = true; break;   //\\  not yet supported   
       case 'n':
         write = false; break;       
+      case 'h':
+        usage_and_exit(argv[0]); break;        
       case 'v':
         verbose++; break;
       case '?':
@@ -147,6 +162,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-e ext  outfile extension (def. compr: \"%s\", decompr: \"%s\")\n",
                    default_cext, default_dext);
     fprintf(stderr,"\t-c      compress->decompress->check\n");
+    fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     fprintf(stderr,"Default action is to compress filename to filename%s\n\n",default_cext);
     exit(1);

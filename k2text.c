@@ -1,9 +1,8 @@
-/* Routines for converting binary matrices in text form, ie 
-   a list of directed arcs represented as a pair of vertices,
-   to the compressed k^2 tree representation 
+/* Routines for converting boolean matrices in text form
+   to/from compressed k^2 tree representation 
 
-   Matrix dimensions are assumed to be power of 2, of size at least
-   2*MMSize (minimatrix size), ie, the size of the last level of recursion. 
+   See k2tcomp.c for details
+
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -22,7 +21,7 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, siz
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
 
-// read a matrix from the text file :iname (one arc per line)
+// read a matrix from the text file :iname (one entry per line)
 // and store it in k2 format
 // the compressed matrix is stored to :a and it size to :msize
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
@@ -32,7 +31,7 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname)
   FILE *f = fopen(iname,"rt");
   if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
   // generate interleaved array from input file
-  size_t n; // number of arcs
+  size_t n; // number of entries
   uint64_t *ia = create_ia(f,&n,msize);
   fclose(f);
   // compress the matrix represented by the ia[] array into a k2mat_t structure
@@ -44,7 +43,7 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname)
 
 
 // write the content of the :size x :size k2 matrix :a to a
-// text file in one arc per line format
+// text file in one entry per line format
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname)
 {
   assert(outname!=NULL && a!=NULL);
@@ -52,7 +51,7 @@ void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outna
   FILE *f = fopen(outname,"wt");
   if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
 
-  if(k2is_empty(a)) {  // an empty k2 matrix has no arcs
+  if(k2is_empty(a)) {  // an empty k2 matrix has no entries
     fclose(f);
     return;
   }
@@ -94,23 +93,21 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
   while(l<r) {
     size_t m = (l+r)/2;
     if(ia[m]<x) l=m+1;
-    // else if(ia[m]==x) return m;
+    else if(ia[m]==x) return m;
     else r=m; // replace with r = m-1 and later return r+1?
   }
   assert(l==r);
   if(ia[l]<x) {
     assert(r==n-1);
-    //return n;   // replace with return r+1?
-    l = n;
+    return n;   // replace with return r+1?
   }
-  //\\ printf("binsearch n: %zu x: %ld ris: %zu\n",n,x,l);
   return l;
 }
 
 // recursively encode a submatrix in interleaved format  
 // into a k2mat_t structure
 // Parameters:
-//   ia[0,n-1] array containing the interleaved arcs 
+//   ia[0,n-1] array containing the interleaved entries 
 //   imin, imax range of values in ia[0,n-1]
 //   size  submatrix size (has the form 2^k*MMsize)
 //   *c output k2mat_t structure to be filled in dfs order 
@@ -221,10 +218,10 @@ static int uint64_cmp(const void *p, const void *q)
   return 0;
 }
 
-// create an interleaved array from the list of arcs in a text file
+// create interleaved array from the list of entries in a text file
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
 {
-  uint32_t maxarc = 0; // largest arc in the file
+  uint32_t maxentry = 0; // largest entry in the file
   size_t size=10;      // current size of ia[]
   size_t i=0;          // elements in ia[]
   uint64_t *ia = malloc(size*sizeof(*ia));
@@ -241,18 +238,18 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
       exit(EXIT_FAILURE);
     }
     if(a<0 || b<0) {
-      fprintf(stderr,"Negative arc id at line %zu\n",line);
+      fprintf(stderr,"Negative index at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
     if(a>UINT32_MAX || b>UINT32_MAX) {
-      fprintf(stderr,"Arc id too large at line %zu\n",line);
+      fprintf(stderr,"Index too large at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
-    // update maxarc
-    if(a>maxarc) maxarc=a;
-    if(b>maxarc) maxarc=b;
+    // update maxentry
+    if(a>maxentry) maxentry=a;
+    if(b>maxentry) maxentry=b;
     // compute interleaved value
-    uint64_t arc = bits_interleave(a,b);
+    uint64_t entry = bits_interleave(a,b);
     // enlarge ia if necessary
     if(i==size) {
         size = size*2;
@@ -260,19 +257,19 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
         if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
     }
     assert(size>i);
-    ia[i++] = arc;
+    ia[i++] = entry;
   }
   // final resize
   size = i;
   ia = realloc(ia,size*sizeof(*ia));
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
-  // sort interleaved arcs
+  // sort interleaved entries
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
   //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts("");
   // save output parameters   
-  if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
+  if(maxentry+1>SIZE_MAX)  // highly unlikely, but you never know... 
     quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
-  *msize = maxarc+1;
+  *msize = maxentry+1;
   *n = size;
   return ia;  
 }
@@ -280,7 +277,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
 
 // -----------------------------
 
-// recursively decode a k2 submatrix into a list of arcs
+// recursively decode a k2 submatrix into a list of entries
 // written to a text file
 // Parameters:
 //   f output file 

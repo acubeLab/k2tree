@@ -1,9 +1,13 @@
-/* Routines for converting binary matrices in text form, ie 
-   a list of directed arcs represented as a pair of vertices,
-   to the compressed k^2 tree representation 
+/* Tool for comparing boolean matrices in text form, ie 
+   one entry (a pair of indices)  per line
+   
+  Verify that the set of entries is identical in both matrices
+  and report unmatches entries. Also detect duplicated entries 
 
-   Matrix dimensions are assumed to be power of 2, of size at least
-   2*MMSize (minimatrix size), ie, the size of the last level of recursion. 
+  Ram usage is dominated by n uint64's, and the time is O(n log n)+O(m log n)
+  where n is the number of (nonzero) entries in the first matrix and m is the 
+  number of (nonzero) entries in the second matrix (if all goes well m=n)
+
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -64,17 +68,17 @@ static int uint64_cmp(const void *p, const void *q)
   return 0;
 }
 
-// read arcs from a text file and store them in a binary file
-// removing duplicates
-// return the number of arcs saved to the binary file
-uint64_t *arctxt2bin(FILE *f, size_t *n)
+// read entries from a text file and store them in a an array of uint64_t
+// removing duplicates. Each index is a uint32_t so an entry is a uint64_t 
+// return the array of entries and its size
+uint64_t *entry2bin(FILE *f, size_t *n)
 {
   assert(f!=NULL && n!=NULL);
-  uint32_t maxarc = 0; // largest arc in the file
+  uint32_t maxentry = 0; // largest entry in the file
   size_t size=10;      // current size of ia[]
   size_t i=0;          // elements in ia[]
   uint64_t *ia = malloc(size*sizeof(*ia));
-  if(ia==NULL) quit("arctxt2bin: malloc failed",__LINE__,__FILE__);
+  if(ia==NULL) quit("entry2bin: malloc failed",__LINE__,__FILE__);
     
   int64_t a,b; size_t line=0;  
   while(true) {
@@ -87,60 +91,62 @@ uint64_t *arctxt2bin(FILE *f, size_t *n)
       exit(EXIT_FAILURE);
     }
     if(a<0 || b<0) {
-      fprintf(stderr,"Negative arc id at line %zu\n",line);
+      fprintf(stderr,"Negative index at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
     if(a>UINT32_MAX || b>UINT32_MAX) {
-      fprintf(stderr,"Arc id too large at line %zu\n",line);
+      fprintf(stderr,"Index is too large at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
-    // update maxarc
-    if(a>maxarc) maxarc=a;
-    if(b>maxarc) maxarc=b;
-    // cobine arcs into a single uint64_t
-    uint64_t arc = a<<32 | b;
+    // update maxentry
+    if(a>maxentry) maxentry=a;
+    if(b>maxentry) maxentry=b;
+    // cobine entries into a single uint64_t
+    uint64_t entry = a<<32 | b;
     // enlarge ia if necessary
     if(i==size) {
         size = size*2;
         ia = realloc(ia,size*sizeof(*ia));
-        if(ia==NULL) quit("arctxt2bin: realloc failed",__LINE__,__FILE__);
+        if(ia==NULL) quit("entry2bin: realloc failed",__LINE__,__FILE__);
     }
     assert(size>i);
-    ia[i++] = arc;
+    ia[i++] = entry;
   }
   // final resize
   size = i;
   ia = realloc(ia,size*sizeof(*ia));
-  if(ia==NULL) quit("arctxt2bin: realloc failed",__LINE__,__FILE__);
-  if(Verbose>0) {fprintf(stderr,"< Read %zu arcs\n",size);
-                 fprintf(stderr,"< Max arc id: %u\n",maxarc);}
-  // sort arcs
+  if(ia==NULL) quit("entry2bin: realloc failed",__LINE__,__FILE__);
+  if(Verbose>0) {fprintf(stderr,"< Read %zu entries\n",size);
+                 fprintf(stderr,"< Largest index: %u\n",maxentry);}
+  // sort entries
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
   // remove duplicates
   size_t j=0; // non duplicate items
   for(i=0;i<size;i++) {
     if(i>0 && ia[i]==ia[i-1]) {
-      if(Verbose>0) fprintf(stderr,"< Duplicate arc: %ld %ld\n",ia[i]>>32,ia[i]&UINT32_MAX);
+      if(Verbose>0) fprintf(stderr,"< Duplicate entry: %ld %ld\n",ia[i]>>32,ia[i]&UINT32_MAX);
       continue;
     }
     ia[j++] = ia[i];
   }
   if(Verbose>0) {fprintf(stderr,"< Removed %zu duplicates\n",size-j);
-                 fprintf(stderr,"< %zu arcs remaining\n",j);}
+                 fprintf(stderr,"< %zu entries remaining\n",j);}
   // return
   *n = j;
   return ia;  
 }
 
-
-size_t arctxtcheck(FILE *f,uint64_t m1[], size_t n) {
+// compare two set of entries: the first stored in a sorted array m1[0,n-1]
+// of uint64_t, the second stored in a text file f
+// return the number of mismatches
+size_t matrixcmp(FILE *f,uint64_t m1[], size_t n) {
   assert(f!=NULL && m1!=NULL);
   assert(n>0);
-  uint32_t maxarc = 0; // largest arc in the file
+  uint32_t maxentry = 0; // largest entry in the file
   size_t err = 0;
   // allocate and clean bit array 
   uint64_t *bits = calloc((n+63)/64,8);
-  if(bits==NULL) quit("arctxtcheck: calloc failed",__LINE__,__FILE__); 
+  if(bits==NULL) quit("matrixcmp: calloc failed",__LINE__,__FILE__); 
 
   // main loop reading the matrix 2 file
   int64_t a,b; size_t line=0, dup=0;  
@@ -154,28 +160,28 @@ size_t arctxtcheck(FILE *f,uint64_t m1[], size_t n) {
       exit(EXIT_FAILURE);
     }
     if(a<0 || b<0) {
-      fprintf(stderr,"Negative arc id at line %zu\n",line);
+      fprintf(stderr,"Negative index at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
     if(a>UINT32_MAX || b>UINT32_MAX) {
-      fprintf(stderr,"Arc id too large at line %zu\n",line);
+      fprintf(stderr,"Index is too large at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
-    // update maxarc
-    if(a>maxarc) maxarc=a;
-    if(b>maxarc) maxarc=b;
-    // combine arcs into a single uint64_t
-    uint64_t arc = a<<32 | b;
+    // update maxentry
+    if(a>maxentry) maxentry=a;
+    if(b>maxentry) maxentry=b;
+    // combine entries into a single uint64_t
+    uint64_t entry = a<<32 | b;
 
-    size_t pos = binsearch(m1,n,arc);
-    if(pos==n || m1[pos]!=arc) {
+    size_t pos = binsearch(m1,n,entry);
+    if(pos==n || m1[pos]!=entry) {
       fprintf(stderr,"> unmatched %ld %ld\n",a,b);
       err++;
     }
     else { // check for matching duplicates in m2
-      assert(m1[pos]==arc);
+      assert(m1[pos]==entry);
       if(bits[pos/64]&(1UL<<(pos%64))) {
-        if(Verbose>0) fprintf(stderr,"> Duplicate arc: %ld %ld\n",a,b);
+        if(Verbose>0) fprintf(stderr,"> Duplicate entry: %ld %ld\n",a,b);
         dup++;
         continue;
       }
@@ -184,9 +190,9 @@ size_t arctxtcheck(FILE *f,uint64_t m1[], size_t n) {
     }
   }
   if(Verbose>0) {
-    fprintf(stderr,"> Read %zu arcs\n",line);
+    fprintf(stderr,"> Read %zu entries\n",line);
     fprintf(stderr,"> Found %zu duplicates\n",dup);
-    fprintf(stderr,"> Max arc id: %u\n",maxarc);
+    fprintf(stderr,"> Largest index: %u\n",maxentry);
   }
   for(size_t i=0;i<n;i++)
     if( (bits[i/64]&(1UL<<(i%64))) ==0) {
@@ -241,29 +247,29 @@ int main (int argc, char **argv) {
 
   fprintf(stderr,"Reading matrix 1\n");
   size_t n;
-  uint64_t *m1 = arctxt2bin(f1,&n);
+  uint64_t *m1 = entry2bin(f1,&n);
   fclose(f1);
   if(n==0) {
-    fprintf(stderr,"Matrix 1 has no arcs\n");
+    fprintf(stderr,"Matrix 1 has no entries\n");
     free(m1);
     fclose(f2);
     return EXIT_FAILURE;
   }
   fprintf(stderr,"Reading matrix 2\n");
-  size_t err = arctxtcheck(f2,m1,n);
+  size_t err = matrixcmp(f2,m1,n);
   free(m1);
   fclose(f2);
   // statistics
   if(Verbose)
     fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   // exit
-  if(err==0) {
+  if(err>0) {
     printf("%zu mismatches found\n",err);
     if(Verbose==0)
       printf("Rerun\n\t %s %s %s\nwith -v option for more details\n",argv[0],argv[1],argv[2]);
     return EXIT_FAILURE;
   }
-  printf("The two set of nonzero entries coincides!\n");
+  printf("The sets of nonzero entries coincide!\n");
   return EXIT_SUCCESS;
 }
 
@@ -271,7 +277,7 @@ int main (int argc, char **argv) {
 static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] matrix1 matrix2\n\n",name);
-    fputs("Compare arcs in text files matrix1 and matrix2\n",stderr);
+    fputs("Compare entries in text files matrix1 and matrix2\n",stderr);
     fputs("Reporting mismatches and duplicates\n",stderr);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-h      show this help message\n");
