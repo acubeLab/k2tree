@@ -41,8 +41,8 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname)
 
 
 
-// write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
-// of size msize*msize. It is assumed m was already correctly initialized and allocated
+// write the content of the :size x :size k2 matrix :a to a
+// text file in one arc per line format
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname)
 {
   assert(outname!=NULL && a!=NULL);
@@ -266,7 +266,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
   // sort interleaved arcs
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
-  //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts(""); //\\ 
+  //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts(""); //\\  
   // save output parameters   
   if(maxarc+1>SIZE_MAX)  // highly unlikely, but you never know... 
     quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);

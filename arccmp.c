@@ -16,76 +16,18 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <string.h>
+#include <errno.h>
+#include <assert.h>
+#include <time.h>
 
 
 // prototypes of static functions
-static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize);
-static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
-static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c);
-static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
-static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
+static void usage_and_exit(char *name);
+static void quit(const char *msg, int line, char *file);
 
-// read a matrix from the text file :iname (one arc per line)
-// and store it in k2 format
-// the compressed matrix is stored to :a and it size to :msize
-// return the size of the k2 matrix (which has the form 2**k*MMsize)
-size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname)
-{
-  assert(iname!=NULL && a!=NULL);
-  FILE *f = fopen(iname,"rt");
-  if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
-  // generate interleaved array from input file
-  size_t n; // number of arcs
-  uint64_t *ia = create_ia(f,&n,msize);
-  fclose(f);
-  // compress the matrix represented by the ia[] array into a k2mat_t structure
-  size_t asize = mread_from_ia(ia,n,*msize,a);
-  free(ia);
-  return asize;
-}
-
-
-
-// write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
-// of size msize*msize. It is assumed m was already correctly initialized and allocated
-void text2bintextfile(size_t msize, size_t size, const k2mat_t *a, char *outname)
-{
-  assert(outname!=NULL && a!=NULL);
-  assert(size>=msize);
-  FILE *f = fopen(outname,"wt");
-  if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
-
-  if(k2is_empty(a)) {  // an empty k2 matrix has no arcs
-    fclose(f);
-    return;
-  }
-  size_t pos = 0;
-  mdecode_to_textfile(f,msize,0,0,size,a,&pos);
-  fclose(f);
-  assert(pos==k2pos(a)); // check we read all the k2mat_t structure
-}
-
-// ----------- static auxiliary functions ------------
-
-// compress the matrix of size msize represented by the interleaved
-// array ia[0..n-1] into the k2mat_t structure *a 
-// ia[] should be an interleaved array of length n
-// the old content of :a is lost
-// return the size of the k2 matrix (which has the form 2**k*MMsize)
-static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
-{
-  assert(ia!=NULL && a!=NULL);
-  assert(n>0);                // we cannot represent an empty matrix
-  assert(msize>1);
-  assert( n <= msize*msize); // entries must be less that msize**2
-  k2_free(a);                // free previous content of a 
-  if(msize>(1<<30)) quit("mread_from_ia: matrix too large",__LINE__,__FILE__);
-  size_t asize = k2get_k2size(msize);
-  assert(asize>=2*MMsize);
-  // encode ia[] into a k2mat_t structure
-  mencode_ia(ia,n,0,asize*asize,asize,a);
-  return asize;
-}
+// global verbosity level
+int Verbose=0;
 
 
 // in a sorted uint64_t array ia[0,n-1] containing distinct values find 
@@ -97,7 +39,7 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
   while(l<r) {
     size_t m = (l+r)/2;
     if(ia[m]<x) l=m+1;
-    // else if(ia[m]==x) return m;
+    //\\ else if(ia[m]==x) return m;
     else r=m; // replace with r = m-1 and later return r+1?
   }
   assert(l==r);
@@ -125,9 +67,9 @@ static int uint64_cmp(const void *p, const void *q)
 // read arcs from a text file and store them in a binary file
 // removing duplicates
 // return the number of arcs saved to the binary file
-size_t *arctxt2bin(FILE *in, FILE *out)
+uint64_t *arctxt2bin(FILE *f, size_t *n)
 {
-  assert(in!=NULL && out!=NULL && n!=NULL);
+  assert(f!=NULL && n!=NULL);
   uint32_t maxarc = 0; // largest arc in the file
   size_t size=10;      // current size of ia[]
   size_t i=0;          // elements in ia[]
@@ -136,9 +78,9 @@ size_t *arctxt2bin(FILE *in, FILE *out)
     
   int64_t a,b; size_t line=0;  
   while(true) {
-    line++;
     int e = fscanf(f,"%" SCNd64 " %" SCNd64,&a,&b);
     if(e==EOF) break;
+    line++;
     // check input
     if(e!=2) {
       fprintf(stderr,"Invalid file content at line %zu",line);
@@ -170,27 +112,177 @@ size_t *arctxt2bin(FILE *in, FILE *out)
   size = i;
   ia = realloc(ia,size*sizeof(*ia));
   if(ia==NULL) quit("arctxt2bin: realloc failed",__LINE__,__FILE__);
-  fprintf(stderr,"Read %zu arcs\n",size);
-  fprintf(stderr,"Max arc id: %u\n",maxarc);
+  if(Verbose>0) {fprintf(stderr,"< Read %zu arcs\n",size);
+                 fprintf(stderr,"< Max arc id: %u\n",maxarc);}
   // sort arcs
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
   // remove duplicates
   size_t j=0; // non duplicate items
   for(i=0;i<size;i++) {
     if(i>0 && ia[i]==ia[i-1]) {
-      fprintf(stderr,"Duplicate arc: %ld %ld\n",ia[i]>>32,ia[i]&UINT32_MAX);
+      if(Verbose>0) fprintf(stderr,"< Duplicate arc: %ld %ld\n",ia[i]>>32,ia[i]&UINT32_MAX);
       continue;
     }
     ia[j++] = ia[i];
   }
-  fprintf(stderr,"Removed %zu duplicates\n",size-j);
-  // save to file
-  size_t e = fwrite(ia,sizeof(*ia),j,out);
-  if(e!=j) quit("arctxt2bin: fwrite failed",__LINE__,__FILE__);
+  if(Verbose>0) {fprintf(stderr,"< Removed %zu duplicates\n",size-j);
+                 fprintf(stderr,"< %zu arcs remaining\n",j);}
+  // return
   *n = j;
   return ia;  
 }
 
 
+size_t arctxtcheck(FILE *f,uint64_t m1[], size_t n) {
+  assert(f!=NULL && m1!=NULL);
+  assert(n>0);
+  uint32_t maxarc = 0; // largest arc in the file
+  size_t err = 0;
+  // allocate and clean bit array 
+  uint64_t *bits = calloc((n+63)/64,8);
+  if(bits==NULL) quit("arctxtcheck: calloc failed",__LINE__,__FILE__); 
+
+  // main loop reading the matrix 2 file
+  int64_t a,b; size_t line=0, dup=0;  
+  while(true) {
+    int e = fscanf(f,"%" SCNd64 " %" SCNd64,&a,&b);
+    if(e==EOF) break;
+    line++;
+    // check input
+    if(e!=2) {
+      fprintf(stderr,"Invalid file content at line %zu",line);
+      exit(EXIT_FAILURE);
+    }
+    if(a<0 || b<0) {
+      fprintf(stderr,"Negative arc id at line %zu",line);
+      exit(EXIT_FAILURE);
+    }
+    if(a>UINT32_MAX || b>UINT32_MAX) {
+      fprintf(stderr,"Arc id too large at line %zu",line);
+      exit(EXIT_FAILURE);
+    }
+    // update maxarc
+    if(a>maxarc) maxarc=a;
+    if(b>maxarc) maxarc=b;
+    // combine arcs into a single uint64_t
+    uint64_t arc = a<<32 | b;
+
+    size_t pos = binsearch(m1,n,arc);
+    if(pos==n || m1[pos]!=arc) {
+      fprintf(stderr,"> unmatched %ld %ld\n",a,b);
+      err++;
+    }
+    else { // check for matching duplicates in m2
+      assert(m1[pos]==arc);
+      if(bits[pos/64]&(1UL<<(pos%64))) {
+        if(Verbose>0) fprintf(stderr,"> Duplicate arc: %ld %ld\n",a,b);
+        dup++;
+        continue;
+      }
+      bits[pos/64] |= (1UL<<(pos%64));
+      assert( (bits[pos/64]&(1UL<<(pos%64))) );
+    }
+  }
+  if(Verbose>0) {
+    fprintf(stderr,"> Read %zu arcs\n",line);
+    fprintf(stderr,"> Found %zu duplicates\n",dup);
+    fprintf(stderr,"> Max arc id: %u\n",maxarc);
+  }
+  for(size_t i=0;i<n;i++)
+    if( (bits[i/64]&(1UL<<(i%64))) ==0) {
+      fprintf(stderr,"< unmatched %ld %ld\n",m1[i]>>32,m1[i]&UINT32_MAX);
+      err++;
+    }
+  free(bits);
+  return err;  
+}
+
 // -----------------------------
+
+
+
+int main (int argc, char **argv) { 
+  extern char *optarg;
+  extern int optind, opterr, optopt;
+  int c;
+  time_t start_wc = time(NULL);
+
+  /* ------------- read options from command line ----------- */
+  opterr = 0;
+  while ((c=getopt(argc, argv, "hv")) != -1) {
+    switch (c) 
+      {
+      case 'h':
+        usage_and_exit(argv[0]); break;        
+      case 'v':
+        Verbose++; break;
+      case '?':
+        fprintf(stderr,"Unknown option: %c\n", optopt);
+        exit(1);
+      }
+  }
+  if(Verbose>0) {
+    fputs("==== Command line:\n",stdout);
+    for(int i=0;i<argc;i++)
+     fprintf(stderr," %s",argv[i]);
+    fputs("\n",stderr);  
+  }
+
+  // virtually get rid of options from the command line 
+  optind -=1;
+  if (argc-optind != 3) usage_and_exit(argv[0]); 
+  argv += optind; argc -= optind;
+
+  // open files
+  FILE *f1 = fopen(argv[1],"rt");
+  if(f1==NULL) quit("Unable to open matrix file 1",__LINE__,__FILE__);
+  FILE *f2 = fopen(argv[2],"rt");
+  if(f2==NULL) quit("Unable to open matrix file 2",__LINE__,__FILE__);
+
+  fprintf(stderr,"Reading matrix 1\n");
+  size_t n;
+  uint64_t *m1 = arctxt2bin(f1,&n);
+  fclose(f1);
+  if(n==0) {
+    fprintf(stderr,"Matrix 1 has no arcs\n");
+    free(m1);
+    fclose(f2);
+    return EXIT_FAILURE;
+  }
+  fprintf(stderr,"Reading matrix 2\n");
+  size_t err = arctxtcheck(f2,m1,n);
+  free(m1);
+  fclose(f2);
+  // statistics
+  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
+  fprintf(stderr,"==== Done\n");
+  // exit
+  if(err>0) {
+    printf("%zu mismatches found\n",err);
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}
+
+
+static void usage_and_exit(char *name)
+{
+    fprintf(stderr,"Usage:\n\t  %s [options] matrix1 matrix2\n\n",name);
+    fputs("Compare arcs in text files matrix1 and matrix2\n",stderr);
+    fputs("Reporting mismatches and duplicates\n",stderr);
+    fputs("Options:\n",stderr);
+    fprintf(stderr,"\t-h      show this help message\n");
+    fprintf(stderr,"\t-v      verbose\n\n");
+    exit(1);
+}
+
+
+// write error message and exit
+static void quit(const char *msg, int line, char *file) {
+  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
+               strerror(errno));
+  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
+  exit(1);
+}
 
