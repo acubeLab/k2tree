@@ -49,7 +49,7 @@ int main (int argc, char **argv) {
   int mmsize = 2;
   bool decompress = false, check = false, write = true;
   char *ext = NULL;
-  while ((c=getopt(argc, argv, "e:m:dcvn")) != -1) {
+  while ((c=getopt(argc, argv, "e:m:dchvn")) != -1) {
     switch (c) 
       {
       case 'e':
@@ -62,6 +62,8 @@ int main (int argc, char **argv) {
         check = true; break;      
       case 'n':
         write = false; break;       
+      case 'h':
+        usage_and_exit(argv[0]); break;        
       case 'v':
         verbose++; break;
       case '?':
@@ -138,11 +140,12 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] filename\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-d      decompress\n");
-    fprintf(stderr,"\t-n      do not write output file, only show stats\n");
+    fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
     fprintf(stderr,"\t-e ext  outfile extension (def. compr: \"%s\", decompr: \"%s\")\n",
                    default_cext, default_dext);
     fprintf(stderr,"\t-c      compress->decompress->check\n");
+    fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     fprintf(stderr,"Default action is to compress filename to filename%s\n\n",default_cext);
     exit(1);

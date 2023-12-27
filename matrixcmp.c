@@ -269,7 +269,7 @@ int main (int argc, char **argv) {
       printf("Rerun\n\t %s %s %s\nwith -v option for more details\n",argv[0],argv[1],argv[2]);
     return EXIT_FAILURE;
   }
-  printf("The sets of nonzero entries coincide!\n");
+  printf("The two sets of nonzero entries are identical\n");
   return EXIT_SUCCESS;
 }
 

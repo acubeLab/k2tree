@@ -68,10 +68,11 @@ static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file) {
-  size_t pos, nodes, minimats;
-  fprintf(stderr,"%s -- matrix size: %zd, mmsize: %d, k2size: %d\n",mname,size,MMsize,asize);  
+  size_t pos, nodes, minimats; // ready for counting entries: ones;
+  fprintf(stderr,"%s -- matrix size: %zd, mmsize: %d, k2_internal_size: %d\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
+  // fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd, Ones: %zu\n",mname,levels,nodes,minimats, ones);
   fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd\n",
          mname,levels,nodes,minimats);
 }

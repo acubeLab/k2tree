@@ -1,8 +1,25 @@
 /* Routines for converting boolean matrices in text form
    to/from compressed k^2 tree representation 
 
-   See k2tcomp.c for details
+   Note: internally matrix dimensions are always of the form 2^k times the size 
+   of a minimatrix (those stored at the leaves of the tree), with k>0
+   (somewhere this is called the k2_internal_size); the input can be of any size, 
+   and the k2 matrix is padded with 0's (virtually since they are not stored)
 
+   The conversion txt->k2 is done using an auxiliary "interleaved" array:
+   each matrixc entry consits of two uint32_t (row and column indices).
+   A unique entry identifier is obtained interleaving the bits of the two indices:
+   as in:    r31 c31 ... r2 c2 r1 c1 r0 c0   where
+   ri is the i-th bit of the row index and ci is the i-th bit of the column index
+   When such interleaved values are numerically sorted the entries appear in 
+   exactly the same order such entries are visited in a predorder visit of the k2 tree 
+   Hence submatrices can be represented by subintervals of the interleaved array
+  
+   The conversion k2->txt is done using a visit of the tree in preorder
+   and each time a nonzero entry is found its indices are written to the output 
+   
+   Currently only the minimatrix size 2 is supported
+   (because of minimat_from_ia)
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -15,7 +32,7 @@
 
 
 // prototypes of static functions
-static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize);
+static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c);
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
@@ -23,16 +40,18 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
 
 // read a matrix from the text file :iname (one entry per line)
 // and store it in k2 format
-// the compressed matrix is stored to :a and it size to :msize
-// return the size of the k2 matrix (which has the form 2**k*MMsize)
-size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname)
+// the compressed matrix is stored to :a and its size to :msize
+// if :xsize>0 that value is forced to be the size of k2 matrix
+// return the internal size of the k2 matrix (which has the form 2**k*MMsize)
+size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
 {
   assert(iname!=NULL && a!=NULL);
   FILE *f = fopen(iname,"rt");
   if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
   // generate interleaved array from input file
   size_t n; // number of entries
-  uint64_t *ia = create_ia(f,&n,msize);
+  uint64_t *ia = create_ia(f,&n,msize,xsize);
+  assert(xsize==0 || *msize==xsize);
   fclose(f);
   // compress the matrix represented by the ia[] array into a k2mat_t structure
   size_t asize = mread_from_ia(ia,n,*msize,a);
@@ -68,6 +87,8 @@ void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outna
 // ia[] should be an interleaved array of length n
 // the old content of :a is lost
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
+// make sure that all entries are distinct (another option would be to 
+// just remove duplicates)
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
 {
   assert(ia!=NULL && a!=NULL);
@@ -78,6 +99,14 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   if(msize>(1<<30)) quit("mread_from_ia: matrix too large",__LINE__,__FILE__);
   size_t asize = k2get_k2size(msize);
   assert(asize>=2*MMsize);
+  // count duplicates
+  size_t dup=0;
+  for(size_t i=1;i<n;i++)
+    if(ia[i-1]==ia[i]) dup++;
+  if(dup>0) {
+    fprintf(stderr,"Input file contains %zu duplicate entries\n",dup);
+    exit(EXIT_FAILURE);
+  }
   // encode ia[] into a k2mat_t structure
   mencode_ia(ia,n,0,asize*asize,asize,a);
   return asize;
@@ -107,7 +136,7 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
 // recursively encode a submatrix in interleaved format  
 // into a k2mat_t structure
 // Parameters:
-//   ia[0,n-1] array containing the interleaved entries 
+//   ia[0,n-1] array containing the distinct interleaved entries 
 //   imin, imax range of values in ia[0,n-1]
 //   size  submatrix size (has the form 2^k*MMsize)
 //   *c output k2mat_t structure to be filled in dfs order 
@@ -218,8 +247,11 @@ static int uint64_cmp(const void *p, const void *q)
   return 0;
 }
 
-// create interleaved array from the list of entries in a text file
-static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
+// create and return interleaved array from the list of entries in a text file
+// the matrix size stored in :msize is computed as follows: 
+//  if xsize==0 *msize = largest index + 1
+//  if xsize>0 that value is forced to be the matrix size (all indexes must be <xsize)
+static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
 {
   uint32_t maxentry = 0; // largest entry in the file
   size_t size=10;      // current size of ia[]
@@ -245,6 +277,10 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
       fprintf(stderr,"Index too large at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
+    if(xsize>0 && (a>=xsize || b>=xsize)) {
+      fprintf(stderr,"Index larger than the assigned size at line %zu\n",line);
+      exit(EXIT_FAILURE);
+    }
     // update maxentry
     if(a>maxentry) maxentry=a;
     if(b>maxentry) maxentry=b;
@@ -267,9 +303,15 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize)
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
   //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts("");
   // save output parameters   
-  if(maxentry+1>SIZE_MAX)  // highly unlikely, but you never know... 
-    quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
-  *msize = maxentry+1;
+  if(xsize==0) { // if xsize==0 size is largest index + 1
+    if(maxentry+1>SIZE_MAX)  // highly unlikely, but you never know... 
+      quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
+    *msize = maxentry+1;
+  }
+  else {  // if parameter xsize>0 that is the desired matrix size
+    assert(maxentry<xsize);
+    *msize = xsize;
+  }
   *n = size;
   return ia;  
 }

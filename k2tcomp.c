@@ -2,24 +2,12 @@
 
    k2tcomp: (de)compress matrices in text form: one entry (two indices) per line
 
-   Note: internally matrix dimensions are always of the form 2^k times the size 
-   of a minimatrix (those stored at the leaves of the tree), with k>0
-   (somewhere this is called the k2_internal_size); the input can be of any size, 
-   and the k2 matrix is padded with 0's (virtually since they are not stored)
+   This code is ready to be compiled with the B128MAT constant defined
+   in that case it will (de)encode the matrices in text form to/from 
+   the B128 format, which is a dense format with one bit per entry. 
+   This option is currently noty supported
 
-  The conversion txt->k2 is done using an auxiliary "interleaved" array:
-  each matrixc entry consits of two uint32_t (row and column indices).
-  A unique entry identifier is obtained interleaving the bits of the two indices:
-  as in:    r31 c31 ... r2 c2 r1 c1 r0 c0
-  where ri is the it-th of the row index and ci is the it-th of the column index
-  When such interleaved values are numerically sorted the entries appear in 
-  exactly the same order such entries are visited in a predorder visit of the k2 tree 
-  Hence submatrices are represented by subintervals of the interleaved array
-  
-  The conversion k2->txt is done using a visit of the tree in preorder
-  and each time a nonzero entry is found its indices are written to the output 
-
-  The input matrix in b128 format is cyrrently not supported
+   For the details of the k2 format compression see k2text.c
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -67,20 +55,23 @@ int main (int argc, char **argv) {
   opterr = 0;
   int mmsize = 2;
   bool decompress = false, check = false, write = true;
+  int64_t xsize = 0;
   char *ext = NULL;
-  while ((c=getopt(argc, argv, "e:m:dcnhv")) != -1) {
+  while ((c=getopt(argc, argv, "e:m:s:dcnhv")) != -1) {
     switch (c) 
       {
       case 'e':
-        ext = optarg; break;        
+        ext = optarg; break;
       case 'm':
         mmsize = atoi(optarg); break;
+      case 's':
+        xsize = atoll(optarg); break;
       case 'd':
         decompress = true; break;
       case 'c':
-        check = true; break;   //\\  not yet supported   
+        check = true; break;
       case 'n':
-        write = false; break;       
+        write = false; break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -105,6 +96,13 @@ int main (int argc, char **argv) {
   }
   if(strlen(ext)==0)
     quit("Empty extension, cannot overwrite input file",__LINE__,__FILE__);
+  #ifdef B128MAT
+  if(xsize<=-0)
+    quit("-s parameter is mandatory and must be positive",__LINE__,__FILE__); 
+  #else    
+  if(xsize<0) 
+    quit("Matrix size must be non negative",__LINE__,__FILE__);
+  #endif
 
   // virtually get rid of options from the command line 
   optind -=1;
@@ -125,13 +123,14 @@ int main (int argc, char **argv) {
   }
   else { // compression
     minimat_init(mmsize);     // init k2 library
-    size_t asize = mread_from_textfile(&size,&a,iname);
+    size_t asize = mread_from_textfile(&size,&a,iname,xsize);
+    assert(xsize==0 || (size==xsize));
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
     if(check) {
       sprintf(oname,"%s%s.check",argv[1],ext); // create check file name  
-      mwrite_to_textfile(size,asize, &a, iname);
+      mwrite_to_textfile(size,asize, &a, oname);
       matrix_free(&a);
       puts("==== Checking compression by calling " matrix_checker);
       char *tmp = strdup(argv[0]);
@@ -157,7 +156,12 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] filename\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-d      decompress\n");
-    fprintf(stderr,"\t-n      do not write output file, only show stats\n");
+    fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
+    #ifdef B128MAT
+    fprintf(stderr,"\t-s S    matrix actual size, compression only\n");
+    #else
+    fprintf(stderr,"\t-s S    matrix actual size (def. largest index), compression only\n");
+    #endif  
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
     fprintf(stderr,"\t-e ext  outfile extension (def. compr: \"%s\", decompr: \"%s\")\n",
                    default_cext, default_dext);

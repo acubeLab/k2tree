@@ -88,4 +88,4 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 
 // from k2text.c
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
-size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname);
+size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize);
