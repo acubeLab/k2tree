@@ -125,7 +125,7 @@ Invoked without the `-d` or `-c` switch `k2tcomp.x` compresses a textual matrix 
 
 When invoked with `-d` the input file must be a k2 matrix which is then expanded into the textual format. 
 
-When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching ad is done invoking the tool `matrixcmp.x`.
+When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `matrixcmp.x`.
 
 The option `-m` can be used only in compression, currently only with one of the two values `2` and `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
 **Currently only the default value 2 is supported, so don't use this option**
@@ -176,7 +176,7 @@ should eventually display the matrix `t8.bbm` squared:
 
 ### Matrices represented as bitarrays
 
-The library contains the code also for compressing and operating binary matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. 
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. 
 
 The programs `b128comp.x` and `b128mult.x` work exactly like  `k2comp.c` and `k2mult.c` except that they use the bitarray representation instead of the k2 format. 
 
