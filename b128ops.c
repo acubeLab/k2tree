@@ -158,16 +158,16 @@ void mmult(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 
 // save the matrix :a to file :filename
 // the format is
-// 1) the size of the matrix (an int > 0)
+// 1) the size of the matrix (a size_t)
 // 2) the bit array (an uint128_t array of size a->size*a->colb)
-void msave_to_file(int size, int asize, const b128mat_t *a, const char *filename)
+void msave_to_file(size_t size, size_t asize, const b128mat_t *a, const char *filename)
 {
   (void) asize;
   assert(a!=NULL);
   if(size!=a->size) quit("msave_to_file: matrix size mismatch", __LINE__,__FILE__);
   FILE *f = fopen(filename,"w");
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
-  size_t e = fwrite(&size,sizeof(int),1,f);
+  size_t e = fwrite(&size,sizeof(size),1,f);
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
   size_t tot128 = a->size*a->colb;
   if(tot128 <=0) quit("msave_to_file: illegal bit array size",__LINE__,__FILE__);
@@ -180,15 +180,15 @@ void msave_to_file(int size, int asize, const b128mat_t *a, const char *filename
 // load a b128 matrix stored in file :filename into the b128mat_t structure :a
 // return the actual size of the matrix, see msave_to_file() for the file format
 // :a old content is discarded
-int mload_from_file(int *asize, b128mat_t *a, const char *filename)
+size_t mload_from_file(size_t *asize, b128mat_t *a, const char *filename)
 {
   (void) *asize;
   assert(a!=NULL);
   b128_free(a);
   FILE *f = fopen(filename,"r");
   if(f==NULL) quit("mload_from_file: cannot open file", __LINE__,__FILE__);
-  int size;
-  size_t e = fread(&size,sizeof(int),1,f);
+  size_t size;
+  size_t e = fread(&size,sizeof(size),1,f);
   if(e!=1) quit("mload_from_file: cannot read matrix size",__LINE__,__FILE__);
   if(size<1) quit("mload_from_file: matrix size smaller than 1, wrong format?",__LINE__,__FILE__);
   b128_init(size,a);

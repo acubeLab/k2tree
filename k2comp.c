@@ -97,9 +97,10 @@ int main (int argc, char **argv) {
   sprintf(oname,"%s%s",argv[1],ext); 
 
   int asize;    k2mat_t a = K2MAT_INITIALIZER;
-  size_t size; uint8_t *b = NULL;
+  size_t size, asizetmp; uint8_t *b = NULL;
   if(decompress) {
-    size = mload_from_file(&asize, &a, iname); // also init k2 library
+    size = mload_from_file(&asizetmp, &a, iname); // also init k2 library
+    asize = asizetmp; // ugly hack untill we switch every size to size_t
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     b= bbm_alloc(size);

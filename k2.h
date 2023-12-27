@@ -62,9 +62,9 @@ void minimat_init(int msize);
 
 // from k2ops.c
 // save a k2-matrix to file
-void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename);
+void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
-int mload_from_file(int *asize, k2mat_t *a, const char *filename);
+size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename);
 // write the content of a k2 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 

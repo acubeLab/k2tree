@@ -31,9 +31,9 @@ typedef struct b128mat {
 // do nothing, added for compatibility with k2mat
 void minimat_init(int);
 // save a b128-matrix to file
-void msave_to_file(int size, int asize, const b128mat_t *a, const char *filename);
+void msave_to_file(size_t size, size_t asize, const b128mat_t *a, const char *filename);
 // load a b128-matrix from file
-int mload_from_file(int *asize, b128mat_t *a, const char *filename);
+size_t mload_from_file(size_t *asize, b128mat_t *a, const char *filename);
 // write the content of a b128 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, int msize, int asize, const b128mat_t *a);
 // read the uncompressed matrix *m of size msize into the b128mat_t structure *a 

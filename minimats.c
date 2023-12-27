@@ -168,19 +168,32 @@ minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
 // read a minimat from the interleaved array ia[0,n-1] containing entries in [imin,imax)
 minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int size) {
   assert(size==MMsize);     // only called for minimats
-  assert(MMsize==2);        // so far only size 2 is allowed
   assert(n>0);              // not called on an empty submatrix  
   assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
   assert(imin>=0 && imax>=0);
   assert(imin<imax);
   minimat_t res = 0;
-  for(size_t i=0; i<n; i++) {
-    assert(ia[i]>=imin && ia[i]<imax);
-    int64_t j = ia[i]-imin; 
-    // for MMsize=2 j is the position of the corresponding 1 in res
-    assert(j>=0 && j<size*size);
-    res |= (1UL<<j);
+  if(MMsize==2) {
+    assert(imax==imin+4);
+    for(size_t i=0; i<n; i++) {
+      assert(ia[i]>=imin && ia[i]<imax);
+      int64_t j = ia[i]-imin; 
+      // for MMsize=2 j is the position of the corresponding 1 in res
+      assert(j>=0 && j<4);
+      res |= (1UL<<j);
+    }
   }
+  else if(MMsize==4) {
+    int t[16] = {0,1,4,5,2,3,6,7,8,9,12,13,10,11,14,15};
+    assert(imax==imin+16);
+    for(size_t i=0; i<n; i++) {
+      assert(ia[i]>=imin && ia[i]<imax);
+      int64_t j = t[ia[i]-imin]; 
+      assert(j>=0 && j<16);
+      res |= (1UL<<j);
+    }
+  }
+  else quit("minimat_from_ia: MMsize!=2,4",__LINE__,__FILE__); 
   assert(res!=MINIMAT0s); // cannot be all 0's
   return res;  
 }
@@ -215,7 +228,7 @@ void minimat_to_text(FILE *f, size_t msize, size_t i, size_t j, size_t size, min
         minimat_t bit = a & (1<<(ii*size+jj));   // read bit a[ii][jj]
         if(bit) { 
           int e = fprintf(f,"%zu %zu\n",i+ii,j+jj);
-          if(e<0) quit("minimat_to_bbm: fprintf failed",__LINE__,__FILE__);
+          if(e<0) quit("minimat_to_text: fprintf failed",__LINE__,__FILE__);
         }
       }
       else assert( (a & (1<<(ii*size+jj))) ==0); // no entry outside msize

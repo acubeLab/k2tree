@@ -309,7 +309,7 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
 
 // compute the size of the smallest k2mat containing a matrix of size msize
 // the size depends on the size of the minimat and grows with powers of 2
-int k2get_k2size(int msize) 
+size_t k2get_k2size(size_t msize) 
 {
   if(4*Minimat_node_ratio != (MMsize*MMsize)) 
     quit("k2get_size: minimats_init not called",__LINE__,__FILE__);

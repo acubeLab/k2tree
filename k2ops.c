@@ -389,21 +389,21 @@ void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 
 // save the matrix :a to file :filename
 // the format is
-// 1) the actual size of the matrix (an int)
+// 1) the actual size of the matrix (a size_t)
 // 2) the size of the last level of recursion, aka the size of a minimat,  (an int)
-// 3) the size of the k2 matrix (an int) 
+// 3) the size of the k2 matrix (a size_t, we could skip this) 
 // 4) the total number of positions (a size_t)
 // 5) the array of positions (an uint8_t array, each uint8 stores 2 positions)
-void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename)
+void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   FILE *f = fopen(filename,"w");
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
-  int e = fwrite(&size,sizeof(int),1,f);
+  int e = fwrite(&size,sizeof(size),1,f);
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
   e = fwrite(&MMsize, sizeof(int),1,f);
   if(e!=1) quit("msave_to_file: cannot write MMsize",__LINE__,__FILE__);
-  e = fwrite(&asize, sizeof(int),1,f);
+  e = fwrite(&asize, sizeof(asize),1,f);
   if(e!=1) quit("msave: cannot write asize",__LINE__,__FILE__);
   e = fwrite(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("msave_to_file: cannot write number of positions",__LINE__,__FILE__);
@@ -420,14 +420,15 @@ void msave_to_file(int size, int asize, const k2mat_t *a, const char *filename)
 // return the actual size of the matrix, see msave_to_file() for the file format
 // :a old content is discarded
 // must be called after minimat_init() since it checks that the correct MMsize is used
-int mload_from_file(int *asize, k2mat_t *a, const char *filename)
+size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   k2_free(a);
   FILE *f = fopen(filename,"r");
   if(f==NULL) quit("mload_from_file: cannot open file", __LINE__,__FILE__);
-  int size, mmsize;
-  int e = fread(&size,sizeof(int),1,f);
+  size_t size;
+  int mmsize;
+  int e = fread(&size,sizeof(size),1,f);
   if(e!=1) quit("mload_from_file: cannot read matrix size",__LINE__,__FILE__);
   if(size<=1) quit("mload_from_file: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
   e = fread(&mmsize, sizeof(int),1,f);
@@ -436,9 +437,9 @@ int mload_from_file(int *asize, k2mat_t *a, const char *filename)
     minimat_init(mmsize); // initialize minimat library if not already done
   else 
     if(mmsize!=MMsize) quit("mload_from_file: wrong minimatrix size",__LINE__,__FILE__);
-  e = fread(asize, sizeof(int),1,f);
+  e = fread(asize, sizeof(*asize),1,f);
   if(e!=1) quit("mload_from_file: cannot read k2 matrix size",__LINE__,__FILE__);
-  if(*asize<2*MMsize) 
+  if(*asize<2*MMsize)
     quit("mload_from_file: k2 matrix size incompatible with minimatrix size, wrong format?",
                          __LINE__,__FILE__);
   if(*asize!=k2get_k2size(size)) quit("mload_from_file: wrong k2 matrix size",__LINE__,__FILE__ );                       

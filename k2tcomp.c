@@ -97,11 +97,11 @@ int main (int argc, char **argv) {
   if(strlen(ext)==0)
     quit("Empty extension, cannot overwrite input file",__LINE__,__FILE__);
   #ifdef B128MAT
-  if(xsize<=-0)
+  if(xsize<=0)
     quit("-s parameter is mandatory and must be positive",__LINE__,__FILE__); 
   #else    
   if(xsize<0) 
-    quit("Matrix size must be non negative",__LINE__,__FILE__);
+    quit("-s parameter must be non negative",__LINE__,__FILE__);
   #endif
 
   // virtually get rid of options from the command line 
@@ -114,9 +114,10 @@ int main (int argc, char **argv) {
   sprintf(oname,"%s%s",argv[1],ext); 
 
   int asize;    k2mat_t a = K2MAT_INITIALIZER;
-  size_t size;
+  size_t size, asizetmp;
   if(decompress) {
-    size = mload_from_file(&asize, &a, iname); // also init k2 library
+    size = mload_from_file(&asizetmp, &a, iname); // also init k2 library
+    asize = asizetmp; // ugly hack untill we switch every size to size_t
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) mwrite_to_textfile(size,asize, &a, oname);
