@@ -184,6 +184,7 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, in
     }
   }
   else if(MMsize==4) {
+    // map between entries in interleaved vs row-major order for size==4
     int t[16] = {0,1,4,5,2,3,6,7,8,9,12,13,10,11,14,15};
     assert(imax==imin+16);
     for(size_t i=0; i<n; i++) {

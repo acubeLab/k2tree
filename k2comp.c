@@ -48,12 +48,12 @@ int main (int argc, char **argv) {
   opterr = 0;
   int mmsize = 2;
   bool decompress = false, check = false, write = true;
-  char *ext = NULL;
-  while ((c=getopt(argc, argv, "e:m:dchvn")) != -1) {
+  char *outfile = NULL;
+  while ((c=getopt(argc, argv, "o:m:dchvn")) != -1) {
     switch (c) 
       {
-      case 'e':
-        ext = optarg; break;        
+      case 'o':
+        outfile = optarg; break;
       case 'm':
         mmsize = atoi(optarg); break;
       case 'd':
@@ -79,22 +79,17 @@ int main (int argc, char **argv) {
   }
   if(check  && decompress)
     quit("Options -c and -d are incompatible",__LINE__,__FILE__);
-  // assign defualt extension if needed  
-  if(ext==NULL) {
-    if(decompress) ext = default_dext;
-    else ext = default_cext;
-  }
-  if(strlen(ext)==0)
-    quit("Empty extension, cannot overwrite input file",__LINE__,__FILE__);
 
   // virtually get rid of options from the command line 
   optind -=1;
   if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
-  // create file names
+  // assign default extension and create file names
+  char *ext = decompress ? default_dext : default_cext;  
   sprintf(iname,"%s",argv[1]);
-  sprintf(oname,"%s%s",argv[1],ext); 
+  if(outfile!=NULL)sprintf(oname,"%s",outfile);
+  else       sprintf(oname,"%s%s",argv[1],ext); 
 
   int asize;    k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asizetmp; uint8_t *b = NULL;
@@ -143,7 +138,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-d      decompress\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
-    fprintf(stderr,"\t-e ext  outfile extension (def. compr: \"%s\", decompr: \"%s\")\n",
+    fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: outfile%s)\n",
                    default_cext, default_dext);
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    
