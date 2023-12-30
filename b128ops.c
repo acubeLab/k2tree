@@ -13,12 +13,13 @@
    The bits outsize the matrix in the last 128-bit blocks are
    guaranteed to be zero.  
 
-   Matrix dimensions must be between 1 and 2^30
+   Matrix dimensions must be between 1 and 2^30 (in practice mush less
+   since a size 2^30 matrix would take 2^57 bytes)  
 
-   Inside the b128mat_t the matrix size is represented as a size_t
-   to ensure that when multiplied by a row/column index the result is 
-   computed correctly using 64 bit arithmetic 
-
+   However, in the b128mat_t def the matrix size is represented as a size_t
+   for compatibility with sparse representations and to ensure that when 
+   the size is multiplied by a row/column index the result 
+   is computed correctly using 64 bit arithmetic 
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */

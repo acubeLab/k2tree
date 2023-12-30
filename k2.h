@@ -10,6 +10,10 @@
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
+#ifndef _K2TYPEDEFS_H
+#define _K2TYPEDEFS_H 1
+
+
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -89,3 +93,6 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 // from k2text.c
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
 size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize);
+
+
+#endif /* _K2TYPDEFS_H */

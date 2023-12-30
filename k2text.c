@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include "k2.h"
 
 
 // prototypes of static functions
@@ -348,7 +349,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
       if(size==2*MMsize) { // read a minimatrix
-        minimat_t cx = k2read_minimat(c,*pos); *pos += Minimat_node_ratio;
+        minimat_t cx = k2read_minimat(c,pos);
         assert(cx!=MINIMAT0s); // should not happen
         minimat_to_text(outfile,msize,ii,jj,size/2,cx);
       }

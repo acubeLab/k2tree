@@ -57,10 +57,10 @@ int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
 // return statistics on matrix a
 // write number of used pos,nodes, and minimats in the variables passed by reference
 // and return the number of levels
-static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats)
+static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
 {
-  *pos=*nodes=*minimats=0;
-  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats);
+  *pos=*nodes=*minimats=*nz=0;
+  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats,nz);
   int eq = mequals(asize,a,a);
   assert(eq<0);
   return -eq;
@@ -68,13 +68,12 @@ static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file) {
-  size_t pos, nodes, minimats; // ready for counting entries: ones;
+  size_t pos, nodes, minimats, nz;
   fprintf(stderr,"%s -- matrix size: %zd, mmsize: %d, k2_internal_size: %d\n",mname,size,MMsize,asize);  
-  int levels = mstats(asize,a,&pos,&nodes,&minimats);
+  int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  // fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd, Ones: %zu\n",mname,levels,nodes,minimats, ones);
-  fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd\n",
-         mname,levels,nodes,minimats);
+  fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd, Nonzeros: %zu\n",
+          mname,levels,nodes,minimats, nz);
 }
 
 // recursive test for equality test of two k2 matrices both nonzero
@@ -173,17 +172,17 @@ static void msum_rec(int size, const k2mat_t *a, size_t *posa,
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
-  size_t tmp1=0,tmp2=0; // not used, defined to pass to k2dfs_visit
+  size_t tmp1=0,tmp2=0, tmp3=0; // not used, defined to pass to k2dfs_visit
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
-    k2dfs_visit(size,b,posb,&tmp1,&tmp2); //reach end of b but ignore its content
+    k2dfs_visit(size,b,posb,&tmp1,&tmp2,&tmp3); //reach end of b but ignore its content
     return;
   }
   else if(rootb==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posb+=1; // same as above with a and b swapped
-    k2dfs_visit(size,a,posa,&tmp1,&tmp2); //scan but ignore a content
+    k2dfs_visit(size,a,posa,&tmp1,&tmp2,&tmp3); //scan but ignore a content
     return;
   }
   assert(roota!=ALL_ONES && rootb!=ALL_ONES);
@@ -556,7 +555,7 @@ static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t
     int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
       if(size==2*MMsize) { // read a minimatrix
-        minimat_t cx = k2read_minimat(c,*pos); *pos += Minimat_node_ratio;
+        minimat_t cx = k2read_minimat(c,pos);
         assert(cx!=MINIMAT0s); // should not happen
         minimat_to_bbm(m,msize,ii,jj,size/2,cx);
       }

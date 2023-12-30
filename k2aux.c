@@ -73,7 +73,7 @@ static void k2_free(k2mat_t *m)
 // and sometimes re-written after a modification 
 // (this is why we keep track where the node was written)
 
-// So for nodes we have add/read/write operations 
+// Hence for nodes we have add/read/write operations 
 
 
 // add a node to the current k2_tree
@@ -151,12 +151,13 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
   }
 }
 
-// read minimat matrix starting from position p
-// used by k2read_minimats and k2copy_rec
-static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
+// read a minimat matrix starting from position *p
+// position *p is set at the end of the minimat 
+// used by k2split_minimats and k2copy_rec
+static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
   if(MMsize==2) {
     assert(Minimat_node_ratio==1);
-    return (minimat_t) k2read_node(b,p);
+    return (minimat_t) k2read_node(b,(*p)++);
   }
   else {
     assert(MMsize==4);
@@ -164,7 +165,7 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
     minimat_t res = 0;
     for(int i=0;i<Minimat_node_ratio;i++) {
       res <<= 4;
-      res |= (minimat_t) k2read_node(b,p++);
+      res |= (minimat_t) k2read_node(b,(*p)++);
     }
     return res;
   }    
@@ -172,15 +173,15 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t p) {
 
 // split the submatrix :a starting at position *posa into 4 minimats
 // and write them to ax[] assuming we have already read the root node :roota 
-// we are implicitly assuming we are at the last level of the tree
-// called by msum_rec, mequals_rec and mmult_base
+// we are implicitly assuming we are at the last level of the tree.
+// Called by msum_rec, mequals_rec and mmult_base
 void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax[2][2])
 {
   assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) {
-      ax[i/2][i%2] = k2read_minimat(a,*posa);
-      *posa += Minimat_node_ratio;
+      ax[i/2][i%2] = k2read_minimat(a,posa);
+      // *posa += Minimat_node_ratio;
     }
     else ax[i/2][i%2] = MINIMAT0s;
 }
@@ -195,23 +196,31 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 // visit a size x size non-empty submatrix starting from its root (in *pos)
 // the visit is done recursively in depth first order 
 // count the number of nodes and minimatrices visited incrementing *nodes and *minimats
+// count the number of nonzero entries incrementing *nz
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 // used to split a matrix into 4 submatrices, but also for debugging/info
-void k2dfs_visit(int size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats)
+// Note: the number of nonzeros can be incorrect because of overflows 
+void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
 {
   assert(size>MMsize);
   assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node(m,*pos); (*pos)++;
   (*nodes)++;
-  if(root==ALL_ONES) return; // all 1's matrix consists of root only
+  if(root==ALL_ONES) {
+    if(size>=(1UL<<32)) fprintf(stderr,"Overflow in # of nonzeros:: all 1's matrix of size %zu\n",size);
+    else *nz += size*size; 
+    return; // all 1's matrix consists of root only
+  }
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion
         (*minimats)++;
-        *pos += Minimat_node_ratio;
+        minimat_t mm = k2read_minimat(m,pos);
+        *nz += __builtin_popcountll(mm);
+        // *pos += Minimat_node_ratio;
       }
       else { // recurse on submatrix
-        k2dfs_visit(size/2,m,pos,nodes,minimats);
+        k2dfs_visit(size/2,m,pos,nodes,minimats,nz);
       }
     }
 }
@@ -232,8 +241,8 @@ void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
   for(int i=0;i<4;i++) {
     if((roota & (1<<i))!=0) {
       if(size==2*MMsize) { // end of recursion
-        minimat_t m = k2read_minimat(a,*posa);
-        *posa += Minimat_node_ratio;
+        minimat_t m = k2read_minimat(a,posa);
+        // *posa += Minimat_node_ratio;
         k2add_minimat(b,m);
       }
       else { // recurse on submatrix
@@ -293,11 +302,11 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
     return;
   }
   // root is not all 1's: we have the standard structure
-  size_t next = pos, nodes=0, minimats=0;
+  size_t next = pos, nodes=0, minimats=0, nz=0;
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
-      k2dfs_visit(size/2,a,&next,&nodes,&minimats); // get size of submatrix
+      k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz); // get size of submatrix
       assert(next==pos+nodes+minimats*Minimat_node_ratio);
       k2clone(a, pos, next, &b[i][j]);         // create pointer to submatrix
       pos = next; // advance to next item
