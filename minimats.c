@@ -38,8 +38,12 @@ static int MMsize = INT32_MAX;  // a certainly incorrect value
 // this amounts to how many nibbles takes a minimat 
 // eg for a 2x2 binary matrix takes one nibble so the constant is 1
 static int Minimat_node_ratio = -1;  // certainly incorrect value
+// global variable determining whether during construction we use the 
+// ALL_ONES node to denote a submatrix of all 1's. Currently not used! 
+static bool Use_all_ones_node = true;
 
-// minimat constants (depend on size, here are 2x2)
+
+// minimat constants (depend on size, these are of for 2x2 and 4x4)
 static minimat_t MINIMAT0s=0;  // minimat containing all 0's, correctly initialized 
 static minimat_t MINIMAT1s=0;  // minimat containing all 1's, incorrect value, initialzed in minimats_init  
 
@@ -48,7 +52,7 @@ static minimat_t MINIMAT1s=0;  // minimat containing all 1's, incorrect value, i
 
 // global variable containing the product of every pair of possible minimatrices
 // to be initialized in minimats_init();
-static minimat_t *mprods2x2 = NULL; // will contain 256 entries  ;
+static minimat_t *mprods2x2 = NULL; // will contain 256 entries
 
 // multiply two minimat matrices of size 2*2
 minimat_t mmult2x2(minimat_t a, minimat_t b) {
