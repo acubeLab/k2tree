@@ -34,15 +34,14 @@
 #include "b128.h"
 #include "bbm.h"
 
-
 static void quit(const char *msg, int line, char *file);
 static void b128_free(b128mat_t *m);
-static void b128_init(int size, b128mat_t *a);
+static void b128_init(size_t size, b128mat_t *a);
 
 
 // write the content of a b128 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
-void mwrite_to_bbm(uint8_t *m, int msize, int asize, const b128mat_t *a)
+void mwrite_to_bbm(uint8_t *m, size_t msize, size_t asize, const b128mat_t *a)
 {
   (void) asize;
   assert(a!=NULL);
@@ -60,16 +59,16 @@ void mwrite_to_bbm(uint8_t *m, int msize, int asize, const b128mat_t *a)
 }
 
 
-// compress the matrix *m of size msize into the b128mat_t structure *a 
+// compress the bbm matrix *m of size msize into the b128mat_t structure *a 
 // m should be an  array of size msize*msize 
 // the old content of :a is lost
 // for compatibilty with k2mats return the size of the b128 matrix (ie msize)
-int mread_from_bbm(uint8_t *m, int msize, b128mat_t *a)
+int mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a)
 {
   assert(a!=NULL && m!=NULL);
   b128_free(a); // free previous content of a
   if(msize<=0) quit("mread_from_bbm: illegal matrix size",__LINE__,__FILE__);;
-  if(msize>(1<<30)) quit("mread_from_bbm: matrix too large",__LINE__,__FILE__);
+  if(msize>MaxMatrixSize) quit("mread_from_bbm: matrix too large",__LINE__,__FILE__);
   b128_init(msize,a);
   bzero(a->b,a->size*a->colb*sizeof(uint128_t));
   uint128_t one = 1;
@@ -85,10 +84,10 @@ int mread_from_bbm(uint8_t *m, int msize, b128mat_t *a)
 }
 
 // write to :file statistics for b128_mat :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, int asize, const b128mat_t *a, const char *mname,FILE *file) {
+void mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file) {
   (void) asize;
   if(size!=a->size) quit("mshow_stats: size mismatch",__LINE__,__FILE__);
-  fprintf(stderr,"%s -- matrix size: %zd, block size: %zd, # column blocks %d\n",
+  fprintf(stderr,"%s -- matrix size: %zu, block size: %zu, # column blocks %d\n",
           mname,size,8*sizeof(*(a->b)), a->colb);  
 }
 
@@ -96,7 +95,7 @@ void mshow_stats(size_t size, int asize, const b128mat_t *a, const char *mname,F
 // check if two b128 compressed matrices :a and :b are equal
 // if a==b return -1
 // if a!=b return the row index>=0 containing the first difference
-int mequals(int size, const b128mat_t *a, const b128mat_t *b)
+int mequals(size_t size, const b128mat_t *a, const b128mat_t *b)
 {
   (void) size;
   assert(a!=NULL && b!=NULL);
@@ -113,7 +112,7 @@ int mequals(int size, const b128mat_t *a, const b128mat_t *b)
 // the result in c, old content of c is discarded
 // :a and :b must be of the same size
 // Not tested!
-void msum(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
+void msum(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 {
   (void) asize;
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -133,7 +132,7 @@ void msum(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 // multiply size x size b128 compressed matrices :a and :b storing
 // the result in c, old content of c is discarded
 // :a and :b must be of the same size
-void mmult(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
+void mmult(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 {
   (void) asize;
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -233,7 +232,7 @@ static void quit(const char *msg, int line, char *file) {
 }
 
 // free mem used by :m, old content is lost but *m still reusable if needed 
-void b128_free(b128mat_t *m)
+static void b128_free(b128mat_t *m)
 {
   if(m->read_only) // read only matrices are pointers to other matrices
     quit("Illegal operation: freeing a read only b128-matrix",__LINE__,__FILE__); 
@@ -243,7 +242,7 @@ void b128_free(b128mat_t *m)
 }
 
 // make :a a b128 matrix of a given :size by initializing its fields
-void b128_init(int size, b128mat_t *a)
+static void b128_init(size_t size, b128mat_t *a)
 {
   assert(a!=NULL);
   if(a->b!=NULL) quit("b128_init: initalizing a non-empty matrix",__LINE__,__FILE__);

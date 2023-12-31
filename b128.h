@@ -1,4 +1,4 @@
-/* Core routines for handling square binary matrices using dens bit arrays
+/* Core routines for handling square binary matrices using dense bit arrays
 
    type definitions and prototypes of external visible functions
    see b128ops.c for details
@@ -25,6 +25,8 @@ typedef struct b128mat {
 // initialize to an empty writable matrix 
 #define B128MAT_INITIALIZER {NULL,0,0,false}
 
+// maximum allowed size of a bitarray matrix
+#define MaxMatrixSize (1UL<<30)
 
 // prototypes
 
@@ -35,21 +37,21 @@ void msave_to_file(size_t size, size_t asize, const b128mat_t *a, const char *fi
 // load a b128-matrix from file
 size_t mload_from_file(size_t *asize, b128mat_t *a, const char *filename);
 // write the content of a b128 matrix in a bbm matrix
-void mwrite_to_bbm(uint8_t *m, int msize, int asize, const b128mat_t *a);
+void mwrite_to_bbm(uint8_t *m, size_t msize, size_t asize, const b128mat_t *a);
 // read the uncompressed matrix *m of size msize into the b128mat_t structure *a 
-int mread_from_bbm(uint8_t *m, int msize, b128mat_t *a);
+int mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a);
 // write to :file statistics for a b128 matrix :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, int asize, const b128mat_t *a, const char *mname,FILE *file);
+void mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file);
 // check if two b128 compressed matrices :a and :b are equal
 // if a==b return -1
 // if a!=b return the row index>=0 containing the first difference
-int mequals(int size, const b128mat_t *a, const b128mat_t *b);
+int mequals(size_t size, const b128mat_t *a, const b128mat_t *b);
 // sum two b128 matrices a and b writing the result to c
 // multiplication is done replacing scalar + by logical or 
-void msum(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
+void msum(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
 // multiply two b128 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
-void mmult(int asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
+void mmult(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
 // free a b128 matrix
 void matrix_free(b128mat_t *m);
 // make a read-only copy of a b128 matrix without allocating new memory

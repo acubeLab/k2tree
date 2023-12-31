@@ -38,9 +38,10 @@ static int MMsize = INT32_MAX;  // a certainly incorrect value
 // this amounts to how many nibbles takes a minimat 
 // eg for a 2x2 binary matrix takes one nibble so the constant is 1
 static int Minimat_node_ratio = -1;  // certainly incorrect value
+
 // global variable determining whether during construction we use the 
 // ALL_ONES node to denote a submatrix of all 1's. Currently not used! 
-static bool Use_all_ones_node = true;
+// static bool Use_all_ones_node = true;
 
 
 // minimat constants (depend on size, these are of for 2x2 and 4x4)
@@ -117,9 +118,9 @@ static void init_mtranspose4x4(void) {
       bt[j] = 0;           // the j-th column of b determines the j-th row of bt   
       for(int r=0;r<4;r++) // row index in b
         if(b & (1<<(j+r*4)))  // if b[r][j]!=0
-          bt[j] |= (1<<r);
+          bt[j] |= (1UL<<r);
     }
-    mtranspose4x4[b] = bt[0] | (bt[1]<<4) | (bt[2]<<8) | (bt[3]<<12);
+    mtranspose4x4[b] = (uint16_t) (bt[0] | (bt[1]<<4) | (bt[2]<<8) | (bt[3]<<12));
   }
 }
 
@@ -140,7 +141,7 @@ void minimat_init(int msize) {
  // init MINIMAT1s
  assert(MINIMAT0s==0);
  if(msize*msize == 8*sizeof(minimat_t))
-   MINIMAT1s = ~0; // minimat takes the whole variable
+   MINIMAT1s = (minimat_t) ~0; // minimat takes the whole variable
  else 
    MINIMAT1s = (((minimat_t) 1) << (msize*msize)) -1;
 
@@ -156,12 +157,12 @@ void minimat_init(int msize) {
 
 // read a minimat from a submatrix of an bbm matrix m
 // entries outsize the matrix m are considered to be 0
-minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
+minimat_t minimat_from_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size) {
   assert(size==MMsize);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
   minimat_t res = 0;
-  for(int ii=size-1; ii>=0; ii--)
-    for(int jj=size-1; jj>=0; jj--) {
+  for(size_t ii=size-1; ii>=0; ii--)
+    for(size_t jj=size-1; jj>=0; jj--) {
       res <<= 1;
       if(i+ii<msize && j+jj<msize && m[(i+ii)*msize + j+jj])
         res |= 1;
@@ -170,7 +171,7 @@ minimat_t minimat_from_bbm(uint8_t *m, int msize, int i, int j, int size) {
 }
 
 // read a minimat from the interleaved array ia[0,n-1] containing entries in [imin,imax)
-minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, int size) {
+minimat_t minimat_from_ia(uint64_t *ia, size_t n, size_t imin, size_t imax, size_t size) {
   assert(size==MMsize);     // only called for minimats
   assert(n>0);              // not called on an empty submatrix  
   assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
@@ -181,7 +182,7 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, in
     assert(imax==imin+4);
     for(size_t i=0; i<n; i++) {
       assert(ia[i]>=imin && ia[i]<imax);
-      int64_t j = ia[i]-imin; 
+      int64_t j = (int64_t) (ia[i]-imin); 
       // for MMsize=2 j is the position of the corresponding 1 in res
       assert(j>=0 && j<4);
       res |= (1UL<<j);
@@ -193,7 +194,7 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, in
     assert(imax==imin+16);
     for(size_t i=0; i<n; i++) {
       assert(ia[i]>=imin && ia[i]<imax);
-      int64_t j = t[ia[i]-imin]; 
+      int j = t[ia[i]-imin]; 
       assert(j>=0 && j<16);
       res |= (1UL<<j);
     }
@@ -206,13 +207,13 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, int64_t imin, int64_t imax, in
 
 // write the content of a minimat to a bbm matrix m
 // entries outsize the matrix m should not be written
-void minimat_to_bbm(uint8_t *m, int msize, int i, int j, int size, minimat_t a) {
+void minimat_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, minimat_t a) {
   assert(size==MMsize);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
-  for(int ii=0; ii<size; ii++)
-    for(int jj=0; jj<size; jj++)
+  for(size_t ii=0; ii<size; ii++)
+    for(size_t jj=0; jj<size; jj++)
       if(i+ii<msize && j+jj<msize) {       // inside the matrix
-        int bit = a & (1<<(ii*size+jj));   // read bit a[ii][jj]
+        minimat_t bit = a & (1<<(ii*size+jj));   // read bit a[ii][jj]
         m[(i+ii)*msize + j+jj] = bit ? 1 : 0;  // if nonzero set m[i+ii][j+jj] to 1
         // if m initialized with 0s we can use the following line and save some writes
         // if(bit) m[(i+ii)*msize + j+jj]=1;  // if nonzero set m[i+ii][j+jj] to 1

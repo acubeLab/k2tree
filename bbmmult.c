@@ -1,7 +1,7 @@
 /* Multiplication of boolean matrices represented in bbm format
    using opm 
     
-   In medium size experiments was sligthly fasterthan the serial version
+   In medium size experiments it was sligthly faster than the serial version
    1 secs vs 2 for a 18k matrix.  
     
    Note that sparsity does affect the running time
@@ -128,15 +128,14 @@ int main (int argc, char **argv) {
 
 void fast_mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
   assert(a!=NULL && b!=NULL && c!=NULL && size>0);
-  
   // clean c
   byte_to_bbm(c,size,0,0,size,0);
 
   #pragma omp parallel for          // this is currently the only parallelization
-  for(int i=0; i<size; i++)
-    for(int k=0; k<size; k++) 
+  for(size_t i=0; i<size; i++)
+    for(size_t k=0; k<size; k++) 
       if(a[i*size+k]) {
-        for(int j=0; j<size; j++) { // note: this for also is parallelizable
+        for(size_t j=0; j<size; j++) { // note: this for also is parallelizable
           if(b[k*size+j])
             c[i*size+j] = 1;
         }

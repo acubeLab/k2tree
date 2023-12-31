@@ -42,6 +42,8 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
 // the compressed matrix is stored to :a and its size to :msize
 // if :xsize>0 that value is forced to be the size of k2 matrix
 // return the internal size of the k2 matrix (which has the form 2**k*MMsize)
+// since entries are encoded in 64 bits, each index can be at most 32 bits
+// so the maximum matri size is 2^32 (change ia[] type to go further)
 size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
 {
   assert(iname!=NULL && a!=NULL);
@@ -49,6 +51,8 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
   if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
   // generate interleaved array from input file
   size_t n; // number of entries
+  // since we are storing entries in 64 bits each index must fit in 32 bits   
+  if(xsize>UINT32_MAX) quit("mread_from_textfile: matrix too large, current limit is 2^32",__LINE__,__FILE__);
   uint64_t *ia = create_ia(f,&n,msize,xsize);
   assert(xsize==0 || *msize==xsize);
   fclose(f);
@@ -88,6 +92,8 @@ void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outna
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
 // make sure that all entries are distinct (another option would be to 
 // just remove duplicates)
+// since entries are encoded in 64 bits, each index can be at most 32 bits
+// so the maximum matrix size is 2^32 (change ia[] type to go further)
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
 {
   assert(ia!=NULL && a!=NULL);
@@ -95,7 +101,7 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   assert(msize>1);
   assert( n <= msize*msize); // entries must be less that msize**2
   k2_free(a);                // free previous content of a 
-  if(msize>(1<<30)) quit("mread_from_ia: matrix too large",__LINE__,__FILE__);
+  if(msize>UINT32_MAX) quit("mread_from_ia: matrix too large, current limit is 2^32",__LINE__,__FILE__);
   size_t asize = k2get_k2size(msize);
   assert(asize>=2*MMsize);
   // count duplicates
@@ -139,6 +145,7 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
 //   imin, imax range of values in ia[0,n-1]
 //   size  submatrix size (has the form 2^k*MMsize)
 //   *c output k2mat_t structure to be filled in dfs order 
+// called by mread_from_ia()
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c) {
   assert(ia!=NULL);
   assert(n>0);
@@ -154,12 +161,12 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, siz
     return;
   }
   // determine range of submatrices 
-  int64_t range = imax-imin;
+  size_t range = imax-imin;
   assert(range%4==0);
   range = range/4;
-  int64_t left = imin + range;
-  int64_t mid = left+range;
-  int64_t right = imax - range;
+  size_t left = imin + range;
+  size_t mid = left+range;
+  size_t right = imax - range;
   assert(right==mid+range);
   // determine range in ia[] of the 4 submatrices entries
   size_t imid = binsearch(ia,n,mid);    //   first entry of A[10]
@@ -250,9 +257,11 @@ static int uint64_cmp(const void *p, const void *q)
 // the matrix size stored in :msize is computed as follows: 
 //  if xsize==0 *msize = largest index + 1
 //  if xsize>0 that value is forced to be the matrix size (all indexes must be <xsize)
+// since entries are encoded in 64 bits, each index can be at most 32 bits
+// so the maximum matrix size is 2^32 (change ia[] type to go further)
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
 {
-  uint32_t maxentry = 0; // largest entry in the file
+  int64_t maxentry = 0; // largest entry in the file
   size_t size=10;      // current size of ia[]
   size_t i=0;          // elements in ia[]
   uint64_t *ia = malloc(size*sizeof(*ia));
@@ -272,6 +281,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
       fprintf(stderr,"Negative index at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
+    // since we are storing entries in 64 bits each index must fit in 32 bits       
     if(a>UINT32_MAX || b>UINT32_MAX) {
       fprintf(stderr,"Index too large at line %zu\n",line);
       exit(EXIT_FAILURE);
@@ -300,7 +310,6 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
   if(ia==NULL) quit("create_ia: realloc failed",__LINE__,__FILE__);
   // sort interleaved entries
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
-  //\\ for(i=0;i<size;i++) printf("%ld ", ia[i]); puts("");
   // save output parameters   
   if(xsize==0) { // if xsize==0 size is largest index + 1
     if(maxentry+1>SIZE_MAX)  // highly unlikely, but you never know... 

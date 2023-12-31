@@ -16,14 +16,14 @@
 #include "k2text.c"
 #include "bbm.h"
 
-static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t *c, size_t *pos);
-static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c);
-static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
+static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c);
+static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
-void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
+void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a)
 {
   assert(size>=msize);
   if(k2is_empty(a)) {  // an empty k2 matrix is all 0s
@@ -32,7 +32,7 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
   }
   byte_to_bbm(m,msize,0,0,msize,2); // fill m with illegal value 2
   size_t pos = 0;
-  mdecode(m,msize,0,0,size,a,&pos);
+  mdecode_bbm(m,msize,0,0,size,a,&pos);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
 
@@ -41,23 +41,22 @@ void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a)
 // m should be an array of size msize*msize 
 // the old content of :a is lost
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
-int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a)
+size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a)
 {
   assert(a!=NULL && m!=NULL);
   k2_free(a); // free previous content of a
   assert(msize>1);
-  if(msize>(1<<30)) quit("mread_from_bbm: matrix too large",__LINE__,__FILE__);
-  int asize = k2get_k2size(msize);
+  size_t asize = k2get_k2size(msize);
   assert(asize>=2*MMsize);
   // read matrix m into a
-  mencode(m,msize,0,0,asize,a);
+  mencode_bbm(m,msize,0,0,asize,a);
   return asize;
 }
 
 // return statistics on matrix a
-// write number of used pos,nodes, and minimats in the variables passed by reference
+// write number of used pos,nodes, minimats and nonzeros in the variables passed by reference
 // and return the number of levels
-static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
+static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
 {
   *pos=*nodes=*minimats=*nz=0;
   if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats,nz);
@@ -67,18 +66,18 @@ static int mstats(int asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_
 }
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file) {
+void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats, nz;
-  fprintf(stderr,"%s -- matrix size: %zd, mmsize: %d, k2_internal_size: %d\n",mname,size,MMsize,asize);  
+  fprintf(stderr,"%s -- matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
   fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd, Nonzeros: %zu\n",
           mname,levels,nodes,minimats, nz);
 }
 
-// recursive test for equality test of two k2 matrices both nonzero
+// recursive test for equality of two k2 matrices both nonzero
 // see mequals for details
-static int mequals_rec(int size, const k2mat_t *a, size_t *posa, 
+static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa, 
                           const k2mat_t *b, size_t *posb)
 {
   assert(size>=2*MMsize);
@@ -122,11 +121,11 @@ static int mequals_rec(int size, const k2mat_t *a, size_t *posa,
 // (first in the sense of the first level encountered in dfs order)
 // Note that if a==b we return the number of visited levels (tree depth), 
 // while if a!=b we return the level of the first difference counting from 0 (root)
-// these two values differ by one (these can be seen in the returned value)
+// these two values differ by one (this can be seen in the returned value)
 // :a and :b must be of size at least 2*MMsize but their content can be
 // arbitrary: all 0's, all 1's, or generic
 // note: here all 0's matrices are considered of depth 1 even if they are empty
-int mequals(int size, const k2mat_t *a, const k2mat_t *b)
+int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL);
@@ -145,7 +144,7 @@ int mequals(int size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
-static void mcopy(int size, const k2mat_t *a, k2mat_t *b)
+static void mcopy(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
@@ -163,7 +162,7 @@ static void mcopy(int size, const k2mat_t *a, k2mat_t *b)
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + subtrees in DFS order   
-static void msum_rec(int size, const k2mat_t *a, size_t *posa, 
+static void msum_rec(size_t size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
   assert(size>=2*MMsize); // there must be the root node 
@@ -251,7 +250,7 @@ static void msum_rec(int size, const k2mat_t *a, size_t *posa,
 //    if the result is a zero matrix c is left empty
 //    if the result is an all one's matrix c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
-void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -281,16 +280,17 @@ void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 //  if c is all 1s the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + nonzero minisize matrices 
 // Here is the only part where we call the base multiplication function
-// using the following macro, adapt of ther sizes have to be suported
+// using the following macro, change it to support additional sizes
 #define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
-void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size==2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
   assert(!c->read_only);
-  // c is always an empty matrix because a product is never written directly to a result matrix 
-  assert(k2is_empty(c));  
+  // c is always an empty matrix because a partial product is never 
+  // written directly to a result matrix 
+  assert(k2is_empty(c));
   // initialize a[][] and b[][] to cover the case when the matrix is all 1s                       
   minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   minimat_t bx[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
@@ -320,7 +320,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     minimat_t cx  = mmultNxN(MMsize,ax[i][0],bx[0][j]);
     cx |= mmultNxN(MMsize,ax[i][1],bx[1][j]);
     if(cx!=MINIMAT0s) {
-      rootc |= (1<<k);
+      rootc |= (1UL<<k);
       k2add_minimat(c,cx);
     }
     if(cx!=MINIMAT1s) all_ones = false;
@@ -350,7 +350,7 @@ void mmult_base(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 //    if the result is a zero matrix c is left empty
 //    if the result is an all one's matrix c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
-void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(size>MMsize); // inputs cannot be minimats 
@@ -398,7 +398,7 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
   assert(a!=NULL);
   FILE *f = fopen(filename,"w");
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
-  int e = fwrite(&size,sizeof(size),1,f);
+  size_t e = fwrite(&size,sizeof(size),1,f);
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
   e = fwrite(&MMsize, sizeof(int),1,f);
   if(e!=1) quit("msave_to_file: cannot write MMsize",__LINE__,__FILE__);
@@ -427,7 +427,7 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
   if(f==NULL) quit("mload_from_file: cannot open file", __LINE__,__FILE__);
   size_t size;
   int mmsize;
-  int e = fread(&size,sizeof(size),1,f);
+  size_t e = fread(&size,sizeof(size),1,f);
   if(e!=1) quit("mload_from_file: cannot read matrix size",__LINE__,__FILE__);
   if(size<=1) quit("mload_from_file: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
   e = fread(&mmsize, sizeof(int),1,f);
@@ -456,7 +456,9 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
   return size;
 }
 
-// give non-k2 names to two usegul functions
+
+// give non-k2 names to two useful functions
+// for compatibility with bitarray representation
 
 // free mem, *m still reusable if needed 
 void matrix_free(k2mat_t *m) {
@@ -477,11 +479,11 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c)
 // recursively encode a binary submatrix m[i,i+size)[j,j+size) given in one-byte 
 // per entry format into a k2mat_t structure
 // Parameters:
-//   m matrix to encode of size mszie*msize
+//   m matrix to encode of size msize*msize
 //   i,j submatrix top left corner
 //   size submatrix size (has the form 2^k*MMsize)
 //   *c output k2mat_t structure to be filled in dfs order 
-static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
+static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
@@ -493,7 +495,7 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
   bool all_ones=true;  // true if all c submatrices cx[i][j] are all 1's
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
-    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(size==2*MMsize) {
       minimat_t cx = minimat_from_bbm(m,msize,ii,jj,size/2);
       if(cx!=MINIMAT0s) {
@@ -504,7 +506,7 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
     } // size>2*MMsize: use recursion
     else {
       size_t tmp = k2pos(c); // save current position
-      mencode(m,msize,ii,jj,size/2,c);
+      mencode_bbm(m,msize,ii,jj,size/2,c);
       if(tmp!=k2pos(c)) { // something was written
         assert(k2pos(c)>tmp);
         rootc |= (1<<k);
@@ -533,14 +535,14 @@ static void mencode(uint8_t *m, int msize, int i, int j, int size, k2mat_t *c) {
 }
 
 // recursively decode a k2 submatrix into a binary submatrix
-// m[i,i+size)[j,j+size) in one-byte per entry format into 
+// m[i,i+size)[j,j+size) in one-byte per entry format 
 // Parameters:
-//   m output matrix of (overall) size mszie*msize
+//   m output matrix of (overall) size msize*msize
 //   i,j submatrix top left corner
 //   size submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t *c, size_t *pos) {
+static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
@@ -552,7 +554,7 @@ static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t
   }
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
-    int ii = i + (size/2)*(k/2); int jj= j + (size/2)*(k%2);
+    size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
       if(size==2*MMsize) { // read a minimatrix
         minimat_t cx = k2read_minimat(c,pos);
@@ -560,7 +562,7 @@ static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t
         minimat_to_bbm(m,msize,ii,jj,size/2,cx);
       }
       else { // decode submatrix
-        mdecode(m,msize,ii,jj,size/2,c,pos);
+        mdecode_bbm(m,msize,ii,jj,size/2,c,pos);
       }
     }
     else { // the k-th chilldren is 0: write a 0 submatrix
@@ -573,7 +575,7 @@ static void mdecode(uint8_t *m, int msize, int i, int j, int size, const k2mat_t
 // split input matrices and recurse matrix multiplication  
 //   an input 0 matrix is represented as NULL
 //   an output 0 matrix is represented as an empty matrix (no root node)   
-static void split_and_rec(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);

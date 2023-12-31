@@ -81,17 +81,14 @@ int main (int argc, char **argv) {
 
   // init k2 variables
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
-  int asize;
-  size_t size, asizetmp;
+  size_t size, asize;
 
-  size = mload_from_file(&asizetmp, &a, iname1); // also init k2 library
-  asize = asizetmp; // ugly hack until we switch every size to size_t
+  size = mload_from_file(&asize, &a, iname1); // also init k2 library
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
   if(strcmp(iname1,iname2)==0)
     mmake_pointer(&a,&b);
   else {
-    int bsize, size1 = mload_from_file(&asizetmp, &b, iname2);
-    bsize = asizetmp; // ugly hack until we switch every size to size_t
+    size_t bsize, size1 = mload_from_file(&bsize, &b, iname2);
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
   }
@@ -122,8 +119,11 @@ int main (int argc, char **argv) {
     if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
     ssize_t eq = mequals_bbm(m1,size,m3);
     if(eq<0) fprintf(stdout,"Product matches the one computed using byte matrices!\n");
-    else fprintf(stdout,"Product matrix differs at position (%zd,%zd) "
-      "prod+uncompr:%d vs uncompr+prod:%d\n",eq/size,eq%size, m1[eq], m3[eq]);
+    else {
+      ssize_t ssize = (ssize_t) size;
+      fprintf(stdout,"Product matrix differs at position (%zd,%zd) "
+      "prod+uncompr:%d vs uncompr+prod:%d\n",eq/ssize,eq%ssize, m1[eq], m3[eq]);
+    }
     free(m1); free(m3);
     if(strcmp(iname1,iname2)) free(m2);
   }

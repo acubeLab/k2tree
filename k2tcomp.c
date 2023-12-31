@@ -108,11 +108,10 @@ int main (int argc, char **argv) {
   if(outfile!=NULL)sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],ext); 
 
-  int asize;    k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asizetmp;
+  k2mat_t a = K2MAT_INITIALIZER;
+  size_t size, asize;
   if(decompress) {
-    size = mload_from_file(&asizetmp, &a, iname); // also init k2 library
-    asize = asizetmp; // ugly hack until we switch every size to size_t
+    size = mload_from_file(&asize, &a, iname); // also init k2 library
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) mwrite_to_textfile(size,asize, &a, oname);
@@ -126,7 +125,6 @@ int main (int argc, char **argv) {
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
     if(check) {
       strcat(oname,".check"); // create check file name 
-      // sprintf(oname,"%s%s.check",argv[1],ext); // create check file name  
       mwrite_to_textfile(size,asize, &a, oname); 
       matrix_free(&a);
       puts("==== Checking compression by calling " matrix_checker);

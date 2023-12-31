@@ -40,10 +40,10 @@ typedef uint64_t node_t;   // non leaf node
 // buffer of bytes. offset is used to create a "pointer" to a submatrix
 // without copying the buffer during the splitting phase. 
 // read_only is currently used only for these pointer matrices. 
-// By changing b, offset can be restricted to the 0/1 values
-// so offeset+read_only could be stored in a single byte to save space.
-// ??? use read_only also for the input matrices to avoid accidental changes
-// or using the const modifier is enough??? 
+// Note that the size of the k2mat is not stored in the structure:
+// it is maintained externally   
+// ??? Question: use read_only also for the input matrices to avoid accidental
+// changes or using the const modifier is enough??? 
 typedef struct k2mat {
   uint8_t *b;
   size_t pos;   // position where next node is written
@@ -70,21 +70,21 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
 // load a k2-matrix from file
 size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename);
 // write the content of a k2 matrix in a bbm matrix
-void mwrite_to_bbm(uint8_t *m, int msize, int size, const k2mat_t *a);
+void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
-int mread_from_bbm(uint8_t *m, int msize, k2mat_t *a);
+size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a);
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, int asize, const k2mat_t *a, const char *mname,FILE *file);
+void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file);
 // check if two k2 compressed matrices :a and :b are equal
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
-int mequals(int size, const k2mat_t *a, const k2mat_t *b);
+int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
 // sum two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar + by logical or 
-void msum(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
-void mmult(int size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // free a k2 matrix
 void matrix_free(k2mat_t *m);
 // make a read-only copy of a k2 matrix without allocating new memory

@@ -88,14 +88,13 @@ int main (int argc, char **argv) {
   // assign default extension and create file names
   char *ext = decompress ? default_dext : default_cext;  
   sprintf(iname,"%s",argv[1]);
-  if(outfile!=NULL)sprintf(oname,"%s",outfile);
-  else       sprintf(oname,"%s%s",argv[1],ext); 
+  if(outfile!=NULL) sprintf(oname,"%s",outfile);
+  else              sprintf(oname,"%s%s",argv[1],ext); 
 
-  int asize;    k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asizetmp; uint8_t *b = NULL;
+  k2mat_t a = K2MAT_INITIALIZER;
+  size_t size, asize; uint8_t *b = NULL;
   if(decompress) {
-    size = mload_from_file(&asizetmp, &a, iname); // also init k2 library
-    asize = asizetmp; // ugly hack untill we switch every size to size_t
+    size = mload_from_file(&asize, &a, iname); // also init k2 library
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     b= bbm_alloc(size);
@@ -104,7 +103,7 @@ int main (int argc, char **argv) {
   }
   else { // compression
     minimat_init(mmsize);     // init k2 library
-    b= bbm_read(iname,&size); // file  ->bbm
+    b = bbm_read(iname,&size); // file  ->bbm
     if(verbose>1) bbm_to_ascii(b,size,0,0,size,stdout);
     asize = mread_from_bbm(b,size,&a);
     if (verbose || !write)  
@@ -116,7 +115,7 @@ int main (int argc, char **argv) {
       ssize_t eq = mequals_bbm(b,size,bx);
       if(eq<0) fprintf(stdout,"Decompressed matrix matches the original!\n"); 
       else fprintf(stdout,"Decompressed matrix differs at position (%zd,%zd) "
-      "d:%d vs o:%d\n",eq/size,eq%size, bx[eq], b[eq]);
+      "dec:%d vs orig:%d\n",eq/size,eq%size, bx[eq], b[eq]);
       free(bx);
     }
   }

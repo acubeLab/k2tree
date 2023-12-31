@@ -1,5 +1,6 @@
 # compilation flags
-CFLAGS=-O1 -Wall -std=c11 -g
+CFLAGS=-O1 -Wall -std=c11 -g -Wconversion -fsanitize=undefined
+LDFLAGS=-fsanitize=undefined
 CC=gcc
 
 # main executables 

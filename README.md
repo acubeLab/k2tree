@@ -77,16 +77,16 @@ Another popular uncompressed format consists of a text file containing the posit
 The executable `k2comp.x` is used to compress and decode a single `.bbm` matrix to/from a k2tree representation; run it without arguments to get basic usage instructions
 ```
 Usage:
-	  k2comp.x [options] filename
+      k2comp.x [options] filename
 
 Options:
-	-d      decompress
-	-n      do not write the output file, only show stats
-	-m M    minimatrix size (def. 2), compression only
-	-e ext  outfile extension (def. compr: ".k2", decompr: ".d")
-	-c      compress->decompress->check
-    -h      show this help message    
-	-v      verbose
+    -d      decompress
+    -n      do not write the output file, only show stats
+    -m M    minimatrix size (def. 2), compression only
+    -o out  outfile name (def. compr: infile.k2, decompr: outfile.bbm)
+    -c      compress->decompress->check
+    -h      show this help message
+    -v      verbose
 
 Default action is to compress filename to filename.k2
 ``` 
@@ -113,7 +113,7 @@ Options:
     -n      do not write the output file, only show stats
     -s S    matrix actual size (def. largest index), compression only
     -m M    minimatrix size (def. 2), compression only
-    -e ext  outfile extension (def. compr: ".k2", decompr: ".txt")
+    -o out  outfile name (def. compr: infile.k2, decompr: outfile.txt)
     -c      compress->decompress->check
     -h      show this help message
     -v      verbose
@@ -130,7 +130,7 @@ When invoked with `-c` the program compresses the input matrix, then decompresse
 The option `-m` can be used only in compression, currently only with one of the two values `2` and `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
 
 
-By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. **Currently the largest admissible matrix size is $2^{30}$.** 
+By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a sligtly more complex compression algorithm. 
 
 
 
@@ -176,7 +176,7 @@ should eventually display the matrix `t8.bbm` squared:
 
 ### Matrices represented as bitarrays
 
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. 
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, he largest supported size is $2^30$. 
 
 The programs `b128comp.x` and `b128mult.x` work exactly like  `k2comp.c` and `k2mult.c` except that they use the bitarray representation instead of the k2 format. 
 

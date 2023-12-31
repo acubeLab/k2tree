@@ -2,12 +2,15 @@
 
    This file contains the defintion of the k2mat_t type and the basic
    operations on it, without reference to particular operations
-
-   Matrix dimensions are assumed to be power of 2, of size at least
-   MMSize (minimatrix size), ie, the size of the last level of recursion. 
-
-   This file can be comiled separately or included as in k2ops.c
-
+   
+   Matrix sizes in these routines (except k2get_k2size) always refer to an 
+   internal k2 representation hence are assumed to be power of 2 and at least
+   MMSize (minimatrix size), ie, the size of the last level of recursion
+   
+   The routines in the file support any k2mat size that fits in a 
+   size_t variable
+   
+   This file is included in k2ops.c and should not be compiled separately
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -93,9 +96,9 @@ size_t k2add_node(k2mat_t *m, node_t n)
   assert(m->pos<m->lenb);
   // since a node is stored in 4 bits, we store two nodes in a byte
   if(m->pos%2==0)
-    m->b[m->pos/2] = n;    // note: we are writing 0 at m->pos+1, it's ok we are at the end 
+    m->b[m->pos/2] = (uint8_t) n;    // note: we are writing 0 at m->pos+1, it's ok we are at the end 
   else
-    m->b[m->pos/2] = (m->b[m->pos/2] & 0x0F) | (n<<4);
+    m->b[m->pos/2] = (m->b[m->pos/2] & 0x0F) | (uint8_t) (n<<4);
   // return position where node was stored and advance by 1
   return m->pos++; 
 }
@@ -119,9 +122,9 @@ void k2write_node(k2mat_t *m, size_t p, node_t n)
   assert(p<m->pos && p<m->lenb);
   assert(m->offset==0);   // if m->offset>0 node should be read only 
   if(p%2==0)
-    m->b[p/2] = (m->b[p/2]  & 0xF0) | n;
+    m->b[p/2] = (m->b[p/2]  & 0xF0) | (uint8_t) n;
   else 
-    m->b[p/2] = (m->b[p/2]  & 0x0F) | (n<<4);
+    m->b[p/2] = (m->b[p/2]  & 0x0F) | (uint8_t) (n<<4);
 }  
 
 
@@ -152,7 +155,7 @@ size_t k2add_minimat(k2mat_t *b, minimat_t m)
 }
 
 // read a minimat matrix starting from position *p
-// position *p is set at the end of the minimat 
+// after reading position *p is set at the end of the minimat 
 // used by k2split_minimats and k2copy_rec
 static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
   if(MMsize==2) {
@@ -203,11 +206,12 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
 {
   assert(size>MMsize);
+  assert(size%2==0);
   assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node(m,*pos); (*pos)++;
   (*nodes)++;
   if(root==ALL_ONES) {
-    if(size>=(1UL<<32)) fprintf(stderr,"Overflow in # of nonzeros:: all 1's matrix of size %zu\n",size);
+    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
     else *nz += size*size; 
     return; // all 1's matrix consists of root only
   }
@@ -215,12 +219,34 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion
         (*minimats)++;
-        minimat_t mm = k2read_minimat(m,pos);
-        *nz += __builtin_popcountll(mm);
-        // *pos += Minimat_node_ratio;
+        minimat_t mm = k2read_minimat(m,pos); // read minimat and advance pos
+        *nz += (size_t) __builtin_popcountll(mm);
       }
       else { // recurse on submatrix
-        k2dfs_visit(size/2,m,pos,nodes,minimats,nz);
+        k2dfs_visit(size/2,m,pos,nodes,minimats,nz); // read submatrix and advance pos
+      }
+    }
+}
+
+// as above but does not track nodes. minimates and nonzero
+// used to split a matrix into 4 submatrices
+// still to be tested
+void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
+{
+  assert(size>MMsize);
+  assert(size%2==0);
+  assert(*pos<m->pos); // implies m is non-empty
+  node_t root = k2read_node(m,*pos); (*pos)++;
+  if(root==ALL_ONES) {
+    return; // all 1's matrix consists of root only
+  }
+  for(int i=0;i<4;i++) 
+    if(root & (1<<i)) {
+      if(size==2*MMsize) { // end of recursion
+        k2read_minimat(m,pos); // read minimat and advance pos
+      }
+      else { // recurse on submatrix
+        k2dfs_visit_fast(size/2,m,pos); // read submatrix and advance pos
       }
     }
 }
@@ -230,19 +256,18 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
 // *posa should always point to the next item to be read
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 // used when summing two matrices and a submatrix is all zeros 
-void k2copy_rec(int size, const k2mat_t *a, size_t *posa, k2mat_t *b)
+void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
   assert(*posa<a->pos); // implies a is non-empty
   // copy root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
   k2add_node(b,roota);
-  if(roota==ALL_ONES) return;  // all 1's matrix consits of root only
+  if(roota==ALL_ONES) return;  // all 1's matrix consists of root only
   for(int i=0;i<4;i++) {
     if((roota & (1<<i))!=0) {
       if(size==2*MMsize) { // end of recursion
         minimat_t m = k2read_minimat(a,posa);
-        // *posa += Minimat_node_ratio;
         k2add_minimat(b,m);
       }
       else { // recurse on submatrix
@@ -280,9 +305,9 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside a, so no memory is allocated
 // the submatrices are not minimats, but k2mat_t structs
-// so we are not at the last level of the tree
+// so we are not at the last level of the k2 tree
 // :a is not all 0's, it could be all 1's (for now)
-void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
+void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL);
@@ -318,16 +343,20 @@ void k2split_k2(int size, const k2mat_t *a, k2mat_t b[2][2])
 
 // compute the size of the smallest k2mat containing a matrix of size msize
 // the size depends on the size of the minimat and grows with powers of 2
+// here msize is the actual size of an input matri that is going to be 
+// represented by a k2mat of size the returned value 
 size_t k2get_k2size(size_t msize) 
 {
+  assert(msize>0);
   if(4*Minimat_node_ratio != (MMsize*MMsize)) 
     quit("k2get_size: minimats_init not called",__LINE__,__FILE__);
-  int s = 2*MMsize;    // size of the smallest legal k2mat
+  size_t s = 2*MMsize;    // size of the smallest legal k2mat
+  size_t z = s;           // previous s value to detect unsigned overflow
   while(s < msize) {
     s*=2;
-    if(s<0) quit("getk2size: overflow",__LINE__,__FILE__);
+    if(s<z) quit("k2get_k2size: overflow",__LINE__,__FILE__);
+    z=s;
   }
-  if(s>(1<<30)) quit("getk2size: overflow",__LINE__,__FILE__);
   return s;
 }
 
