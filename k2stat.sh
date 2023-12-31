@@ -11,7 +11,7 @@ then
   echo "on all input files (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
-  echo "         $0 \"-m4\" \".k4\" data\*.bbm"        
+  echo "         $0 \"-m4\" \".k4\" data/*.bbm"        
   exit
 fi
 
@@ -23,7 +23,7 @@ for f in "$@"
 do 
   echo ">>>>>>>> File: $f"
   echo "==== compression"
-  k2comp.x $options -e $ext  $f
+  k2comp.x $options -o $f$ext  $f
   ls -l $f$ext
   echo "==== decompression" 
   k2comp.x -v -d $f$ext

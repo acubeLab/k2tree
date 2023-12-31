@@ -149,7 +149,6 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, uint64_t imax, size_t size, k2mat_t *c) {
   assert(ia!=NULL);
   assert(n>0);
-  assert(imin>=0 && imax>=0);
   assert(imin<imax);
   assert(ia[0]>=imin); 
   assert(ia[n-1]<imax);
@@ -339,7 +338,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(rootc==ALL_ONES) { // all 1s matrix

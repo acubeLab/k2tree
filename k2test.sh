@@ -11,7 +11,7 @@ then
   echo "known variants of k2-comp (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
-  echo "         $0 data\*.bbm"        
+  echo "         $0 data/*.bbm"        
   exit
 fi
 
@@ -19,9 +19,9 @@ for f in "$@"
 do 
   echo ">>>>>>>> File: $f"
   echo "==== compression with 2x2 leaves"
-  k2comp.x -m2 -e .k2 -cn $f
+  k2comp.x -m2 -o $f.k2 -cn $f
   echo "==== compression with 4x4 leaves"
-  k2comp.x -m2 -e .k4 -cn $f
+  k2comp.x -m4 -o $f.k4 -cn $f
 done
 
 

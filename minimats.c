@@ -155,14 +155,15 @@ void minimat_init(int msize) {
 }
 
 
-// read a minimat from a submatrix of an bbm matrix m
+// read a minimat from a submatrix of a bbm matrix m of size msize
 // entries outsize the matrix m are considered to be 0
 minimat_t minimat_from_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size) {
+  // printf("i=%zu j=%zu size=%zu\n",i,j,size);  
   assert(size==MMsize);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   minimat_t res = 0;
-  for(size_t ii=size-1; ii>=0; ii--)
-    for(size_t jj=size-1; jj>=0; jj--) {
+  for(ssize_t ii=size-1; ii>=0; ii--)
+    for(ssize_t jj=size-1; jj>=0; jj--) {
       res <<= 1;
       if(i+ii<msize && j+jj<msize && m[(i+ii)*msize + j+jj])
         res |= 1;
@@ -175,7 +176,6 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, size_t imin, size_t imax, size
   assert(size==MMsize);     // only called for minimats
   assert(n>0);              // not called on an empty submatrix  
   assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
-  assert(imin>=0 && imax>=0);
   assert(imin<imax);
   minimat_t res = 0;
   if(MMsize==2) {
@@ -205,11 +205,12 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, size_t imin, size_t imax, size
 }
 
 
-// write the content of a minimat to a bbm matrix m
+// write the content of a minimat of size size 
+// to a bbm matrix m of size msize
 // entries outsize the matrix m should not be written
 void minimat_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, minimat_t a) {
   assert(size==MMsize);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   for(size_t ii=0; ii<size; ii++)
     for(size_t jj=0; jj<size; jj++)
       if(i+ii<msize && j+jj<msize) {       // inside the matrix
@@ -227,7 +228,7 @@ void minimat_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, m
 // :size is the size of the minimat :a
 void minimat_to_text(FILE *f, size_t msize, size_t i, size_t j, size_t size, minimat_t a) {
   assert(size==MMsize);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   for(size_t ii=0; ii<size; ii++)
     for(size_t jj=0; jj<size; jj++)
       if(i+ii<msize && j+jj<msize) {       // inside the matrix

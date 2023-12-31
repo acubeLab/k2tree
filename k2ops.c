@@ -486,7 +486,7 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c)
 static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   // if we are outside m it's an all 0 submatrix and there is nothing to do
   if(i>=msize || j>=msize) return;
   // start building c
@@ -545,7 +545,7 @@ static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(rootc==ALL_ONES) { // all 1s matrix

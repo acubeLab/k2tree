@@ -97,7 +97,7 @@ uint8_t *bbm_read(const char *name, size_t *psize)
 // starting at position i,j entries outsize the matrix m should not be written 
 // used for initliazing a matrix or for uncompressing a k2 matrix
 void byte_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, uint8_t b) {
-  assert(i>=0 && j>=0 && i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size);
   for(size_t ii=0; ii<size; ii++)
     for(size_t jj=0; jj<size; jj++)
       if(i+ii<msize && j+jj<msize) 
