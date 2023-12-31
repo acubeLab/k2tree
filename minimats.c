@@ -32,12 +32,12 @@ typedef uint64_t minimat_t; // explict matrix aka minimat (currently 2x2)
 // global variable storing the size of a mini-matrix 
 // ie. the last level of recursion
 // possibly this will be a command line parameter
-static int MMsize = INT32_MAX;  // a certainly incorrect value 
+static uint32_t MMsize = 0;  // a certainly incorrect value 
 // global variable storing how many nodes takes a minimat:
 // since nodes have 4 bits (not likely to change)
 // this amounts to how many nibbles takes a minimat 
 // eg for a 2x2 binary matrix takes one nibble so the constant is 1
-static int Minimat_node_ratio = -1;  // certainly incorrect value
+static uint32_t Minimat_node_ratio = 0;  // certainly incorrect value
 
 // global variable determining whether during construction we use the 
 // ALL_ONES node to denote a submatrix of all 1's. Currently not used! 
@@ -136,7 +136,7 @@ void minimat_init(int msize) {
     quit("Minimat size too large for type minimat_t",__LINE__,__FILE__);   
         
   // init globals MMsize and Minimat_node_ratio
-  MMsize = msize;
+  MMsize = (uint32_t) msize;
   Minimat_node_ratio = (MMsize*MMsize)/4;
  // init MINIMAT1s
  assert(MINIMAT0s==0);

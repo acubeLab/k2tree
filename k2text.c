@@ -313,7 +313,7 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
   if(xsize==0) { // if xsize==0 size is largest index + 1
     if(maxentry+1>SIZE_MAX)  // highly unlikely, but you never know... 
       quit("create_ia: cannot represent matrix size",__LINE__,__FILE__);
-    *msize = maxentry+1;
+    *msize = (size_t) maxentry+1;
   }
   else {  // if parameter xsize>0 that is the desired matrix size
     assert(maxentry<xsize);
@@ -351,7 +351,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
     return;
   }
   // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {  
+  for(size_t k=0;k<4;k++) {  
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
       if(size==2*MMsize) { // read a minimatrix

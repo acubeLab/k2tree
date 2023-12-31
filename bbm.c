@@ -108,8 +108,8 @@ void byte_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, uint
 // write the content of a bbm submatrix m to a file f
 void bbm_to_ascii(const uint8_t *m, size_t msize, size_t i, size_t j, size_t size, FILE *f)
 {
-  assert(i>=0 && j>=0 && i<msize && j<msize);
-  fprintf(f,"Submatrix at (%d,%d) of size %d\n",i,j,size);  
+  assert(i<msize && j<msize);
+  fprintf(f,"Submatrix at (%zu,%zu) of size %zu\n",i,j,size);  
   for(size_t ii=0; ii<size; ii++) {
     for(size_t jj=0; jj<size; jj++) {
       if(i+ii<msize && j+jj<msize) 

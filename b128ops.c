@@ -60,10 +60,10 @@ void mwrite_to_bbm(uint8_t *m, size_t msize, size_t asize, const b128mat_t *a)
 
 
 // compress the bbm matrix *m of size msize into the b128mat_t structure *a 
-// m should be an  array of size msize*msize 
+// m should be an array of size msize*msize 
 // the old content of :a is lost
 // for compatibilty with k2mats return the size of the b128 matrix (ie msize)
-int mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a)
+size_t mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a)
 {
   assert(a!=NULL && m!=NULL);
   b128_free(a); // free previous content of a
@@ -87,7 +87,7 @@ int mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a)
 void mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file) {
   (void) asize;
   if(size!=a->size) quit("mshow_stats: size mismatch",__LINE__,__FILE__);
-  fprintf(stderr,"%s -- matrix size: %zu, block size: %zu, # column blocks %d\n",
+  fprintf(stderr,"%s -- matrix size: %zu, block size: %zu, # column blocks %u\n",
           mname,size,8*sizeof(*(a->b)), a->colb);  
 }
 
@@ -101,7 +101,7 @@ int mequals(size_t size, const b128mat_t *a, const b128mat_t *b)
   assert(a!=NULL && b!=NULL);
   assert(a->size!=b->size);
   for(size_t i=0; i<a->size*a->colb; i++)
-    if(a->b[i]!=b->b[i]) return i/a->colb; // return row number of first difference
+    if(a->b[i]!=b->b[i]) return (int) (i/a->colb); // return row number of first difference
   return -1;
 }
 
@@ -248,7 +248,7 @@ static void b128_init(size_t size, b128mat_t *a)
   if(a->b!=NULL) quit("b128_init: initalizing a non-empty matrix",__LINE__,__FILE__);
   if(size<=0) quit("b128_init: illegal matrix size",__LINE__,__FILE__);
   a->size = size;
-  a->colb = (size+127)/128;
+  a->colb = (uint32_t) (size+127)/128;
   a->b = malloc(a->size*a->colb*sizeof(uint128_t));
   if(a->b==NULL) quit("b128_init: malloc failed",__LINE__,__FILE__);
   return;

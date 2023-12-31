@@ -19,7 +19,7 @@ typedef __uint128_t uint128_t;
 typedef struct b128mat {
   uint128_t *b;   // bit array  
   size_t size;    // size of the matrix
-  int colb;       // # column blocks, ie (size+127)/128
+  uint32_t colb;       // # column blocks, ie (size+127)/128
   bool read_only; // if true matrix cannot be overwritten or freed
 } b128mat_t;
 // initialize to an empty writable matrix 
@@ -39,7 +39,7 @@ size_t mload_from_file(size_t *asize, b128mat_t *a, const char *filename);
 // write the content of a b128 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t asize, const b128mat_t *a);
 // read the uncompressed matrix *m of size msize into the b128mat_t structure *a 
-int mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a);
+size_t mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a);
 // write to :file statistics for a b128 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file);
 // check if two b128 compressed matrices :a and :b are equal

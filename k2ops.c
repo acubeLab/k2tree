@@ -553,7 +553,7 @@ static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
     return;
   }
   // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {  
+  for(size_t k=0;k<4;k++) {  
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
       if(size==2*MMsize) { // read a minimatrix
