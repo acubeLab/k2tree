@@ -127,7 +127,7 @@ static void init_mtranspose4x4(void) {
 
 // init minimat constants
 void minimat_init(int msize) {
-  if(MMsize!=INT32_MAX) quit("minimats_init: already initialized",__LINE__,__FILE__);
+  if(MMsize!=0) quit("minimats_init: already initialized",__LINE__,__FILE__);
   // msize must be even to ensure that a mimimats has a bit size multiple of 4
   // ie a size multiple of the size of a tree node. 
   if(msize%2!=0) 
@@ -172,16 +172,15 @@ minimat_t minimat_from_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t 
 }
 
 // read a minimat from the interleaved array ia[0,n-1] containing entries in [imin,imax)
-minimat_t minimat_from_ia(uint64_t *ia, size_t n, size_t imin, size_t imax, size_t size) {
+minimat_t minimat_from_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size) {
   assert(size==MMsize);     // only called for minimats
   assert(n>0);              // not called on an empty submatrix  
   assert(n<=MMsize*MMsize); // cannot have more than MMsize*MMsize entries
-  assert(imin<imax);
   minimat_t res = 0;
   if(MMsize==2) {
-    assert(imax==imin+4);
+    // assert(imax==imin+4);    imax removed from parameters
     for(size_t i=0; i<n; i++) {
-      assert(ia[i]>=imin && ia[i]<imax);
+      assert(ia[i]>=imin && ia[i]-imin <4); // equiv to imin <= ia[i]<imax
       int64_t j = (int64_t) (ia[i]-imin); 
       // for MMsize=2 j is the position of the corresponding 1 in res
       assert(j>=0 && j<4);
@@ -191,9 +190,9 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, size_t imin, size_t imax, size
   else if(MMsize==4) {
     // map between entries in interleaved vs row-major order for size==4
     int t[16] = {0,1,4,5,2,3,6,7,8,9,12,13,10,11,14,15};
-    assert(imax==imin+16);
+    // assert(imax==imin+16);    imax removed from parameters
     for(size_t i=0; i<n; i++) {
-      assert(ia[i]>=imin && ia[i]<imax);
+      assert(ia[i]>=imin && ia[i]-imin <16); // equiv to imin <= ia[i]<imax
       int j = t[ia[i]-imin]; 
       assert(j>=0 && j<16);
       res |= (1UL<<j);

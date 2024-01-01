@@ -2,6 +2,7 @@
 
 # compress decompress and chek all files passed one the command line
 
+
 if [ $# -le 2 ]
 then
   echo "Usage:"
@@ -28,5 +29,5 @@ do
   echo "==== decompression" 
   k2comp.x -v -d $f$ext
   echo "==== check"
-  cmp $f $f$ext.d
+  cmp $f $f$ext.bbm
 done

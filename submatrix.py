@@ -4,7 +4,7 @@ import sys, argparse
 
 Description = """
 Delete from a textual matrix in one-entry-per-line format
-all entries involving an index with id >= newdime  
+all entries involving an index with id >= newsize  
 """
 
 def main():
@@ -14,7 +14,7 @@ def main():
   parser.add_argument('-o', metavar='outfile', help='output file name (def. input.newsize)',type=str,default="" )
   args = parser.parse_args()
     
-  if args.newdim<=1:
+  if args.newsize<=1:
     print("The new matrix size must be at least 1")
     sys.exit(1)   
     
@@ -23,7 +23,7 @@ def main():
     if args.o!="": 
       outname = args.o
     else:
-      outname = f"{args.input}.{args.newdim}"
+      outname = f"{args.input}.{args.newsize}"
     maxinput = maxoutput = -1  
     with open(outname,"w") as g:
       r = 0 # number of read rows
@@ -37,7 +37,7 @@ def main():
         a = int(p[0]); b = int(p[1])
         if maxinput < 0: maxinput = max(a,b)
         else: maxinput = max(maxinput,a,b)
-        if a<args.newdim and b < args.newdim:
+        if a<args.newsize and b < args.newsize:
           if maxoutput < 0: maxoutput = max(a,b)
           else: maxoutput = max(maxoutput,a,b)
           print(f"{a} {b}",file=g)

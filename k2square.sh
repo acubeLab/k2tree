@@ -11,7 +11,7 @@ then
   echo "reporting running time and peak memory usage"
   echo
   echo "Sample usage:"
-  echo "         $0 data/*.bbm"        
+  echo "         $0 data/*.k2"        
   exit
 fi
 

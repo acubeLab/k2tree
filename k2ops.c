@@ -432,7 +432,7 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
   if(size<=1) quit("mload_from_file: matrix size smaller than 2, wrong format?",__LINE__,__FILE__);
   e = fread(&mmsize, sizeof(int),1,f);
   if(e!=1) quit("mload_from_file: cannot read minimatrix size",__LINE__,__FILE__);
-  if(MMsize==INT32_MAX)
+  if(MMsize==0)
     minimat_init(mmsize); // initialize minimat library if not already done
   else 
     if(mmsize!=MMsize) quit("mload_from_file: wrong minimatrix size",__LINE__,__FILE__);
