@@ -154,6 +154,21 @@ void minimat_init(int msize) {
   else quit("minimats_init: MMsize!=2,4",__LINE__,__FILE__); 
 }
 
+// reset minimats initialization and makes it possible
+// to call minimat init again
+void minimat_reset() {
+  MMsize=0;
+  Minimat_node_ratio=0;
+  if(mprods2x2!=NULL) {
+    free(mprods2x2);
+    mprods2x2=NULL;
+  }
+  if(mtranspose4x4!=NULL) {
+    free(mtranspose4x4);
+    mtranspose4x4=NULL;
+  }
+}
+
 
 // read a minimat from a submatrix of a bbm matrix m of size msize
 // entries outsize the matrix m are considered to be 0

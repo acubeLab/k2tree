@@ -63,6 +63,8 @@ typedef struct k2mat {
 // init minimatrices: must be called only once with the size of the minimats
 // no k2-related function can be called before this one
 void minimat_init(int msize);
+// revert the effects of minima_init and make it possible to call it again
+void minimat_reset();
 
 // from k2ops.c
 // save a k2-matrix to file
