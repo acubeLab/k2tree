@@ -74,10 +74,10 @@ Another popular uncompressed format consists of a text file containing the posit
 
 ### Conversion to/from .bbm representation 
 
-The executable `k2comp.x` is used to compress and decode a single `.bbm` matrix to/from a k2tree representation; run it without arguments to get basic usage instructions
+The executable `k2bbm.x` is used to compress and decode a single `.bbm` matrix to/from a k2tree representation; run it without arguments to get basic usage instructions
 ```
 Usage:
-      k2comp.x [options] filename
+      k2bbm.x [options] filename
 
 Options:
     -d      decompress
@@ -92,7 +92,7 @@ Default action is to compress filename to filename.k2
 ``` 
 
 
-Invoked without the `-d` or `-c` switch `k2comp.x` compresses the input `.bbm` matrix to the k2 format. 
+Invoked without the `-d` or `-c` switch `k2bbm.x` compresses the input `.bbm` matrix to the k2 format. 
 
 When invoked with `-d` the input file must be a k2 matrix which is then expanded into the `.bbm` format. 
 
@@ -101,12 +101,12 @@ When invoked with `-c` the program compresses the input matrix, then decompresse
 The option `-m` can be used only in compression, currently only with one of the two values `2` and `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
 
 
-### Conversion to/from textual one line per entry representation 
+### Conversion to/from textual one line per entry sparse representation 
 
-The executable `k2tcomp.x` is used to compress and decode a single textual matrix to/from a k2tree representation; run it without arguments to get basic usage instructions
+The executable `k2sparse.x` is used to compress and decode a single textual matrix to/from a k2tree representation; run it without arguments to get basic usage instructions
 ```
 Usage:
-      k2tcomp.x [options] filename
+      k2sparse.x [options] filename
 
 Options:
     -d      decompress
@@ -121,7 +121,7 @@ Options:
 Default action is to compress filename to filename.k2
 ```
 
-Invoked without the `-d` or `-c` switch `k2tcomp.x` compresses a textual matrix to the k2 format. 
+Invoked without the `-d` or `-c` switch `k2sparse.x` compresses a textual matrix to the k2 format. 
 
 When invoked with `-d` the input file must be a k2 matrix which is then expanded into the textual format. 
 
@@ -156,9 +156,9 @@ When invoked with `-c`, after computing the product in k2 format, the program un
 
 The following sequence of compression, matrix multiplication, decompression and display operations
 ```
-k2comp.x t8.bbm
+k2bbm.x t8.bbm
 k2mult.x t8.bbm.k2 t8.bbm.k2
-k2comp.x -d t8.bbm.k2.prod
+k2bbm.x -d t8.bbm.k2.prod
 od -td1 -w8 -An -v t8.bbm.k2.prod.d
 ```
 should eventually display the matrix `t8.bbm` squared:
@@ -176,9 +176,9 @@ should eventually display the matrix `t8.bbm` squared:
 
 ### Matrices represented as bitarrays
 
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constats. See the use of the `B128MAT` compilation constant in the source files `k2comp.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, he largest supported size is $2^30$. 
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, he largest supported size is $2^30$. 
 
-The programs `b128comp.x` and `b128mult.x` work exactly like  `k2comp.c` and `k2mult.c` except that they use the bitarray representation instead of the k2 format. 
+The programs `b128bbm.x` and `b128mult.x` work exactly like  `k2bbm.c` and `k2mult.c` except that they use the bitarray representation instead of the k2 format. 
 
 
 ### Product of uncompressed matrices
@@ -192,4 +192,4 @@ The program `bbmmult.x` computes the product of two `.bbm` matrices using `openm
 
 The script `submatrix.py` can be used to extract a square submatrix form a matrix in textual form.
 
-The files `k2stat.sh`, `k2test.sh`, `k2square.sh` are bash script designed to test `k2comp.x` and `k2mult.x` on a set of input files.  
+The files `k2test.sh`, `k2btest.sh`, `k2square.sh` are bash script designed to test `k2sparse.x`, `k2bbm.x` and `k2mult.x` on a set of input files.  

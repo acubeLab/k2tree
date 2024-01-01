@@ -74,7 +74,7 @@ static int uint64_cmp(const void *p, const void *q)
 uint64_t *entry2bin(FILE *f, size_t *n)
 {
   assert(f!=NULL && n!=NULL);
-  uint32_t maxentry = 0; // largest entry in the file
+  int64_t maxentry = 0; // largest entry in the file
   size_t size=10;      // current size of ia[]
   size_t i=0;          // elements in ia[]
   uint64_t *ia = malloc(size*sizeof(*ia));
@@ -101,7 +101,7 @@ uint64_t *entry2bin(FILE *f, size_t *n)
     // update maxentry
     if(a>maxentry) maxentry=a;
     if(b>maxentry) maxentry=b;
-    // cobine entries into a single uint64_t
+    // combine entries into a single uint64_t
     uint64_t entry = a<<32 | b;
     // enlarge ia if necessary
     if(i==size) {
@@ -117,7 +117,7 @@ uint64_t *entry2bin(FILE *f, size_t *n)
   ia = realloc(ia,size*sizeof(*ia));
   if(ia==NULL) quit("entry2bin: realloc failed",__LINE__,__FILE__);
   if(Verbose>0) {fprintf(stderr,"< Read %zu entries\n",size);
-                 fprintf(stderr,"< Largest index: %u\n",maxentry);}
+                 fprintf(stderr,"< Largest index: %ld\n",maxentry);}
   // sort entries
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
   // remove duplicates
@@ -142,7 +142,7 @@ uint64_t *entry2bin(FILE *f, size_t *n)
 size_t matrixcmp(FILE *f,uint64_t m1[], size_t n) {
   assert(f!=NULL && m1!=NULL);
   assert(n>0);
-  uint32_t maxentry = 0; // largest entry in the file
+  int64_t maxentry = 0; // largest entry in the file
   size_t err = 0;
   // allocate and clean bit array 
   uint64_t *bits = calloc((n+63)/64,8);
@@ -192,7 +192,7 @@ size_t matrixcmp(FILE *f,uint64_t m1[], size_t n) {
   if(Verbose>0) {
     fprintf(stderr,"> Read %zu entries\n",line);
     fprintf(stderr,"> Found %zu duplicates\n",dup);
-    fprintf(stderr,"> Largest index: %u\n",maxentry);
+    fprintf(stderr,"> Largest index: %ld\n",maxentry);
   }
   for(size_t i=0;i<n;i++)
     if( (bits[i/64]&(1UL<<(i%64))) ==0) {

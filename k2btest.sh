@@ -11,7 +11,7 @@ then
   echo "known variants of k2sparse (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
-  echo "         $0 data/*.txt"        
+  echo "         $0 data/*.bin"        
   exit
 fi
 
@@ -19,9 +19,9 @@ for f in "$@"
 do 
   echo ">>>>>>>> File: $f"
   echo "==== compression with 2x2 leaves"
-  k2sparse.x -m2 -o $f.k2 -vc $f
+  k2bbm.x -m2 -o $f.k2 -vc $f
   echo "==== compression with 4x4 leaves"
-  k2sparse.x -m4 -o $f.k4 -vc $f
+  k2bbm.x -m4 -o $f.k4 -vc $f
 done
 
 
