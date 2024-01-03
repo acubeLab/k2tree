@@ -203,7 +203,7 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 // used to split a matrix into 4 submatrices, but also for debugging/info
 // Note: the number of nonzeros can be incorrect because of overflows 
-void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
+void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *all1)
 {
   assert(size>MMsize);
   assert(size%2==0);
@@ -213,6 +213,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
   if(root==ALL_ONES) {
     if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
     else *nz += size*size; 
+    *all1 +=1;   // found an all 1's matrix 
     return; // all 1's matrix consists of root only
   }
   for(int i=0;i<4;i++) 
@@ -223,7 +224,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
         *nz += (size_t) __builtin_popcountll(mm);
       }
       else { // recurse on submatrix
-        k2dfs_visit(size/2,m,pos,nodes,minimats,nz); // read submatrix and advance pos
+        k2dfs_visit(size/2,m,pos,nodes,minimats,nz,all1); // read submatrix and advance pos
       }
     }
 }
@@ -327,12 +328,18 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     return;
   }
   // root is not all 1's: we have the standard structure
-  size_t next = pos, nodes=0, minimats=0, nz=0;
+  #ifndef NDEBUG
+  size_t next = pos, nodes=0, minimats=0, nz=0, all1=0;
+  #endif
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
-      k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz); // get size of submatrix
+      #ifdef NDEBUG
+      k2dfs_visit_fast(size/2,a,&next); // get size of submatrix
+      #else
+      k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz, &all1); // get size of submatrix
       assert(next==pos+nodes+minimats*Minimat_node_ratio);
+      #endif
       k2clone(a, pos, next, &b[i][j]);         // create pointer to submatrix
       pos = next; // advance to next item
       nodes = minimats = 0; // reset number of matrices and nodes

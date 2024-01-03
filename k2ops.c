@@ -56,10 +56,10 @@ size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a)
 // return statistics on matrix a
 // write number of used pos,nodes, minimats and nonzeros in the variables passed by reference
 // and return the number of levels
-static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz)
+static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *all1)
 {
-  *pos=*nodes=*minimats=*nz=0;
-  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats,nz);
+  *pos=*nodes=*minimats=*nz=*all1=0;
+  if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats,nz,all1);
   int eq = mequals(asize,a,a);
   assert(eq<0);
   return -eq;
@@ -67,12 +67,12 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
-  size_t pos, nodes, minimats, nz;
+  size_t pos, nodes, minimats, nz, all1;
   fprintf(stderr,"%s -- matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
-  int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz);
+  int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file,"%s -- Levels: %d, Nodes: %zd, Leaves: %zd, Nonzeros: %zu\n",
-          mname,levels,nodes,minimats, nz);
+  fprintf(file,"Levels: %d, Nodes: %zu, Leaves: %zu (all1s: %zu), Nonzeros: %zu\n",
+          levels,nodes,minimats, all1, nz);
 }
 
 // recursive test for equality of two k2 matrices both nonzero
@@ -171,17 +171,19 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
-  size_t tmp1=0,tmp2=0, tmp3=0; // not used, defined to pass to k2dfs_visit
+  // size_t tmp1=0,tmp2=0, tmp3=0; // not used, defined to pass to k2dfs_visit
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
-    k2dfs_visit(size,b,posb,&tmp1,&tmp2,&tmp3); //reach end of b but ignore its content
+    k2dfs_visit_fast(size,a,posa); //scan but ignore a content
+    // k2dfs_visit(size,b,posb,&tmp1,&tmp2,&tmp3); //reach end of b but ignore its content
     return;
   }
   else if(rootb==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posb+=1; // same as above with a and b swapped
-    k2dfs_visit(size,a,posa,&tmp1,&tmp2,&tmp3); //scan but ignore a content
+    k2dfs_visit_fast(size,a,posa); //scan but ignore a content
+    // k2dfs_visit(size,a,posa,&tmp1,&tmp2,&tmp3); //scan but ignore a content
     return;
   }
   assert(roota!=ALL_ONES && rootb!=ALL_ONES);

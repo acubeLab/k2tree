@@ -53,7 +53,7 @@ matrixcmp.x: matrixcmp.c
 # compile a release version with -O3 optimization and possibly no assertions
 # and debugging info (add -DNDEBUG to CFLAGS	and remove -g) 
 # these options also significantly reduce executable sizes
-release: CFLAGS = -O3 -Wall -std=c11 -g
+release: CFLAGS = -O3 -Wall -std=c11 -g -DNDEBUG
 release: clean
 release: $(EXECS)  
 

@@ -113,7 +113,7 @@ int main (int argc, char **argv) {
       uint8_t *bx = bbm_alloc(size);
       mwrite_to_bbm(bx,size,asize, &a);
       ssize_t eq = mequals_bbm(b,size,bx);
-      if(eq<0) fprintf(stdout,"Decompressed matrix matches the original!\n"); 
+      if(eq<0) fprintf(stdout,"Decompressed and input matrix are identical!\n"); 
       else fprintf(stdout,"Decompressed matrix differs at position (%zd,%zd) "
       "dec:%d vs orig:%d\n",eq/size,eq%size, bx[eq], b[eq]);
       free(bx);
