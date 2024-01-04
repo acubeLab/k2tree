@@ -329,8 +329,9 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   }
   // root is not all 1's: we have the standard structure
   #ifndef NDEBUG
-  size_t next = pos, nodes=0, minimats=0, nz=0, all1=0;
+  size_t nodes=0, minimats=0, nz=0, all1=0;
   #endif
+  size_t next=pos;
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
@@ -339,10 +340,10 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       #else
       k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz, &all1); // get size of submatrix
       assert(next==pos+nodes+minimats*Minimat_node_ratio);
+      nodes = minimats = 0; // reset number of matrices and nodes
       #endif
       k2clone(a, pos, next, &b[i][j]);         // create pointer to submatrix
       pos = next; // advance to next item
-      nodes = minimats = 0; // reset number of matrices and nodes
     }
   }
   assert(next+a->offset==k2pos(a));

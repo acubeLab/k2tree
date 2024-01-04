@@ -96,6 +96,14 @@ int main (int argc, char **argv) {
   if(xsize<0) 
     quit("-s parameter must be non negative",__LINE__,__FILE__);
   #endif
+  // check we are within the hard limit of matrix size
+  // note there can be other limitations not tested here
+  if(xsize>MaxMatrixSize) 
+#ifdef B128MAT
+    quit("Matrix size is too large: see b128.h for the hard limit on size",__LINE__,__FILE__);
+#else    
+    quit("Matrix size is too large: see k2.h for the hard limit on size",__LINE__,__FILE__);
+#endif
 
   // virtually get rid of options from the command line 
   optind -=1;

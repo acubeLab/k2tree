@@ -20,7 +20,7 @@
    array can be stored in a size_t. However, the single entry store the 
    row and column index so it must be able to store a number of bits equal 
    to (2 x bits in a single index).
-   Currenlty the maximum allowed size is 2^32, so each index takes 32 bits
+   Currently the maximum allowed size is 2^32, so each index takes 32 bits
    and the interleaved array can be of int64_t's. To support larger 
    matrices, say up to 2^40, the entries of the interleaved array ia[]
    and the related variables (imin,left,mid,right) must be enlarged.
@@ -83,12 +83,12 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
 
 
 
-// write the content of the :size x :size k2 matrix :a to a
+// write the content of the :msize x :msize k2 matrix :a to a
 // text file in one entry per line format
-void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname)
+void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outname)
 {
   assert(outname!=NULL && a!=NULL);
-  assert(size>=msize);
+  assert(asize>=msize);
   FILE *f = fopen(outname,"wt");
   if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
 
@@ -97,7 +97,7 @@ void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outna
     return;
   }
   size_t pos = 0;
-  mdecode_to_textfile(f,msize,0,0,size,a,&pos);
+  mdecode_to_textfile(f,msize,0,0,asize,a,&pos);
   fclose(f);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }

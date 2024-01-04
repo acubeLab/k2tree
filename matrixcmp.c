@@ -71,6 +71,8 @@ static int uint64_cmp(const void *p, const void *q)
 // read entries from a text file and store them in a an array of uint64_t
 // removing duplicates. Each index is a uint32_t so an entry is a uint64_t 
 // return the array of entries and its size
+// since entries are encoded in 64 bits, each index can be at most 32 bits
+// so the maximum matrix size is 2^32 (change ia[],entry type to go further)
 uint64_t *entry2bin(FILE *f, size_t *n)
 {
   assert(f!=NULL && n!=NULL);
@@ -139,6 +141,8 @@ uint64_t *entry2bin(FILE *f, size_t *n)
 // compare two set of entries: the first stored in a sorted array m1[0,n-1]
 // of uint64_t, the second stored in a text file f
 // return the number of mismatches
+// since entries are encoded in 64 bits, each index can be at most 32 bits
+// so the maximum matrix size is 2^32 (change m1[], entry type to go further)
 size_t matrixcmp(FILE *f,uint64_t m1[], size_t n) {
   assert(f!=NULL && m1!=NULL);
   assert(n>0);

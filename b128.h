@@ -56,3 +56,7 @@ void mmult(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
 void matrix_free(b128mat_t *m);
 // make a read-only copy of a b128 matrix without allocating new memory
 void mmake_pointer(const b128mat_t *a, b128mat_t *c);
+
+// from k2text.c
+void mwrite_to_textfile(size_t msize, size_t size, const b128mat_t *a, char *outname);
+size_t mread_from_textfile(size_t *msize, b128mat_t *a, char *iname, size_t xsize);

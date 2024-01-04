@@ -13,7 +13,7 @@
    The bits outsize the matrix in the last 128-bit blocks are
    guaranteed to be zero.  
 
-   Matrix dimensions must be between 1 and 2^30 (in practice mush less
+   Matrix dimensions must be between 1 and 2^30 (in practice much less
    since a size 2^30 matrix would take 2^57 bytes)  
 
    However, in the b128mat_t def the matrix size is represented as a size_t
@@ -31,12 +31,77 @@
 #include <errno.h>
 #include <assert.h>
 #include <string.h>
+#include <inttypes.h>
 #include "b128.h"
 #include "bbm.h"
 
 static void quit(const char *msg, int line, char *file);
 static void b128_free(b128mat_t *m);
 static void b128_init(size_t size, b128mat_t *a);
+
+
+// read a matrix from the text file :iname (one entry per line)
+// of size xsize and store it into the b128mat_t structure *a 
+// the old content of :a is lost
+// for compatibilty with k2mats return the size of the b128 matrix (ie msize)
+// and store the same value to *msize
+size_t mread_from_textfile(size_t *msize, b128mat_t *a, char *iname, size_t xsize) {
+  assert(a!=NULL && iname!=NULL);
+  b128_free(a); // free previous content of a
+  if(xsize<=0) quit("mread_from_textfile: illegal matrix size",__LINE__,__FILE__);;
+  if(xsize>MaxMatrixSize) quit("mread_from_textfile: matrix too large",__LINE__,__FILE__);
+  b128_init(xsize,a);
+  bzero(a->b,a->size*a->colb*sizeof(uint128_t));
+  uint128_t one = 1;
+  // read nonzero entries from file
+  FILE *f = fopen(iname,"rt");
+  if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
+  int64_t i,j; size_t line=0;  
+  while(true) {
+    line++;
+    int e = fscanf(f,"%" SCNd64 " %" SCNd64,&i,&j);
+    if(e==EOF) break;
+    // check input
+    if(e!=2) {
+      fprintf(stderr,"Invalid file content at line %zu\n",line);
+      exit(EXIT_FAILURE);
+    }
+    if(i<0 || j<0) {
+      fprintf(stderr,"Negative index at line %zu\n",line);
+      exit(EXIT_FAILURE);
+    }
+    if(i>=xsize || j>=xsize) {
+      fprintf(stderr,"Index larger than the assigned size at line %zu\n",line);
+      exit(EXIT_FAILURE);
+    }
+    // write 1 in appropritae bit position 
+    a->b[i*a->colb + j/128] |= (one << (j%128));
+  }
+  fclose(f);
+  *msize = xsize;
+  return xsize;
+}
+
+// write the content of a b128 matrix :a to 
+// text file in one entry per line format
+void mwrite_to_textfile(size_t msize, size_t asize, const b128mat_t *a, char *outname)
+{
+  (void) asize;
+  assert(outname!=NULL && a!=NULL);
+  assert(asize>=msize);
+  FILE *f = fopen(outname,"wt");
+  if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
+  
+  uint128_t one = 1;
+  for(size_t i=0;i<msize;i++) {  // row index 
+    size_t offset = i*a->colb;   // start of row i in a->b
+    for(size_t j=0;j<msize;j++) 
+      if(a->b[offset + j/128] & (one << (j%128)))
+        fprintf(f,"%zu %zu\n",i,j);
+  }
+  fclose(f);
+}
+
 
 
 // write the content of a b128 matrix :a to the bbm matrix :m 

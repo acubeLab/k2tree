@@ -176,14 +176,14 @@ should eventually display the matrix `t8.bbm` squared:
 
 ### Matrices represented as bitarrays
 
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, he largest supported size is $2^30$. 
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^30$. 
 
-The programs `b128bbm.x` and `b128mult.x` work exactly like  `k2bbm.c` and `k2mult.c` except that they use the bitarray representation instead of the k2 format. 
+The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
 
 
-### Product of uncompressed matrices
+### Product of bbm matrices
 
-The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as faster alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
+The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
 
 
 

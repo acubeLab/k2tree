@@ -4,7 +4,9 @@ LDFLAGS=-fsanitize=undefined
 CC=gcc
 
 # main executables 
-EXECS=k2bbm.x k2sparse.x k2mult.x bbmmult.x b128bbm.x b128mult.x matrixcmp.x k2info.x
+K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x
+B128EXECS=b128bbm.x b128sparse.x b128mult.x
+EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x 
 
 # targets not producing a file declared phony
 .PHONY: all clean release
