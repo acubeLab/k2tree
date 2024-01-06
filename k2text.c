@@ -44,7 +44,6 @@
 #include <inttypes.h>
 #include "k2.h"
 
-
 // prototypes of static functions
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
@@ -190,7 +189,7 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat
   assert( a_lt_b2(ia[n-1]-imin, size)); 
   assert(size%2==0 && size>=2*MMsize);
   // case of a full submatrix
-  if(a_eq_b2(n,size)) { // equivalent to (n==size*size) but no overflow   
+  if(a_eq_b2(n,size) && Use_all_ones_node) { // equivalent to (n==size*size) but no overflow   
     k2add_node(c,ALL_ONES);       // submatrix is full 
     return;
   }

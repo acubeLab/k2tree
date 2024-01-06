@@ -1,7 +1,7 @@
 # k2tree binary matrix representation
 
 
-This repository contains a set of functions for working with square sparse boolean matrices represented with a k$^2$-tree. Matrix sum and product operations use boolean algebra with the scalar operations `+` and `*` replaced by logical `or` and `and` respectively. A version supporting $Z_2$ arithmetic can be easily derived if needed. 
+This repository contains a set of functions for working with square sparse boolean matrices represented with a $k^2$-tree. Matrix sum and product operations use boolean algebra with the scalar operations `+` and `*` replaced by logical `or` and `and` respectively. A version supporting $Z_2$ arithmetic can be easily derived if needed. 
 
 
 ## Prerequisites 
@@ -13,6 +13,8 @@ A modern `gcc` supporting `c11` and `make`
 ## Installation 
 
 Clone/download the repostory then `make release`
+
+All tools invoked without arguments provide basic usage instructions. 
 
 
 
@@ -35,7 +37,9 @@ The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extensio
     1    1    1    1    0    0    1    0
 ```
 
-Another popular uncompressed format consists of a text file containing the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not compare twice, but the order of entries can be arbitrary. Indexes are 0-based so the matrix above could be represented by the text file
+The advantage of this format is that we can look inside a file with command line tools (like `od`), but it is extremely space inefficient since it does not take advantage of sparsity an uses one byte for each -/1 entry entry.
+
+Another popular uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based so the matrix above could be represented by the text file
 ```
 0 6
 0 7
@@ -190,6 +194,9 @@ The program `bbmmult.x` computes the product of two `.bbm` matrices using `openm
 ### Additional tools 
 
 
+The program `k2info.x` display statics on the k2-compressed files passed on the command line.
+
 The script `submatrix.py` can be used to extract a square submatrix form a matrix in textual form.
 
 The files `k2test.sh`, `k2btest.sh`, `k2square.sh` are bash script designed to test `k2sparse.x`, `k2bbm.x` and `k2mult.x` on a set of input files.  
+

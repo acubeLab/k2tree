@@ -120,8 +120,7 @@ void bbm_to_ascii(const uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
   }
 }
 
-// multiplication of bbm matrices, return 0 (it used to return the 
-// number of nonzero elements in the product but this is no longer available) 
+// multiplication of bbm matrices (add openmp ?)
 // all matrices must have been allocated to dim size*size
 void mmult_bbm(const uint8_t *a, size_t size, const uint8_t *b, uint8_t *c) {
   assert(a!=NULL && b!=NULL && c!=NULL && size>0);

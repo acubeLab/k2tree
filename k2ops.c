@@ -12,6 +12,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#pragma GCC target ("sse4.2")  // ensure sse4.2 compiler switch it is used 
 #include "k2aux.c"
 #include "k2text.c"
 #include "bbm.h"
@@ -528,10 +529,10 @@ static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
     assert(k2pos(c)==rootpos+1); // we wrote only root to c 
     k2setpos(c,rootpos); // delete root  
   }
-  else if(all_ones) {   // all 1s matrix is represented by the ALL_ONES root only
+  else if(all_ones && Use_all_ones_node) {   // all 1s matrix is represented by the ALL_ONES root only
     assert(rootc==ALL_CHILDREN);
     k2setpos(c,rootpos+1);       // discard children
-    assert(k2read_node(c,rootpos)==ALL_ONES); // ALL_ONES was the defualt root 
+    assert(k2read_node(c,rootpos)==ALL_ONES); // ALL_ONES was the default root 
   }
   else k2write_node(c,rootpos,rootc); // just fix root 
 }

@@ -23,9 +23,11 @@
 #define default_cext ".b128"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
+bool Use_all_ones_node; // not used: added for compatibility with k2mat 
 #else // k2mat
 #include "k2.h"
 #define default_cext ".k2"
+extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type 
 #include "bbm.h"
@@ -49,13 +51,15 @@ int main (int argc, char **argv) {
   int mmsize = 2;
   bool decompress = false, check = false, write = true;
   char *outfile = NULL;
-  while ((c=getopt(argc, argv, "o:m:dchvn")) != -1) {
+  while ((c=getopt(argc, argv, "o:m:1dchvn")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
       case 'm':
         mmsize = atoi(optarg); break;
+      case '1':
+        Use_all_ones_node = false; break;        
       case 'd':
         decompress = true; break;
       case 'c':
@@ -136,7 +140,10 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-d      decompress\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
+    #ifndef B128MAT
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
+    fprintf(stderr,"\t-1      do not compact all 1s submatrices, compression only\n");
+    #endif  
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: outfile%s)\n",
                    default_cext, default_dext);
     fprintf(stderr,"\t-c      compress->decompress->check\n");

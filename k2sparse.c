@@ -30,13 +30,16 @@
 #define default_cext ".b128"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
+bool Use_all_ones_node; // not used: added for compatibility with k2mat 
 #else // k2mat
 #include "k2.h"
 #define default_cext ".k2"
+extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type 
 #define default_dext ".txt"
 #define matrix_checker "matrixcmp.x"
+
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
@@ -57,13 +60,12 @@ int main (int argc, char **argv) {
   bool decompress = false, check = false, write = true;
   int64_t xsize = 0;
   char *outfile = NULL;
-  while ((c=getopt(argc, argv, "o:m:s:dcnhv")) != -1) {
+  Use_all_ones_node = true;
+  while ((c=getopt(argc, argv, "o:m:s:dcnhv1")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
-      case 'm':
-        mmsize = atoi(optarg); break;
       case 's':
         xsize = atoll(optarg); break;
       case 'd':
@@ -72,6 +74,10 @@ int main (int argc, char **argv) {
         check = true; break;
       case 'n':
         write = false; break;
+      case 'm':
+        mmsize = atoi(optarg); break;
+      case '1':
+        Use_all_ones_node = false; break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -170,8 +176,9 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-s S    matrix actual size, compression only\n");
     #else
     fprintf(stderr,"\t-s S    matrix actual size (def. largest index), compression only\n");
-    #endif  
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
+    fprintf(stderr,"\t-1      do not compact all 1s submatrices, compression only\n");
+    #endif  
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: outfile%s)\n",
                    default_cext, default_dext);
     fprintf(stderr,"\t-c      compress->decompress->check\n");
