@@ -162,7 +162,9 @@ static void mcopy(size_t size, const k2mat_t *a, k2mat_t *b)
 // the output matrix c is normalized as ususal
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
-//  otherwise we follow the standard rule: root node + subtrees in DFS order   
+//  otherwise we follow the standard rule: root node + subtrees in DFS order
+// If Use_all_ones_node is false and a and b do not contain ALL_ONES nodes
+// then neither c does   
 static void msum_rec(size_t size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
@@ -176,7 +178,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
-    k2dfs_visit_fast(size,a,posa); //scan but ignore a content
+    k2dfs_visit_fast(size,b,posb); //scan but ignore a content
     // k2dfs_visit(size,b,posb,&tmp1,&tmp2,&tmp3); //reach end of b but ignore its content
     return;
   }
@@ -207,7 +209,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
       else assert((rootc & (1 << k)) == 0);
       if (cx != MINIMAT1s) all_ones = false;
     }
-    // reduntant check on all_ones
+    // reduntant check: all_ones=> 4 minimats stored
     assert(!all_ones || (rootc==ALL_CHILDREN&&k2pos(c)==rootpos+1+4*Minimat_node_ratio)); 
   }
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion
@@ -229,7 +231,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
       if(tmp!=k2pos(c)) { // something was written
         assert(k2pos(c)>tmp);
         if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false;
-        else assert(k2pos(c)==tmp+1);
+        else assert(k2pos(c)==tmp+1); // the written submatrix was ALL_ONES
       }
       else all_ones = false; // nothing was written, submatrix is all 0s, all_ones is false
     } // end for k=0..3
@@ -307,7 +309,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   // ??? here possible code for case when one matrix is all 1s and the other is not
   // split a and b
   size_t posa=1,posb=1; // we have already read the root node
-  if(roota!=ALL_ONES)   // case ALL_ONES is coverede by initialization above
+  if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above
     k2split_minimats(a,&posa,roota,ax);
   if(rootb!=ALL_ONES) 
     k2split_minimats(b,&posb,rootb,bx);
@@ -328,12 +330,12 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     }
     if(cx!=MINIMAT1s) all_ones = false;
   }
-  // fix root normalize matrix and return 
+  // fix root, normalize matrix and return 
   if(rootc==NO_CHILDREN) {   // all 0s matrix is represented as a an empty matrix
     assert(k2pos(c)==rootpos+1); // we wrote only root to c 
     k2setpos(c,rootpos); // delete root 
   }
-  else if(all_ones) {    // all 1s matrix is represented by the ALL_ONES root only 
+  else if(all_ones && Use_all_ones_node) { // all 1s matrix is represented by the ALL_ONES root only 
     assert(rootc==ALL_CHILDREN);
     assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); // we wrote root + 4 minimats
     k2setpos(c,rootpos+1);       // discard children
