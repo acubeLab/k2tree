@@ -74,7 +74,7 @@ size_t mread_from_textfile(size_t *msize, b128mat_t *a, char *iname, size_t xsiz
       fprintf(stderr,"Index larger than the assigned size at line %zu\n",line);
       exit(EXIT_FAILURE);
     }
-    // write 1 in appropritae bit position 
+    // write 1 in approprite bit position 
     a->b[i*a->colb + j/128] |= (one << (j%128));
   }
   fclose(f);

@@ -22,8 +22,10 @@
 #include "b128.h"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
+bool Use_all_ones_node; // not used: added for compatibility with k2mat
 #else // k2mat
 #include "k2.h"
+extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type
 #include "bbm.h"
@@ -45,16 +47,22 @@ int main (int argc, char **argv) {
   /* ------------- read options from command line ----------- */
   opterr = 0;
   bool check = false, write = true;
-  char *ext = default_ext;
-  while ((c=getopt(argc, argv, "e:cnv")) != -1) {
+  // char *ext = default_ext;  
+  char *outfile = NULL;
+  Use_all_ones_node = true;
+  while ((c=getopt(argc, argv, "o:hcnv1")) != -1) {
     switch (c) 
       {
-      case 'e':
-        ext = optarg; break;                 
+      case 'o':
+        outfile = optarg; break;                 
       case 'c':
         check = true; break;      
       case 'n':
         write = false; break;       
+      case '1':
+        Use_all_ones_node = false; break;
+      case 'h':
+        usage_and_exit(argv[0]); break;        
       case 'v':
         verbose++; break;
       case '?':
@@ -77,7 +85,8 @@ int main (int argc, char **argv) {
   // create file names
   sprintf(iname1,"%s",argv[1]);
   sprintf(iname2,"%s",argv[2]);
-  sprintf( oname,"%s%s",argv[1],ext); 
+  if(outfile!=NULL)sprintf(oname,"%s",outfile);
+  else       sprintf(oname,"%s%s",argv[1],default_ext); 
 
   // init k2 variables
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
@@ -141,11 +150,16 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] iname1 iname2\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] infile1 infile2\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
-    fprintf(stderr,"\t-e ext  extension for the output file (def. %s)\n",default_ext);
+    // fprintf(stderr,"\t-e ext  extension for the output file (def. %s)\n");
+    fprintf(stderr,"\t-o out  outfile name (def. compr: infile1%s)\n",default_ext);
+    #ifndef B128MAT
+    fprintf(stderr,"\t-1      do not compact all 1's submatrices in the result matrix\n");
+    #endif  
     fprintf(stderr,"\t-c      check multiplication (can be slow for large matrices!)\n");
+    fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     exit(1);
 }

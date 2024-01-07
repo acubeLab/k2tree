@@ -72,7 +72,7 @@ void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,
   fprintf(stderr,"%s -- matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file,"Levels: %d, Nodes: %zu, Leaves: %zu (all1s: %zu), Nonzeros: %zu\n",
+  fprintf(file,"Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
           levels,nodes,minimats, all1, nz);
 }
 
@@ -236,7 +236,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
     assert(!all_ones  || (rootc==ALL_CHILDREN && k2pos(c)==rootpos+5));
   }
   // normalize if c is all 1s (regardless of size)
-  if(all_ones) {
+  if(all_ones && Use_all_ones_node) {
     assert(rootc==ALL_CHILDREN);
     k2setpos(c,rootpos+1);       // discard current children
     k2write_node(c,rootpos,ALL_ONES); // write ALL_ONES as root

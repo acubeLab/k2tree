@@ -105,11 +105,11 @@ int main (int argc, char **argv) {
   // check we are within the hard limit of matrix size
   // note there can be other limitations not tested here
   if(xsize>MaxMatrixSize) 
-#ifdef B128MAT
+    #ifdef B128MAT
     quit("Matrix size is too large: see b128.h for the hard limit on size",__LINE__,__FILE__);
-#else    
+    #else    
     quit("Matrix size is too large: see k2.h for the hard limit on size",__LINE__,__FILE__);
-#endif
+    #endif
 
   // virtually get rid of options from the command line 
   optind -=1;
@@ -168,19 +168,19 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] filename\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-d      decompress\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
+    fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: infile%s)\n",
+                   default_cext, default_dext);
     #ifdef B128MAT
     fprintf(stderr,"\t-s S    matrix actual size, compression only\n");
     #else
     fprintf(stderr,"\t-s S    matrix actual size (def. largest index), compression only\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
-    fprintf(stderr,"\t-1      do not compact all 1s submatrices, compression only\n");
+    fprintf(stderr,"\t-1      do not compact all 1's submatrices, compression only\n");
     #endif  
-    fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: outfile%s)\n",
-                   default_cext, default_dext);
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");

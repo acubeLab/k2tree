@@ -87,6 +87,7 @@ Options:
     -d      decompress
     -n      do not write the output file, only show stats
     -m M    minimatrix size (def. 2), compression only
+    -1      do not compact all 1's submatrices, compression only
     -o out  outfile name (def. compr: infile.k2, decompr: outfile.bbm)
     -c      compress->decompress->check
     -h      show this help message
@@ -117,6 +118,7 @@ Options:
     -n      do not write the output file, only show stats
     -s S    matrix actual size (def. largest index), compression only
     -m M    minimatrix size (def. 2), compression only
+    -1      do not compact all 1's submatrices, compression only
     -o out  outfile name (def. compr: infile.k2, decompr: outfile.txt)
     -c      compress->decompress->check
     -h      show this help message
