@@ -6,9 +6,9 @@
 if [ $# -le 2 ]
 then
   echo "Usage:"
-  echo "         $0 compr-options extension file1 [file2 ...]"
+  echo "         $0 compr-options outfile_ext file1 [file2 ...]"
   echo
-  echo "Report the compression statistics for a single k2bbm variant"
+  echo "Report the compression statistics for a single k2sparse variant"
   echo "on all input files (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
@@ -23,11 +23,6 @@ echo $options
 for f in "$@"
 do 
   echo ">>>>>>>> File: $f"
-  echo "==== compression"
-  k2bbm.x $options -o $f$ext  $f
-  ls -l $f$ext
-  echo "==== decompression" 
-  k2bbm.x -v -d $f$ext
-  echo "==== check"
-  cmp $f $f$ext.bbm
+  k2sparse.x $options -v -o $f$ext $f
+  rm -f $f$ext.check
 done

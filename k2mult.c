@@ -47,7 +47,6 @@ int main (int argc, char **argv) {
   /* ------------- read options from command line ----------- */
   opterr = 0;
   bool check = false, write = true;
-  // char *ext = default_ext;  
   char *outfile = NULL;
   Use_all_ones_node = true;
   while ((c=getopt(argc, argv, "o:hcnv1")) != -1) {
@@ -85,7 +84,7 @@ int main (int argc, char **argv) {
   // create file names
   sprintf(iname1,"%s",argv[1]);
   sprintf(iname2,"%s",argv[2]);
-  if(outfile!=NULL)sprintf(oname,"%s",outfile);
+  if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
 
   // init k2 variables
@@ -108,7 +107,7 @@ int main (int argc, char **argv) {
 
   if(write) msave_to_file(size,asize,&ab,oname);
 
-  // check product if requested
+  // check product if requested: use bbm matrix (n^2 bytes) 
   if(check) {
     uint8_t *m2, *m1 = bbm_alloc(size), *m3 = bbm_alloc(size);
     // read m1 
@@ -122,6 +121,7 @@ int main (int argc, char **argv) {
       if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
     }
     // compute product to m3 = m1 * m2
+    // consider using fast_mmult_bbm, but that would require opm
     mmult_bbm(m1,size,m2,m3);
     // uncompress product to m1
     mwrite_to_bbm(m1,size,asize,&ab);
@@ -153,12 +153,11 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile1 infile2\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
-    // fprintf(stderr,"\t-e ext  extension for the output file (def. %s)\n");
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile1%s)\n",default_ext);
     #ifndef B128MAT
     fprintf(stderr,"\t-1      do not compact all 1's submatrices in the result matrix\n");
     #endif  
-    fprintf(stderr,"\t-c      check multiplication (can be slow for large matrices!)\n");
+    fprintf(stderr,"\t-c      check multiplication (dense algorithm: O(n^3) time and O(n^2) space)\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     exit(1);

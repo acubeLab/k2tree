@@ -74,6 +74,9 @@ void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
   fprintf(file,"Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
           levels,nodes,minimats, all1, nz);
+  // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
+  fprintf(file,"Tree size: %zu bytes, Bits x nonzero: %lf\n",
+          (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
 }
 
 // recursive test for equality of two k2 matrices both nonzero
