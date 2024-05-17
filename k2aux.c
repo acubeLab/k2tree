@@ -183,8 +183,7 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
   assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) {
-      ax[i/2][i%2] = k2read_minimat(a,posa);
-      // *posa += Minimat_node_ratio;
+      ax[i/2][i%2] = k2read_minimat(a,posa); // k2read_minimat advances posa
     }
     else ax[i/2][i%2] = MINIMAT0s;
 }

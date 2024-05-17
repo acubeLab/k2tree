@@ -301,7 +301,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   // c is always an empty matrix because a partial product is never 
   // written directly to a result matrix 
   assert(k2is_empty(c));
-  // initialize a[][] and b[][] to cover the case when the matrix is all 1s                       
+  // initialize ax[][] and bx[][] to cover the case when the matrix is all 1s                       
   minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   minimat_t bx[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   node_t roota = k2read_node(a,0);
@@ -684,6 +684,40 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
     k2write_node(c,rootpos,rootc); // fix root
   }  
 }
+
+// base case of matrix multiplication: matrices of size 2*MMmin
+// a and b must be not all 0s (ie empty)
+//   (if a or b is 0s this function is not called because the product is 0) 
+// a and b can be all 1's 
+// the output matrix c is normalized as usual:
+//  if c is all 0s nothing is written
+//  if c is all 1s the root ALL_ONES is written
+//  otherwise we follow the standard rule: root node + nonzero minisize matrices 
+// Here is the only part where we call the base multiplication function
+// using the following macro, change it to support additional sizes
+// #define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
+static void vmmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *y)
+{
+  assert(size==2*MMsize);
+  assert(a!=NULL && x!=NULL && y!=NULL);
+  assert(!k2is_empty(a));
+  node_t roota = k2read_node(a,0);
+  //both matrices are all 1s ?
+  if(roota==ALL_ONES) {
+    double v = 0;
+    for(size_t i=0;i<size;i++) v += x[i];
+    for(size_t i=0;i<size;i++) y[i] += v;
+    return;
+  }
+  // split a
+  // initialize ax[][] the actual minimats will be overwritten                      
+  minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
+  size_t posa=1; // we have already read the root node
+  k2split_minimats(a,&posa,roota,ax);
+  // split done, now multiply
+
+}
+
 
 
 // recursive call for matrix-vector multiplication
