@@ -1,11 +1,10 @@
 /* Compression and decompression of boolean matrices using k2 trees
 
-   k2tcomp: (de)compress matrices in text form: one entry (two indices) per line
+   k2sparse: (de)compress matrices in text form: one entry (two indices) per line
 
-   This code is ready to be compiled with the B128MAT constant defined
-   in that case it will (de)encode the matrices in text form to/from 
-   the B128 format, which is a dense format with one bit per entry. 
-   This option is currently noty supported
+   Generates the executable k2sparse.x; if compiled with the B128MAT constant
+   defined it generates the executable b128sparse.x which (de)compress matrices 
+   in text form to/from the B128 format,
 
    For the details of the k2 format compression see k2text.c
 
@@ -177,7 +176,7 @@ static void usage_and_exit(char *name)
     #ifdef B128MAT
     fprintf(stderr,"\t-s S    matrix actual size, compression only\n");
     #else
-    fprintf(stderr,"\t-s S    matrix actual size (def. largest index), compression only\n");
+    fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1), compression only\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
     fprintf(stderr,"\t-1      do not compact all 1's submatrices, compression only\n");
     #endif  

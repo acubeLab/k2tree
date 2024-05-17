@@ -21,6 +21,8 @@ static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c);
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 
+// float type used for vector elements
+typedef double vfloat;
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
@@ -394,6 +396,29 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 }
 
 
+// Main entry point for right matrix vector multiplication
+// multiply :asize x :asize k2 compressed matrix :a by vector :x
+// storing the result in vector :y
+// :a must be of size at least 2*MMsize
+// :x and :y are both of :size <= :asize. :a elements 
+// with index >= :size are guaranteed to be zero
+// The algorithm must ensures that entries of :x and :y
+// with index >= :size are not accessed
+void vmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
+{
+  assert(size <= asize);
+  assert(asize>=2*MMsize);
+  assert(asize%2==0);
+  assert(a!=NULL && x!=NULL && y!=NULL);
+  // initialize y to 0
+  for(size_t i=0;i<size;i++) y[i]=0;
+  if(k2is_empty(a)) return; // if a is empty the result is 0
+  // recursion base step
+  if(asize==2*MMsize)
+    vmult_base(asize,a,size,x,y);
+
+}
+
 // save the matrix :a to file :filename
 // the format is
 // 1) the actual size of the matrix (a size_t)
@@ -658,4 +683,33 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
     // no all 0's or all 1's, just write the correct root 
     k2write_node(c,rootpos,rootc); // fix root
   }  
+}
+
+
+// recursive call for matrix-vector multiplication
+// compute :y += :a * :x
+// :a is a non empty k2 matrix of size :size at least 2*MMsize
+// :x and :y are vectors of unknown size which are never accessed
+// in indices corresponding to rows/columns of :a which are all 0s
+static void vmmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && x!=NULL && y!=NULL);
+  // never called with an input empty matrix
+  assert(!k2is_empty(a));
+  // recursion base step
+  if(size==2*MMsize)
+    vmult_base(size,a,size,x,y);
+  else {
+  // split a into 4 blocks of half size  
+  k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
+                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
+  k2split_k2(size,a,ax);  
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(int k=0;k<4;k++) {
+    int i=k/2, j=k%2;
+    size_t z = size/2;
+    if(!k2is_empty(&ax[i][j]))     // avoid call if the block is 0
+      vmult_rec(z, &ax[i][j], x+i*z, y + j*z);
+  }
 }

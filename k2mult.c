@@ -2,7 +2,7 @@
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0, 
-   but the input can be of any size, and the matrix will be padded with 0's 
+   but the input can be also of a smaller size, and the matrix will be padded with 0's 
 
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it

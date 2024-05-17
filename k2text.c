@@ -3,8 +3,9 @@
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0
-   (somewhere this is called the k2_internal_size); the input can be of any size, 
-   and the k2 matrix is padded with 0's (virtually since they are not stored)
+   (somewhere this is called the k2_internal_size); the input can be of 
+   any size (not larger than that) and the k2 matrix is padded with 0's 
+   (virtually since they are not stored)
 
    The conversion txt->k2 is done using an auxiliary "interleaved" array:
    each matrixc entry consits of two uint32_t (row and column indices).

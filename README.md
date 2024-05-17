@@ -37,15 +37,15 @@ The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extensio
 
 The advantage of this format is that we can look inside a file with command line tools (like `od`), but it is extremely space inefficient since it does not take advantage of sparsity an uses one byte for each 0/1 entry.
 
-Another popular uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based so the matrix above could be represented by the text file
+Another popular uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based so the matrix above could be represented by the text file `t8.txt`:
 ```
+0 5
 0 6
 0 7
 1 6
-1 7
+3 5
 2 6
 2 7
-3 6
 3 7
 4 0
 4 1
@@ -64,15 +64,10 @@ Another popular uncompressed format consists of a text file containing only the 
 7 2
 7 3
 4 6
-4 7
-5 6
 5 7
-6 6
 6 7
 7 6
-7 7
 ```
-
 
 ### Conversion to/from .bbm representation 
 
@@ -114,8 +109,8 @@ Usage:
 Options:
     -d      decompress
     -n      do not write the output file, only show stats
-    -o out  outfile name (def. compr: infile.k2, decompr: outfile.bbm)
-    -s S    matrix actual size (def. largest index), compression only
+    -o out  outfile name (def. compr: infile.k2, decompr: infile.txt)
+    -s S    matrix actual size (def. largest index+1), compression only
     -m M    minimatrix size (def. 2), compression only
     -1      do not compact all 1's submatrices, compression only
     -c      compress->decompress->check
@@ -162,7 +157,7 @@ The following sequence of compression, matrix multiplication, decompression and 
 k2bbm.x t8.bbm
 k2mult.x t8.bbm.k2 t8.bbm.k2
 k2bbm.x -d t8.bbm.k2.prod
-od -td1 -w8 -An -v t8.bbm.k2.prod.d
+od -td1 -w8 -An -v t8.bbm.k2.prod.bbm
 ```
 should eventually display the matrix `t8.bbm` squared:
 ```
