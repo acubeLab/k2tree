@@ -351,7 +351,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 
 // compute the size of the smallest k2mat containing a matrix of size msize
 // the size depends on the size of the minimat and grows with powers of 2
-// here msize is the actual size of an input matri that is going to be 
+// here msize is the actual size of an input matrix that is going to be 
 // represented by a k2mat of size the returned value 
 size_t k2get_k2size(size_t msize) 
 {

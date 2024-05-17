@@ -5,9 +5,6 @@
    Matrix dimensions are assumed to be power of 2, of size at least
    MMSize (minimatrix size), ie, the size of the last level of recursion. 
 
-   Technical note: matrix sizes are int, therefore limited to 2^31, but values related to
-   the overall number of elements is always stored into a size_t variable (usually 64 bits))  
-
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _K2TYPEDEFS_H
@@ -36,12 +33,12 @@
 typedef uint64_t node_t;   // non leaf node 
 
 
-// struct representing a k2-tree: nodes and minimat are stored in a single
+// struct representing a k2-tree: nodes and minimats are stored in a single
 // buffer of bytes. offset is used to create a "pointer" to a submatrix
 // without copying the buffer during the splitting phase. 
 // read_only is currently used only for these pointer matrices. 
 // Note that the size of the k2mat is not stored in the structure:
-// it is maintained externally   
+// it is maintained externally (why is that?)
 // ??? Question: use read_only also for the input matrices to avoid accidental
 // changes or using the const modifier is enough??? 
 typedef struct k2mat {
@@ -66,7 +63,7 @@ typedef struct k2mat {
 // init minimatrices: must be called only once with the size of the minimats
 // no k2-related function can be called before this one
 void minimat_init(int msize);
-// revert the effects of minima_init and make it possible to call it again
+// revert the effects of minimat_init and make it possible to call it again
 void minimat_reset();
 
 // from k2ops.c

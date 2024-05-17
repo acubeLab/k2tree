@@ -23,8 +23,6 @@ All tools invoked without arguments provide basic usage instructions.
 
 ### The uncompressed matrix formats
 
-
-
 The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extension `.bbm`). In this format the input matrix must be square and represented using one byte per entry (so the `.bbm` file lenght is the square of the matrix dimension). Each entry should be a 0 or 1 value (ie `\x00` or `\x01`). The file `t8.bbm` contains an 8x8 matrix in this format, type `od -td1 -w8 -An -v t8.bbm` to see its content:
 ```
     0    0    0    0    0    1    1    1
@@ -37,7 +35,7 @@ The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extensio
     1    1    1    1    0    0    1    0
 ```
 
-The advantage of this format is that we can look inside a file with command line tools (like `od`), but it is extremely space inefficient since it does not take advantage of sparsity an uses one byte for each -/1 entry entry.
+The advantage of this format is that we can look inside a file with command line tools (like `od`), but it is extremely space inefficient since it does not take advantage of sparsity an uses one byte for each 0/1 entry.
 
 Another popular uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based so the matrix above could be represented by the text file
 ```
@@ -86,9 +84,9 @@ Usage:
 Options:
     -d      decompress
     -n      do not write the output file, only show stats
+    -o out  outfile name (def. compr: infile.k2, decompr: outfile.bbm)
     -m M    minimatrix size (def. 2), compression only
     -1      do not compact all 1's submatrices, compression only
-    -o out  outfile name (def. compr: infile.k2, decompr: outfile.bbm)
     -c      compress->decompress->check
     -h      show this help message
     -v      verbose
@@ -116,10 +114,10 @@ Usage:
 Options:
     -d      decompress
     -n      do not write the output file, only show stats
+    -o out  outfile name (def. compr: infile.k2, decompr: outfile.bbm)
     -s S    matrix actual size (def. largest index), compression only
     -m M    minimatrix size (def. 2), compression only
     -1      do not compact all 1's submatrices, compression only
-    -o out  outfile name (def. compr: infile.k2, decompr: outfile.txt)
     -c      compress->decompress->check
     -h      show this help message
     -v      verbose
@@ -134,7 +132,6 @@ When invoked with `-d` the input file must be a k2 matrix which is then expanded
 When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `matrixcmp.x`.
 
 The option `-m` can be used only in compression, currently only with one of the two values `2` and `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
-
 
 By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a sligtly more complex compression algorithm. 
 

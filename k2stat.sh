@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# compress decompress and chek all files passed on the command line
-# Obsolete since the introduction of the -c option
+# report compression statistics for a set of files
+# do not check correctness of compressor: use k2test.sh for that
 
 if [ $# -le 2 ]
 then
@@ -19,7 +19,6 @@ fi
 options=$1
 ext=$2
 shift 2
-echo $options
 for f in "$@"
 do 
   echo ">>>>>>>> File: $f"

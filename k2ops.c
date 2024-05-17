@@ -355,8 +355,8 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 // :a and :b must be of size at least 2*MMsize but their content can be 
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
-//    if the result is a zero matrix c is left empty
-//    if the result is an all one's matrix c contains a single ALL_ONES node
+//    if the result is a zero matrix: c is left empty
+//    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
 void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
@@ -398,12 +398,13 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // the format is
 // 1) the actual size of the matrix (a size_t)
 // 2) the size of the last level of recursion, aka the size of a minimat,  (an int)
-// 3) the size of the k2 matrix (a size_t, we could skip this) 
+// 3) the internal size of the k2 matrix (a size_t, we could skip this) 
 // 4) the total number of positions (a size_t)
 // 5) the array of positions (an uint8_t array, each uint8 stores 2 positions)
 void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
+  assert(asize>=size);
   FILE *f = fopen(filename,"w");
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   size_t e = fwrite(&size,sizeof(size),1,f);
@@ -424,7 +425,8 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
 
 
 // load a k2 matrix stored in file :filename into the k2mat_t structure :a
-// return the actual size of the matrix, see msave_to_file() for the file format
+// return the actual size of the matrix and store to *asize the internal (power of 2)
+// size of the k2 matrix, see msave_to_file() for details of the file format
 // :a old content is discarded
 // must be called after minimat_init() since it checks that the correct MMsize is used
 size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
