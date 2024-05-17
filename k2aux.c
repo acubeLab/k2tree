@@ -182,10 +182,8 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 {
   assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
   for(int i=0;i<4;i++) 
-    if(roota & (1<<i)) {
-      ax[i/2][i%2] = k2read_minimat(a,posa); // k2read_minimat advances posa
-    }
-    else ax[i/2][i%2] = MINIMAT0s;
+    if(roota & (1<<i)) ax[i/2][i%2] = k2read_minimat(a,posa); // k2read_minimat advances posa
+    else               ax[i/2][i%2] = MINIMAT0s;  // note all 0s minimats are not stored
 }
 
 
@@ -305,7 +303,7 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside a, so no memory is allocated
 // the submatrices are not minimats, but k2mat_t structs
-// so we are not at the last level of the k2 tree
+// since we are not at the last level of the k2 tree
 // :a is not all 0's, it could be all 1's (for now)
 void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 {

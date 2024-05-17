@@ -413,10 +413,8 @@ void vmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
   // initialize y to 0
   for(size_t i=0;i<size;i++) y[i]=0;
   if(k2is_empty(a)) return; // if a is empty the result is 0
-  // recursion base step
-  if(asize==2*MMsize)
-    vmult_base(asize,a,size,x,y);
-
+  // call recursive multiplication algorithm
+  vmult_rec(asize,a,x,y);
 }
 
 // save the matrix :a to file :filename
@@ -685,44 +683,38 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   }  
 }
 
-// base case of matrix multiplication: matrices of size 2*MMmin
-// a and b must be not all 0s (ie empty)
-//   (if a or b is 0s this function is not called because the product is 0) 
-// a and b can be all 1's 
-// the output matrix c is normalized as usual:
-//  if c is all 0s nothing is written
-//  if c is all 1s the root ALL_ONES is written
-//  otherwise we follow the standard rule: root node + nonzero minisize matrices 
-// Here is the only part where we call the base multiplication function
+// base case of matrix vector multiplication: matrix of size 2*MMmin
+// a be not all 0s (ie empty) or all 1s (these cases are handled at the previous level)
+// x and y are vectors of unknown size which are never accessed
+// in indices corresponding to rows/columns of a which are all 0s
+// Here we call the base matrix-vector multiplication function
 // using the following macro, change it to support additional sizes
-// #define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
+#define vmmultNxN(s,a,x,y) ((s)==2 ? vmmult2x2((a),(x),(y)) : vmmult4x4((a),(x),(y)))
 static void vmmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *y)
 {
   assert(size==2*MMsize);
   assert(a!=NULL && x!=NULL && y!=NULL);
   assert(!k2is_empty(a));
   node_t roota = k2read_node(a,0);
-  //both matrices are all 1s ?
-  if(roota==ALL_ONES) {
-    double v = 0;
-    for(size_t i=0;i<size;i++) v += x[i];
-    for(size_t i=0;i<size;i++) y[i] += v;
-    return;
-  }
-  // split a
-  // initialize ax[][] the actual minimats will be overwritten                      
+  assert(roota!=ALL_ONES);
+  // to split :a create ax[][]: the actual content will be overwritten                      
   minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
-  size_t posa=1; // we have already read the root node
+  size_t posa=1; // skip the root node
   k2split_minimats(a,&posa,roota,ax);
-  // split done, now multiply
-
+  // split done, now matrix-vector multiply
+  for(int k=0;k<4;k++) {  
+    int i=k/2; int j=k%2;
+    assert(size==4 || size==8); // implies that minimats are 2x2  or 4x4
+    if(ax[i][j]!=MINIMAT0s) // avoid call if the block is 0
+      vmmultNxN(MMsize,ax[i][j], x+j*MMsize, y + i*MMsize);
+  }
 }
 
 
 
 // recursive call for matrix-vector multiplication
 // compute :y += :a * :x
-// :a is a non empty k2 matrix of size :size at least 2*MMsize
+// :a is a non empty k2 matrix of size :size >= 2*MMsize
 // :x and :y are vectors of unknown size which are never accessed
 // in indices corresponding to rows/columns of :a which are all 0s
 static void vmmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
@@ -731,19 +723,28 @@ static void vmmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
   assert(a!=NULL && x!=NULL && y!=NULL);
   // never called with an input empty matrix
   assert(!k2is_empty(a));
+  // if a is all 1s the result is easy regardless of size and the recursion stops
+  node_t roota = k2read_node(a,0);
+  if(roota==ALL_ONES) {
+    double v = 0;
+    for(size_t i=0;i<size;i++) v += x[i];
+    for(size_t i=0;i<size;i++) y[i] += v;
+    return;
+  }
   // recursion base step
   if(size==2*MMsize)
-    vmult_base(size,a,size,x,y);
+    vmult_base(size,a,x,y);
   else {
-  // split a into 4 blocks of half size  
-  k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
-                      {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
-  k2split_k2(size,a,ax);  
-  // here we are assuming that the submatrices are in the order 00,01,10,11
-  for(int k=0;k<4;k++) {
-    int i=k/2, j=k%2;
-    size_t z = size/2;
-    if(!k2is_empty(&ax[i][j]))     // avoid call if the block is 0
-      vmult_rec(z, &ax[i][j], x+i*z, y + j*z);
+    // split a into 4 blocks of half size  
+    k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
+                        {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
+    k2split_k2(size,a,ax);  
+    // here we are assuming that the submatrices are in the order 00,01,10,11
+    for(int k=0;k<4;k++) {
+      int i=k/2, j=k%2;
+      size_t z = size/2;
+      if(!k2is_empty(&ax[i][j]))     // avoid call if the block is 0
+        vmult_rec(z, &ax[i][j], x+j*z, y + i*z);
+    }
   }
 }

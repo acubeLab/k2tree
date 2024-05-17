@@ -256,6 +256,38 @@ void minimat_to_text(FILE *f, size_t msize, size_t i, size_t j, size_t size, min
 }
 
 
+// matrix-vector multiplication for a minimat matrix of size 2x2
+// inside the minimat the bit matrix is stored in row-major order
+// a_00 is the less significant bit, a_01 the next one, then a_10 and a_11
+void vmmult2x2(minimat_t a, const vfloat *x, vfloat *y) {
+  assert(a!=MINIMAT0s); // a must be non zero (tested before calling the function)
+  assert(a!=0);         // same condition as above but more explicit
+  if (a & 1) y[0] += x[0];
+  if (a & 2) y[0] += x[1];
+  if (a & 4) y[1] += x[0];
+  if (a & 8) y[1] += x[1];
+  return;
+}
+
+// matrix-vector multiplication for a minimat matrix of size 4x4
+// inside the minimat the bit matrix is stored in row-major order
+// a_00 is the less significant bit, then a_01 a_02 a_03 a_10, a_11 ...
+void vmmult4x4(minimat_t a, const vfloat *x, vfloat *y) 
+{
+  assert(a!=MINIMAT0s); // a must be non zero (tested before calling the function)
+  assert(a!=0);         // same condition as above but more explicit
+  for(size_t i=0; i<4 && a!=0; i++) {
+    minimat_t row = a & 0xF;
+    if(row & 1) y[i] += x[0];
+    if(row & 2) y[i] += x[1];
+    if(row & 4) y[i] += x[2];
+    if(row & 8) y[i] += x[3];
+    a >>= 4;
+  }
+  return;
+}
+
+
 
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {
