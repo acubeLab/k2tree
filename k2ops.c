@@ -20,9 +20,7 @@
 static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c);
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
-
-// float type used for vector elements
-typedef double vfloat;
+static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
@@ -117,7 +115,6 @@ static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa,
     return eq -1; // increase depth by one 
   }
 }
-
 
 
 // main entry point for matrix equality
@@ -404,7 +401,7 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // with index >= :size are guaranteed to be zero
 // The algorithm must ensures that entries of :x and :y
 // with index >= :size are not accessed
-void vmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
+void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
 {
   assert(size <= asize);
   assert(asize>=2*MMsize);
@@ -414,7 +411,7 @@ void vmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
   for(size_t i=0;i<size;i++) y[i]=0;
   if(k2is_empty(a)) return; // if a is empty the result is 0
   // call recursive multiplication algorithm
-  vmult_rec(asize,a,x,y);
+  mvmult_rec(asize,a,x,y);
 }
 
 // save the matrix :a to file :filename
@@ -689,8 +686,8 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
 // in indices corresponding to rows/columns of a which are all 0s
 // Here we call the base matrix-vector multiplication function
 // using the following macro, change it to support additional sizes
-#define vmmultNxN(s,a,x,y) ((s)==2 ? vmmult2x2((a),(x),(y)) : vmmult4x4((a),(x),(y)))
-static void vmmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *y)
+#define mvmultNxN(s,a,x,y) ((s)==2 ? mvmult2x2((a),(x),(y)) : mvmult4x4((a),(x),(y)))
+static void mvmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *y)
 {
   assert(size==2*MMsize);
   assert(a!=NULL && x!=NULL && y!=NULL);
@@ -706,7 +703,7 @@ static void vmmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *
     int i=k/2; int j=k%2;
     assert(size==4 || size==8); // implies that minimats are 2x2  or 4x4
     if(ax[i][j]!=MINIMAT0s) // avoid call if the block is 0
-      vmmultNxN(MMsize,ax[i][j], x+j*MMsize, y + i*MMsize);
+      mvmultNxN(MMsize,ax[i][j], x+j*MMsize, y + i*MMsize);
   }
 }
 
@@ -717,7 +714,7 @@ static void vmmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *
 // :a is a non empty k2 matrix of size :size >= 2*MMsize
 // :x and :y are vectors of unknown size which are never accessed
 // in indices corresponding to rows/columns of :a which are all 0s
-static void vmmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
+static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && x!=NULL && y!=NULL);
@@ -733,7 +730,7 @@ static void vmmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
   }
   // recursion base step
   if(size==2*MMsize)
-    vmult_base(size,a,x,y);
+    mvmult_base(size,a,x,y);
   else {
     // split a into 4 blocks of half size  
     k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
@@ -744,7 +741,7 @@ static void vmmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
       int i=k/2, j=k%2;
       size_t z = size/2;
       if(!k2is_empty(&ax[i][j]))     // avoid call if the block is 0
-        vmult_rec(z, &ax[i][j], x+j*z, y + i*z);
+        mvmult_rec(z, &ax[i][j], x+j*z, y + i*z);
     }
   }
 }

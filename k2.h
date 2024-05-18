@@ -56,8 +56,10 @@ typedef struct k2mat {
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)
 
+// float type used for vector elements in matrix-vector multiplication
+typedef double vfloat;
 
-// prototypes
+// ======== prototypes ===========
 
 // from minimat.c
 // init minimatrices: must be called only once with the size of the minimats
@@ -87,6 +89,10 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+// right mutiply a k2 matrix :a by a vector :x writing the result to :y
+// :size is the internal size of the k2 matrices (not the size of the vector 
+// which can be smaller and in that case :a is padded with zeros)
+void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y);
 // free a k2 matrix
 void matrix_free(k2mat_t *m);
 // make a read-only copy of a k2 matrix without allocating new memory
