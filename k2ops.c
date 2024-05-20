@@ -21,6 +21,7 @@ static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c);
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
+static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y);
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
@@ -401,7 +402,24 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // with index >= :size are guaranteed to be zero
 // The algorithm must ensures that entries of :x and :y
 // with index >= :size are not accessed
-void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
+void mvmult(size_t asize, const k2mat_t *a, size_t size, vfloat *x, vfloat *y)
+{
+  assert(size <= asize);
+  assert(asize>=2*MMsize);
+  assert(asize%2==0);
+  assert(a!=NULL && x!=NULL && y!=NULL);
+  // initialize y to 0
+  for(size_t i=0;i<size;i++) y[i]=0;
+  if(k2is_empty(a)) return; // if a is empty the result is 0
+  // call recursive multiplication algorithm based on decoding
+  size_t pos = 0;
+  mdecode_and_multiply(asize,a,&pos,x,y);
+}
+
+
+// previous recursive version of mvmult based on matrix splitting: 
+// more than ten times slower than the new mvmult  
+void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
 {
   assert(size <= asize);
   assert(asize>=2*MMsize);
@@ -742,6 +760,40 @@ static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
       size_t z = size/2;
       if(!k2is_empty(&ax[i][j]))     // avoid call if the block is 0
         mvmult_rec(z, &ax[i][j], x+j*z, y + i*z);
+    }
+  }
+}
+
+
+// recursively decode a k2 submatrix into a list of nonzero entries
+// and use each generate entry tu update the matrix vector product
+// Parameters:
+//   size k^2 submatrix size (has the form 2^k*MMsize)
+//   *c input k2mat_t structure
+//   *pos position in *c where the submatrix starts
+//   *x,*y input/output vector relative to the current matrix upper left corner
+static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y) {
+  assert(size%2==0 && size>=2*MMsize);
+  // read c root
+  node_t rootc=k2read_node(c,*pos); *pos +=1;
+  if(rootc==ALL_ONES) { // all 1s matrix
+    double v = 0;
+    for(size_t i=0;i<size;i++) v += x[i];
+    for(size_t i=0;i<size;i++) y[i] += v;
+    return;
+  }
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(size_t k=0;k<4;k++) {  
+    size_t ii = (size/2)*(k/2); size_t jj= (size/2)*(k%2);
+    if(rootc & (1<<k)) { // read a submatrix
+      if(size==2*MMsize) { // read a minimatrix
+        minimat_t cx = k2read_minimat(c,pos);
+        assert(cx!=MINIMAT0s); // should not happen
+        mvmultNxN(MMsize,cx, x+jj, y+ii);
+      }
+      else { // decode submatrix
+        mdecode_and_multiply(size/2,c,pos,x+jj, y+ii);
+      }
     }
   }
 }
