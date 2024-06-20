@@ -466,7 +466,7 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
 // return the actual size of the matrix and store to *asize the internal (power of 2)
 // size of the k2 matrix, see msave_to_file() for details of the file format
 // :a old content is discarded
-// must be called after minimat_init() since it checks that the correct MMsize is used
+// call minimat_init() if necessary, check that the correct MMsize is used
 size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);

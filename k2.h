@@ -44,7 +44,7 @@ typedef uint64_t node_t;   // non leaf node
 typedef struct k2mat {
   uint8_t *b;
   size_t pos;   // position where next node is written
-  size_t lenb;  // number of nodes that can be written in b without rallocating
+  size_t lenb;  // number of nodes that can be written in b without reallocating
   size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
                 // only read only matrices can have a positive offset 
   bool read_only; // if true write and add operations are not allowed
