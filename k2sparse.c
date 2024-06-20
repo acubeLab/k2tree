@@ -59,7 +59,7 @@ int main (int argc, char **argv) {
   bool decompress = false, check = false, write = true;
   int64_t xsize = 0;
   char *outfile = NULL;
-  Use_all_ones_node = true;
+  Use_all_ones_node = false;
   while ((c=getopt(argc, argv, "o:m:s:dcnhv1")) != -1) {
     switch (c) 
       {
@@ -76,7 +76,7 @@ int main (int argc, char **argv) {
       case 'm':
         mmsize = atoi(optarg); break;
       case '1':
-        Use_all_ones_node = false; break;
+        Use_all_ones_node = true; break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -174,11 +174,11 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: infile%s)\n",
                    default_cext, default_dext);
     #ifdef B128MAT
-    fprintf(stderr,"\t-s S    matrix actual size, compression only\n");
+    fprintf(stderr,"\t-s S    matrix actual size [compression only]\n");
     #else
-    fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1), compression only\n");
-    fprintf(stderr,"\t-m M    minimatrix size (def. 2), compression only\n");
-    fprintf(stderr,"\t-1      do not compact all 1's submatrices, compression only\n");
+    fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1) [compression only]\n");
+    fprintf(stderr,"\t-m M    minimatrix size (def. 2) [compression only]\n");
+    fprintf(stderr,"\t-1      compact all 1's submatrices [compression only]\n");
     #endif  
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    

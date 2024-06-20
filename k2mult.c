@@ -48,7 +48,7 @@ int main (int argc, char **argv) {
   opterr = 0;
   bool check = false, write = true;
   char *outfile = NULL;
-  Use_all_ones_node = true;
+  Use_all_ones_node = false;
   while ((c=getopt(argc, argv, "o:hcnv1")) != -1) {
     switch (c) 
       {
@@ -59,7 +59,7 @@ int main (int argc, char **argv) {
       case 'n':
         write = false; break;       
       case '1':
-        Use_all_ones_node = false; break;
+        Use_all_ones_node = true; break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -155,7 +155,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile1%s)\n",default_ext);
     #ifndef B128MAT
-    fprintf(stderr,"\t-1      do not compact all 1's submatrices in the result matrix\n");
+    fprintf(stderr,"\t-1      compact all 1's submatrices in the result matrix\n");
     #endif  
     fprintf(stderr,"\t-c      check multiplication (dense algorithm: O(n^3) time and O(n^2) space)\n");
     fprintf(stderr,"\t-h      show this help message\n");    

@@ -32,8 +32,8 @@
    we cannot safely compute products: this is why we have the functions
    altb2 and aeqb2 testing whether a<b*b or a==b*b without multiplications 
     
-   The conversion k2->txt is done using a visit of the tree in preorder
-   and each time a nonzero entry is found its indices are written to the output 
+   The conversion k2->txt is done doing a visit of the tree in preorder and
+   each time a nonzero entry is found its indices are written to the output file 
    
    Currently only the minimatrix sizes 2 and 4 are supported
 

@@ -1,8 +1,8 @@
 /* Routines for arithmetic/logical operations on binary matrices 
    represented as k^2 trees 
 
-   This file contains the defintion of the operations that make use of
-   the basic operations defined in k2aux.c
+   This file contains the definitions of the complex operations that make 
+   use of the basic operations defined in k2aux.c
 
    Matrix dimensions are assumed to be power of 2, of size at least
    2*MMSize (minimatrix size), ie, the size of the last level of recursion. 
@@ -766,7 +766,7 @@ static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
 
 
 // recursively decode a k2 submatrix into a list of nonzero entries
-// and use each generate entry tu update the matrix vector product
+// and use each generate entry to update the matrix vector product
 // Parameters:
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure

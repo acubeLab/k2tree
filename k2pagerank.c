@@ -9,7 +9,7 @@
  * of the current rank vector, with entries divided by the outdegree
  * of each node, times the binary adjacency matrix.
  * 
- * Since we have implemente only right matrix-vector multiplication,
+ * Since we have implemented only right matrix-vector multiplication,
  * we are assuming that the graph matrix has been 
  * transposed (and all self-loops already removed).  
  * 
@@ -42,7 +42,7 @@
  *  
  * The above is the standard algorithm; in this program we use only two 
  * vectors X and Z at the expense of some loss of accuracy in the 
- * error computation. The trick is that X and Y there is the same 
+ * error computation. The trick is that in X and Y there is the same 
  * information provided we know the outdegree of each node; so
  * we do not store X but only Y and retrieve X from Y when needed
  *   1. compute Y overwriting X and if col_count[i]==0 simply set Y[i] = X[i]
