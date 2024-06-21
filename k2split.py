@@ -8,7 +8,8 @@ Description = """
 Quick and dirty tool to take a k2 compressed file and split it into an assigned number of
 smaller k2 compressed files containing roughly the same number of nonzeros.
 
-Relies of the textual output of k2sparse.x to determine the number of nonzeros in the input file."""
+Relies of the textual output of k2sparse.x to determine the size and the number of 
+nonzeros in the input file. Such output is produced by funztion mshow_stats() in k2ops.c"""
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
   parser.add_argument('blocks', help='number of input blocks', type=int)
   parser.add_argument('-o', metavar='outfile', help='output file base name (def. input file name)',type=str,default="" )
   parser.add_argument('-k', help="keep temporary files", action='store_true')
-  parser.add_argument('-opts', help=f"compression options for {K2TOOL} (def none)", default='',type=str)
+  parser.add_argument('--copts', help=f"compression options for {K2TOOL} (def none)", default='',type=str)
   parser.add_argument('-v', help="verbose", action='store_true')
   args = parser.parse_args()
     
@@ -41,12 +42,15 @@ def main():
     print(result.stderr)
     print("==== Exiting")
     sys.exit(1)
-  # decompression ok, retrieve # of nonzeros from stdout                    
-  data = result.stdout.split("\n")[2]
-  nonz = int(data.split(",")[4].split()[-1]) 
+  # decompression ok, retrieve size and # of nonzeros from stdout 
+  # print(result.stdout) 
+  lines = result.stdout.split("\n")  #  lines of stdout
+  args.size = int(lines[2].split(",")[0].split()[-1]) # get compressed matrix size              
+  nonz = int(lines[3].split(",")[4].split()[-1])     # get number of nonzeros
   if args.v:
     print("stdout from the decompression program:")
-    print(result.stdout)     
+    print(result.stdout) 
+  print("Size of the input matrix", args.size)        
   print("Number of nonzeros in the input file", nonz)
   if nonz<args.blocks:
     print("Nothing to do: Number of nonzeros smaller than the number of blocks!")
@@ -62,6 +66,7 @@ def main():
       for i in range(args.blocks):
         # create i-th text file 
         gname = f"{tmpname}.{args.blocks}.{i}"
+        outname = f"{args.o}.{args.blocks}.{i}"
         with open(gname,"wt") as g:
           totlines = nonz//args.blocks
           if i < nonz%args.blocks: totlines += 1
@@ -72,7 +77,7 @@ def main():
             r = f.readline()
             g.write(r)
         # compress gname and delete it 
-        futures.append(executor.submit(k2compress,gname,args,i))
+        futures.append(executor.submit(k2compress,gname,outname,args))
       # wait for all futures to complete and report errors  
       for f in concurrent.futures.as_completed(futures):
         if f.result(): print(f.result())  
@@ -81,9 +86,9 @@ def main():
   print("==== Done")
 
 # compress a temporary file and then if requested delete it
-def k2compress(fname,args,i):
+def k2compress(fname,outname,args):
 
-  cmd = f"{args.exe} -o {args.o}.{args.blocks}.{i} {args.opts} {fname}"
+  cmd = f"{args.exe} -o {outname} -s {args.size} {args.copts} {fname}"
   if args.v:
     print("  Executing:",cmd)
   result = subprocess.run(cmd.split(), 

@@ -90,14 +90,3 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Get info on the k2-compressed matrices file1 file2 ...\n\n");
     exit(1);
 }
-
-
-// write error message and exit
-//~ static void quit(const char *msg, int line, char *file) {
-  //~ if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
-  //~ else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
-               //~ strerror(errno));
-  //~ fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
-  //~ exit(1);
-//~ }
-
