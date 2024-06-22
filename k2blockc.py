@@ -5,20 +5,29 @@ import sys, argparse, subprocess, os, concurrent.futures
 K2TOOL = "k2sparse.x"
 
 Description = """
-Quick and dirty tool to take a k2 compressed file and split it into an assigned number of
-smaller k2 compressed files containing roughly the same number of nonzeros.
+Quick and dirty tool that takes a text file containing the list of pairs <row col> 
+of the positions of the nonzeros of a binary matrix in row major order, 
+and a parameter b, and splits the list into b files (almost) equally distributing 
+the nonzeros among them. The files are later compressed individually with k2sparse.x
 
-Relies of the textual output of k2sparse.x to determine the size and the number of 
-nonzeros in the input file. Such output is produced by function mshow_stats() in k2ops.c
+The nonzeros are almost equally distributed since the nonzers of a given row always 
+go together in the same file: we are splitting the matrix by rows since this 
+simplify the matrix-vector multiplication. Note that the index of the row elements 
+are not modified in the copy.
 
-This tool is currently not used since the matrix-vector multiplication 
-algorithm using it is still to be written,"""
+If the number of nonzero is not provided with the -n option the program will
+get it counting the number of lines in the input file.
+
+The input file is assumed to be sorted by row: it is not necessary that elements
+in the same row are also sorted by column"""
+
 
 
 def main():
   parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('input', help='input matrix file name', type=str)
   parser.add_argument('blocks', help='number of input blocks', type=int)
+  parser.add_argument('-N', help='number of nonzeros (def. number of input file lines)',type=int,default=-1)
   parser.add_argument('-o', metavar='outfile', help='output file base name (def. input file name)',type=str,default="" )
   parser.add_argument('-k', help="keep temporary files", action='store_true')
   parser.add_argument('--copts', help=f"compression options for {K2TOOL} (def none)", default='',type=str)
@@ -30,11 +39,49 @@ def main():
     sys.exit(1)
   #  base for output file name   
   if args.o=="":  args.o = args.input
-  # temporary decompressed file   
-  tmpname = args.o+".tmpfile"
   # get path to k2split.py directory 
   args.main_dir = os.path.dirname(sys.argv[0])
   args.exe = os.path.join(args.main_dir,K2TOOL)
+  if not os.path.exists(args.exe):
+    print(f"Error: {args.exe} not found")
+    sys.exit(1)
+  # split the input file into blocks  
+  with open(args.input,"rt") as f:  
+    # get number of nonzeros from the input file if missing 
+    if args.n<0: 
+      args.n = sum(1 for _ in f)
+      f.seek(0) # rewind input file
+    if args.v:
+      print("Number of nonzeros in the input file", args.n) 
+    # split the input file into blocks
+    remaining = args.n
+    tot_lines = 0
+    lastrow = -1
+    lastline = ""
+    for i in range(args.blocks):
+      # create and compress i-th text file  
+      gname = f"{args.input}.tmp.{args.blocks}.{i}"
+      outname = f"{args.o}.{args.blocks}.{i}"
+      with open(gname,"wt") as g:
+        target = remaining//(args.blocks-i)
+        if args.v:
+          print(f"  Aiming at {target} nonzeros in file {gname}")
+        # copy target lines from f to g
+        if len(lastline)>0:
+          g.write(lastline)  # write pending line
+          target -= 1
+        for _ in range(target):
+          line = f.readline()
+          tot_lines += 1
+          row = int(line.split()[0])
+          assert(row>=lastrow), f"Error: input file not sorted by row at line {tot_lines}: {line}"
+          lastrow = row
+          g.write(line)
+      # compress gname and delete it 
+      k2compress(gname,outname,args)
+    
+
+
 
   # decompress k2 file and recover # nonzeros from stdout
   result = subprocess.run(f"{args.exe} {args.input} -dv -o {tmpname}".split(), 

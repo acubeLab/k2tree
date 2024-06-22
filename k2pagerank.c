@@ -100,13 +100,13 @@ static void vector_destroy(vector *v);
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] matrix msize col_count_file\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] matrix col_count_file\n",name);
     fprintf(stderr,"\t\t-v             verbose\n");
-    fprintf(stderr,"\t\t-b num         number of row blocks, def. 1\n");
-    fprintf(stderr,"\t\t-m maxiter     maximum number of iteration, def. 100\n");
-    fprintf(stderr,"\t\t-e eps         stop if error<eps (default ignore error)\n");
-    fprintf(stderr,"\t\t-d df          damping factor (default 0.9)\n");
-    fprintf(stderr,"\t\t-k K           show top K nodes (default 3)n\n");
+    fprintf(stderr,"\t\t-b num         number of row blocks, default: 1\n");
+    fprintf(stderr,"\t\t-m maxiter     maximum number of iterations, default: 100\n");
+    fprintf(stderr,"\t\t-e eps         stop if error<eps (default: ignore error)\n");
+    fprintf(stderr,"\t\t-d df          damping factor (default: 0.9)\n");
+    fprintf(stderr,"\t\t-k K           show top K nodes (default: 3)\n\n");
     exit(1);
 }
 
