@@ -41,7 +41,8 @@ void mwrite_to_bbm(uint8_t *m, size_t msize, size_t asize, const b128mat_t *a);
 // read the uncompressed matrix *m of size msize into the b128mat_t structure *a 
 size_t mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a);
 // write to :file statistics for a b128 matrix :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file);
+// return number of nonzeros in the matrix
+size_t mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file);
 // check if two b128 compressed matrices :a and :b are equal
 // if a==b return -1
 // if a!=b return the row index>=0 containing the first difference

@@ -3,6 +3,7 @@
 import sys, argparse, subprocess, os, concurrent.futures
 
 K2TOOL = "k2sparse.x"
+K2EXT = ".k2"
 
 Description = """
 Quick and dirty tool that takes a text file containing the list of pairs <row col> 
@@ -27,14 +28,16 @@ def main():
   parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('input', help='input matrix file name', type=str)
   parser.add_argument('blocks', help='number of input blocks', type=int)
-  parser.add_argument('-N', help='number of nonzeros (def. number of input file lines)',type=int,default=-1)
+  parser.add_argument('-n', help='number of nonzeros (def. number of input file lines)',type=int,default=-1)
+  parser.add_argument('-s', help='matrix size (def. # of int32 in .ccount file)',type=int,default=-1)
   parser.add_argument('-o', metavar='outfile', help='output file base name (def. input file name)',type=str,default="" )
   parser.add_argument('-k', help="keep temporary files", action='store_true')
-  parser.add_argument('--copts', help=f"compression options for {K2TOOL} (def none)", default='',type=str)
+  parser.add_argument('--cext', help=f"extension for compressed files (def. {K2EXT})", default=K2EXT,type=str)
+  parser.add_argument('--copts', help=f"compression options for {K2TOOL} (def. none)", default='',type=str)
   parser.add_argument('-v', help="verbose", action='store_true')
   args = parser.parse_args()
     
-  if args.blocks<=1:
+  if args.blocks<1:
     print("The number of blocks must be at least 1")
     sys.exit(1)
   #  base for output file name   
@@ -45,7 +48,16 @@ def main():
   if not os.path.exists(args.exe):
     print(f"Error: {args.exe} not found")
     sys.exit(1)
-  # split the input file into blocks  
+  # get matrix size if missing
+  if args.s < 0:
+    ccount_file = os.path.splitext(args.input)[0]+'.ccount'
+    if not os.path.exists(ccount_file):
+      print(f"Error: no matrix size provided and file {ccount_file} not found")
+      sys.exit(1)
+    args.s = os.path.getsize(ccount_file)//4
+  assert args.s>0, f"Error: invalid matrix size: {args.s}" 
+  if args.v:
+    print("Creating matrices of size:",args.s)
   with open(args.input,"rt") as f:  
     # get number of nonzeros from the input file if missing 
     if args.n<0: 
@@ -54,91 +66,62 @@ def main():
     if args.v:
       print("Number of nonzeros in the input file", args.n) 
     # split the input file into blocks
-    remaining = args.n
     tot_lines = 0
+    tot_written = 0
     lastrow = -1
     lastline = ""
-    for i in range(args.blocks):
-      # create and compress i-th text file  
-      gname = f"{args.input}.tmp.{args.blocks}.{i}"
-      outname = f"{args.o}.{args.blocks}.{i}"
-      with open(gname,"wt") as g:
-        target = remaining//(args.blocks-i)
-        if args.v:
-          print(f"  Aiming at {target} nonzeros in file {gname}")
-        # copy target lines from f to g
-        if len(lastline)>0:
-          g.write(lastline)  # write pending line
-          target -= 1
-        for _ in range(target):
-          line = f.readline()
-          tot_lines += 1
-          row = int(line.split()[0])
-          assert(row>=lastrow), f"Error: input file not sorted by row at line {tot_lines}: {line}"
-          lastrow = row
-          g.write(line)
-      # compress gname and delete it 
-      k2compress(gname,outname,args)
-    
-
-
-
-  # decompress k2 file and recover # nonzeros from stdout
-  result = subprocess.run(f"{args.exe} {args.input} -dv -o {tmpname}".split(), 
-           capture_output=True, text=True)
-  if result.returncode!=0:
-    print("Decompression failed with exit code:", result.returncode)
-    print("stderr from the decompression program:")
-    print(result.stderr)
-    print("==== Exiting")
-    sys.exit(1)
-  # decompression ok, retrieve size and # of nonzeros from stdout 
-  # print(result.stdout) 
-  lines = result.stdout.split("\n")  #  lines of stdout
-  args.size = int(lines[2].split(",")[0].split()[-1]) # get compressed matrix size              
-  nonz = int(lines[3].split(",")[4].split()[-1])     # get number of nonzeros
-  if args.v:
-    print("stdout from the decompression program:")
-    print(result.stdout) 
-  print("Size of the input matrix", args.size)        
-  print("Number of nonzeros in the input file", nonz)
-  if nonz<args.blocks:
-    print("Nothing to do: Number of nonzeros smaller than the number of blocks!")
-    print("==== Exiting")
-    if not args.k: os.unlink(tmpname)
-    sys.exit(1)
-  # copy tmpfile content to blocks distinct files  
-  with open(tmpname,"rt") as f:
-    if not args.k: os.unlink(tmpname)   #  no longer needed
-    check_lines=0
     with concurrent.futures.ThreadPoolExecutor() as executor:
       futures = []
       for i in range(args.blocks):
-        # create i-th text file 
-        gname = f"{tmpname}.{args.blocks}.{i}"
-        outname = f"{args.o}.{args.blocks}.{i}"
+        # create and compress i-th text file  
+        gname = f"{args.input}.tmp.{args.blocks}.{i}"
+        outname = f"{args.o}.{args.blocks}.{i}{args.cext}"
         with open(gname,"wt") as g:
-          totlines = nonz//args.blocks
-          if i < nonz%args.blocks: totlines += 1
-          check_lines += totlines
-          if args.v:
-            print(f"  Writing {totlines} nonzeros to file {gname}") 
-          for _ in range(totlines):
-            r = f.readline()
-            g.write(r)
-        # compress gname and delete it 
+          target = (args.n-tot_written)//(args.blocks-i)
+          assert target>0, f"Error: not enough nonzeros to split in {args.blocks} blocks"  
+          if args.v: print(f"  Aiming at {target} nonzeros in file {gname}")
+          # write eventual suspended line from previous block
+          if len(lastline)>0:
+            g.write(lastline)  # write pending line
+            tot_written += 1
+            target -= 1
+          # copy target lines from f to g
+          for _ in range(target):
+            line = f.readline()
+            tot_lines += 1
+            row = int(line.split()[0])
+            assert(row>=lastrow), f"Error: input file not sorted by row at line {tot_lines}: {line}"
+            lastrow = row
+            g.write(line)
+            tot_written += 1
+          # complete current row
+          while True:
+            line = f.readline()
+            if len(line)==0: break
+            tot_lines += 1
+            row = int(line.split()[0])
+            assert(row>=lastrow), f"Error: input file not sorted by row at line {tot_lines}: {line}"
+            if row>lastrow: 
+              lastrow = row
+              lastline = line
+              break
+            g.write(line)
+            tot_written += 1
+        # gname completed: compress and delete it 
         futures.append(executor.submit(k2compress,gname,outname,args))
-      # wait for all futures to complete and report errors  
-      for f in concurrent.futures.as_completed(futures):
-        if f.result(): print(f.result())  
+    # wait for all futures to complete and report errors  
+    for f in concurrent.futures.as_completed(futures):
+      if f.result(): print(f.result())  
     # pool operations completed, check if all nonzeros were written    
-  assert check_lines==nonz, f"Mismatch in nonzeros: expected {nonz}, written {check_lines}" 
+  assert tot_lines==args.n, f"Mismatch in nonzeros: expected {args.n}, written {tot_lines}" 
+  assert tot_written==args.n, f"Mismatch in nonzeros: expected {args.n}, written {tot_written}" 
   print("==== Done")
+
+
 
 # compress a temporary file and then if requested delete it
 def k2compress(fname,outname,args):
-
-  cmd = f"{args.exe} -o {outname} -s {args.size} {args.copts} {fname}"
+  cmd = f"{args.exe} -o {outname} -s {args.s} {args.copts} {fname}"
   if args.v:
     print("  Executing:",cmd)
   result = subprocess.run(cmd.split(), 

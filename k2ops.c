@@ -68,7 +68,7 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
 }
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
+size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats, nz, all1;
   fprintf(file,"%s -- matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
@@ -78,6 +78,7 @@ void mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,
   // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
   fprintf(file,"Tree size: %zu bytes, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
+  return nz;
 }
 
 // recursive test for equality of two k2 matrices both nonzero

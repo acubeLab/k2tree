@@ -149,11 +149,12 @@ size_t mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a)
 }
 
 // write to :file statistics for b128_mat :a with an arbitrary :name as identifier
-void mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file) {
+size_t mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file) {
   (void) asize;
   if(size!=a->size) quit("mshow_stats: size mismatch",__LINE__,__FILE__);
   fprintf(stderr,"%s -- matrix size: %zu, block size: %zu, # column blocks %u\n",
           mname,size,8*sizeof(*(a->b)), a->colb);  
+  return 0; // integer returned for compatibilty with k2mat (should be # nonzeros)
 }
 
 // main entry point for matrix equality

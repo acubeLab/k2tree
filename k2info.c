@@ -65,17 +65,18 @@ int main (int argc, char **argv) {
   argv += optind; argc -= optind;
 
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize;
+  size_t size, asize, totnz=0;
   for(int i=1;i<argc;i++) {
     printf("Matrix file: %s\n",argv[i]);
     size = mload_from_file(&asize, &a, argv[i]); // also init k2 library
-    mshow_stats(size, asize,&a,basename(argv[i]),stdout);
+    totnz += mshow_stats(size, asize,&a,basename(argv[i]),stdout);
     puts("");
     matrix_free(&a);
     minimat_reset();
   }
 
   // statistics
+  fprintf(stderr,"Total nonzeros: %zu\n",totnz);
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   fprintf(stderr,"==== Done\n");
   
