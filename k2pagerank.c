@@ -63,6 +63,8 @@
 #include <time.h>
 #include <limits.h>
 #include <math.h>
+#include <pthread.h>
+#include <semaphore.h>
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef B128MAT
 #include "b128.h"
@@ -75,7 +77,7 @@ extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type
 #include "bbm.h"
-
+#include "xerrors.h"
 
 // for compatibilty with matrepair
 typedef struct {
@@ -90,12 +92,29 @@ static void vector_destroy(vector *v)
   free(v);
 }
 
+// input/output data for each thread 
+typedef struct {
+  k2mat_t *a;    // matrix block (but with same size whole martix)
+  vector *rv;    // right vector  
+  vector *lv;    // left vector
+  size_t size;   // size of the input/output vectors
+  size_t asize;  // internal size of the matrix block
+  int op;        // operation to execute
+  sem_t *in;     // semaphore for input shared with the main thread
+  sem_t *out;    // semaphore for output shared with the main thread
+} tdata;
+
+
+
+
 // static functions at the end of the file
 static void quit(const char *msg, int line, const char *file);
 static void minHeapify(double v[], int arr[], int n, int i);
 static void kLargest(double v[], int arr[], int n, int k);
 static vector *vector_create_value(size_t n, vfloat v);
 static void vector_destroy(vector *v);
+static  void mload_from_file_multipart(size_t *, size_t, k2mat_t *, int, char *, char *);
+static void *block_main(void *v);
 
 
 static void usage_and_exit(char *name)
@@ -103,6 +122,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] matrix col_count_file\n",name);
     fprintf(stderr,"\t\t-v             verbose\n");
     fprintf(stderr,"\t\t-b num         number of row blocks, default: 1\n");
+    fprintf(stderr,"\t\t-x ext         extension to add when b>1, default: \".k2\"\n");
     fprintf(stderr,"\t\t-m maxiter     maximum number of iterations, default: 100\n");
     fprintf(stderr,"\t\t-e eps         stop if error<eps (default: ignore error)\n");
     fprintf(stderr,"\t\t-d df          damping factor (default: 0.9)\n");
@@ -122,12 +142,13 @@ int main (int argc, char **argv) {
   long m1=0;
   #endif
   // default values for command line parameters 
-  int maxiter=100,topk=3;
+  int maxiter=100,nblocks=1,topk=3;
   double dampf = 0.9, eps = -1;
+  char *ext = ".k2";
   
   /* ------------- read options from command line ----------- */
   opterr = 0;
-  while ((c=getopt(argc, argv, "m:e:d:k:v")) != -1) {
+  while ((c=getopt(argc, argv, "m:e:d:k:vb:x:")) != -1) {
     switch (c) 
       {
       case 'v':
@@ -140,6 +161,10 @@ int main (int argc, char **argv) {
         dampf=atof(optarg); break;
       case 'k':
         topk=atoi(optarg); break;
+      case 'b':
+        nblocks=atoi(optarg); break; 
+      case 'x':
+        ext=optarg; break;
       case '?':
         fprintf(stderr,"Unknown option: %c\n", optopt);
         exit(1);
@@ -152,7 +177,7 @@ int main (int argc, char **argv) {
     fputs("\n",stderr);  
   }
   // check command line
-  if(maxiter<1 || topk<1) {
+  if(maxiter<1 || topk<1 || nblocks<1) {
     fprintf(stderr,"Error! Options -b -m and -k must be at least one\n");
     usage_and_exit(argv[0]);
   }
@@ -161,12 +186,12 @@ int main (int argc, char **argv) {
     usage_and_exit(argv[0]);
   }
   
-  
+
   // virtually get rid of options from the command line 
   optind -=1;
   if (argc-optind != 3) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
-  
+
   // ----------- read column count file and get matrix size 
   u_int32_t *outd = NULL;
   size_t size;
@@ -197,16 +222,56 @@ int main (int argc, char **argv) {
     fprintf(stderr,"Number of arcs: %ld\n",arcs);
   }
 
-  // init k2 variables
+  // init k2 variables: single matrix (nblock=1) 
   k2mat_t a=K2MAT_INITIALIZER;
   size_t asize;
+  // init k2 matrices nblocks>1
+  // blocks are sets of rows so that matrix multiplication can be parallelized
+  // each block is acutally a full matrix with the same size of the original matrix
+  k2mat_t rblocks[nblocks];  
+  for(int i=0;i<nblocks;i++) rblocks[i]=a; // struct with all fields set to 0 or NULL
 
-  size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
-  if (verbose) mshow_stats(size,asize,&a,argv[1],stdout);
+  if(nblocks==1) {
+    size_t msize = mload_from_file(&asize, &a, argv[1]); // also init k2 library
+    if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
+    if (verbose) mshow_stats(size,asize,&a,argv[1],stdout);
+  }
+  else {
+    mload_from_file_multipart(&asize, size, rblocks, nblocks, argv[1], ext);
+    if (verbose>1) {
+      for(int i=0;i<nblocks;i++) {
+        char name[FILENAME_MAX];
+        sprintf(name,"%s.%d.%d%s",argv[1],nblocks,i,ext);
+        mshow_stats(size,asize,&rblocks[i],name,stdout);
+      }
+    }
+  }
 
   // ------------ alloc rank and aux vectors
   vector *y = vector_create_value(size,0);
   vector *z = vector_create_value(size,0);
+
+  // data structures for multithread computation (nblocks>1)
+  tdata td[nblocks];
+  pthread_t t[nblocks];
+  sem_t tsem_in, tsem_out;
+  
+  // initialize thread data and start threads
+  if(nblocks>1) {
+    xsem_init(&tsem_in,0,0,__LINE__,__FILE__);
+    xsem_init(&tsem_out,0,0,__LINE__,__FILE__);
+    for(int i=0;i<nblocks;i++) {
+      td[i].a = &rblocks[i];
+      td[i].size = size;
+      td[i].asize = asize;
+      td[i].rv = y;      // right vector
+      td[i].lv = z;      // left vector
+      td[i].op = 0;      // right multiplication
+      td[i].in = &tsem_in;
+      td[i].out = &tsem_out;
+      xpthread_create(&t[i],NULL,&block_main,&td[i],__LINE__,__FILE__);
+    }
+  }
 
   // x_0 = (1/N ... 1/N)^T (no need to write those values)
   // initialze y_0 based on x_0=(1/N ... 1/N)^T and compute dandling nodes rank
@@ -220,8 +285,15 @@ int main (int argc, char **argv) {
   while(iter<maxiter && delta>=eps) {
     #ifdef DETAILED_TIMING
     t1 = times(&ignored);
-    #endif 
-    mvmult(asize,&a,size,y->v,z->v);       // z = M*y
+    #endif
+    if (nblocks==1) 
+      mvmult(asize,&a,size,y->v,z->v, true);       // z = M*y
+    else {
+      for(int i=0;i<nblocks;i++) 
+        xsem_post(&tsem_in,__LINE__,__FILE__);
+      for(int i=0;i<nblocks;i++)
+        xsem_wait(&tsem_out,__LINE__,__FILE__);
+    }
     #ifdef DETAILED_TIMING
     t2 = times(&ignored);
     m1 += (t2-t1);       // measure time for matrix multiplication only
@@ -234,6 +306,7 @@ int main (int argc, char **argv) {
     dnr = delta = 0;
     for(int i=0;i<size;i++) {
       double nextri = dampf*z->v[i] + teleport;
+      z->v[i]=0; // clear z for next multiplication operation
       if (outd[i]==0) {
         delta += fabs(nextri-y->v[i]); // update delta
         dnr += (y->v[i]=nextri);       // update dnr and y_i
@@ -245,6 +318,14 @@ int main (int argc, char **argv) {
     }
     iter++; // iteration complete
     if(verbose>1) fprintf(stderr,"Iteration %d, delta=%g \n",iter,delta);
+  }
+  // stop and join threads
+  if(nblocks>1) {
+    for(int i=0;i<nblocks;i++) {
+      td[i].op = -1; xsem_post(&tsem_in,__LINE__,__FILE__);
+    }
+    for(int i=0;i<nblocks;i++)
+      xpthread_join(t[i],NULL,__LINE__,__FILE__);
   }
   // retrieve the actual rank vector from the last iteration
   for(int i=0;i<size;i++) 
@@ -287,7 +368,10 @@ int main (int argc, char **argv) {
   // destroy everything
   free(top); free(aux);
   vector_destroy(x);
-  matrix_free(&a);
+  // free k2 matrices
+  if(nblocks==1) matrix_free(&a);
+  else for(int i=0;i<nblocks;i++) matrix_free(&rblocks[i]);
+  minimat_reset(); // reset the minimat library and free minimat product table
   #ifdef MALLOC_COUNT
     fprintf(stderr,"Peak memory allocation: %zu bytes, %.4lf bytes/entries\n",
            malloc_count_peak(), (double)malloc_count_peak()/(rows*cols));
@@ -301,6 +385,44 @@ int main (int argc, char **argv) {
 }
 
 
+// function executed by each thread 
+// wait on a semaphore for a new operation to execute
+// on its given matrix
+static void *block_main(void *v)
+{
+  tdata *td = (tdata *) v;
+  assert(td->rv!=NULL); // 
+  assert(td->lv!=NULL); //  
+  assert(td->size <= td->asize);
+  while(true) {
+    // wait for input 
+    xsem_wait(td->in,__LINE__,__FILE__);
+    if(td->op<0) break;  // exit loop
+    else if(td->op==0) { //right mult
+      mvmult(td->asize,td->a,td->size,td->rv->v,td->lv->v,false);
+    }
+    else quit("Unknown operation", __LINE__, __FILE__);
+    // output ready 
+    xsem_post(td->out,__LINE__,__FILE__);
+  }
+  return NULL;
+}
+
+
+
+static void mload_from_file_multipart(size_t *asize, size_t size, k2mat_t *b, int nb, char *name, char *ext) {
+  assert(nb>1);
+  size_t as=0, msize; 
+  // read the other blocks
+  for(int i=0;i<nb;i++) {
+    char fname[FILENAME_MAX];
+    sprintf(fname,"%s.%d.%d%s",name,nb,i,ext);
+    msize = mload_from_file(asize, &b[i], fname); // also init k2 library
+    if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
+    if(as==0) as = *asize;
+    else if(as!=*asize) quit("Internal matrix size mismatch", __LINE__, __FILE__);
+  }
+}
 
 
 // heap based algorithm for finding the k largest ranks

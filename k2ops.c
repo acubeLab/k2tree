@@ -403,14 +403,14 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // with index >= :size are guaranteed to be zero
 // The algorithm must ensures that entries of :x and :y
 // with index >= :size are not accessed
-void mvmult(size_t asize, const k2mat_t *a, size_t size, vfloat *x, vfloat *y)
+void mvmult(size_t asize, const k2mat_t *a, size_t size, vfloat *x, vfloat *y, bool clear_y)
 {
   assert(size <= asize);
   assert(asize>=2*MMsize);
   assert(asize%2==0);
   assert(a!=NULL && x!=NULL && y!=NULL);
-  // initialize y to 0
-  for(size_t i=0;i<size;i++) y[i]=0;
+  // initialize y to 0 if required
+  if(clear_y) for(size_t i=0;i<size;i++) y[i]=0;
   if(k2is_empty(a)) return; // if a is empty the result is 0
   // call recursive multiplication algorithm based on decoding
   size_t pos = 0;

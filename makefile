@@ -18,9 +18,18 @@ all: $(EXECS)
 k2%.x: k2%.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-# rule for k2mult.o k2comp.o k2tcomp
+k2pagerank.x: k2pagerank.o k2ops.o bbm.o
+	$(CC) $(LDFLAGS) -o $@ $^ 
+
+# rule for k2mult.o 
 k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+# rule for k2mult.o 
+k2pagerank.o: k2pagerank.c k2.h bbm.h xerrors.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+
 
 k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<

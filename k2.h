@@ -93,7 +93,7 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // right mutiply a k2 matrix :a by a vector :x writing the result to :y
 // :size is the internal size of the k2 matrices (not the size of the vector 
 // which can be smaller and in that case :a is padded with zeros)
-void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y);
+void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y, bool clear_y);
 // free a k2 matrix
 void matrix_free(k2mat_t *m);
 // make a read-only copy of a k2 matrix without allocating new memory
