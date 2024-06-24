@@ -14,22 +14,16 @@ EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x
 all: $(EXECS)
 
 
-# rule for k2xxx executables
+# rule for generic k2xxx executable
 k2%.x: k2%.o k2ops.o bbm.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-k2pagerank.x: k2pagerank.o k2ops.o bbm.o
-	$(CC) $(LDFLAGS) -o $@ $^ 
-
-# rule for k2mult.o 
+# rule for k2mult.o k2sparse.o
 k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# rule for k2mult.o 
 k2pagerank.o: k2pagerank.c k2.h bbm.h xerrors.h
 	$(CC) $(CFLAGS) -c -o $@ $<
-
-
 
 k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<

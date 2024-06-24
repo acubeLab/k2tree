@@ -154,14 +154,12 @@ int main (int argc, char **argv) {
     }
   }
   matrix_free(&a);
+  minimat_reset(); // reset the minimat library and free minimat product table
 
   // statistics
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
   fprintf(stderr,"==== Done\n");
-  
-  
-  
-  
+    
   return EXIT_SUCCESS;
 }
 

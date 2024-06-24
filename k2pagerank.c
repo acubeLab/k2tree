@@ -186,7 +186,6 @@ int main (int argc, char **argv) {
     usage_and_exit(argv[0]);
   }
   
-
   // virtually get rid of options from the command line 
   optind -=1;
   if (argc-optind != 3) usage_and_exit(argv[0]); 
@@ -289,10 +288,8 @@ int main (int argc, char **argv) {
     if (nblocks==1) 
       mvmult(asize,&a,size,y->v,z->v, true);       // z = M*y
     else {
-      for(int i=0;i<nblocks;i++) 
-        xsem_post(&tsem_in,__LINE__,__FILE__);
-      for(int i=0;i<nblocks;i++)
-        xsem_wait(&tsem_out,__LINE__,__FILE__);
+      for(int i=0;i<nblocks;i++) xsem_post(&tsem_in,__LINE__,__FILE__);   // start threads
+      for(int i=0;i<nblocks;i++) xsem_wait(&tsem_out,__LINE__,__FILE__);  // wait threads 
     }
     #ifdef DETAILED_TIMING
     t2 = times(&ignored);
@@ -340,6 +337,10 @@ int main (int argc, char **argv) {
     for(int i=0;i<size;i++) sum += x->v[i];
     fprintf(stderr,"Sum of ranks: %f (should be 1)\n",sum);
   }  
+  // free k2 matrices
+  if(nblocks==1) matrix_free(&a);
+  else for(int i=0;i<nblocks;i++) matrix_free(&rblocks[i]);
+  minimat_reset(); // reset the minimat library and free minimat product table
   // deallocate z and outd: we may need space for the topk array
   vector_destroy(z);
   free(outd);
@@ -349,7 +350,7 @@ int main (int argc, char **argv) {
   int *top = (int *) malloc(topk*sizeof(*top));
   int *aux = (int *) malloc(topk*sizeof(*top));
   if(top==NULL || aux==NULL) quit("Cannot allocate topk/aux array", __LINE__, __FILE__);
-  kLargest(x->v,aux,(int)size,topk); // fix this!!!
+  kLargest(x->v,aux,(int)size,topk); // only work for size <2^31, fix this!!!
   // get sorted nodes in top
   for(int i=topk-1;i>=0;i--) {
     top[i] = aux[0];
@@ -368,10 +369,6 @@ int main (int argc, char **argv) {
   // destroy everything
   free(top); free(aux);
   vector_destroy(x);
-  // free k2 matrices
-  if(nblocks==1) matrix_free(&a);
-  else for(int i=0;i<nblocks;i++) matrix_free(&rblocks[i]);
-  minimat_reset(); // reset the minimat library and free minimat product table
   #ifdef MALLOC_COUNT
     fprintf(stderr,"Peak memory allocation: %zu bytes, %.4lf bytes/entries\n",
            malloc_count_peak(), (double)malloc_count_peak()/(rows*cols));
@@ -409,11 +406,10 @@ static void *block_main(void *v)
 }
 
 
-
+// loadt the nb blocks of a matrix and store them in the array of k2mat_t
 static void mload_from_file_multipart(size_t *asize, size_t size, k2mat_t *b, int nb, char *name, char *ext) {
   assert(nb>1);
   size_t as=0, msize; 
-  // read the other blocks
   for(int i=0;i<nb;i++) {
     char fname[FILENAME_MAX];
     sprintf(fname,"%s.%d.%d%s",name,nb,i,ext);
@@ -425,8 +421,7 @@ static void mload_from_file_multipart(size_t *asize, size_t size, k2mat_t *b, in
 }
 
 
-// heap based algorithm for finding the k largest ranks
-// in heap order
+// heap based algorithm for finding the k largest ranks in heap order
 
 // A utility function to swap two elements
 static void swap(int* a, int* b) {

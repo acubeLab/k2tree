@@ -285,6 +285,7 @@ void minimat_init(int m)
 {
   (void) m;
 }
+void minimat_reset() {}
 
 // ----------- static auxiliary functions ------------
 

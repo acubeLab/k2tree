@@ -32,6 +32,7 @@ typedef struct b128mat {
 
 // do nothing, added for compatibility with k2mat
 void minimat_init(int);
+void minimat_reset(void);
 // save a b128-matrix to file
 void msave_to_file(size_t size, size_t asize, const b128mat_t *a, const char *filename);
 // load a b128-matrix from file
