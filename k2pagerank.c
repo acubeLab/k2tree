@@ -122,7 +122,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] matrix col_count_file\n",name);
     fprintf(stderr,"\t\t-v             verbose\n");
     fprintf(stderr,"\t\t-b num         number of row blocks, default: 1\n");
-    fprintf(stderr,"\t\t-x ext         extension to add when b>1, default: \".k2\"\n");
+    fprintf(stderr,"\t\t-x ext         extension (only added when b>1), default: \".k2\"\n");
     fprintf(stderr,"\t\t-m maxiter     maximum number of iterations, default: 100\n");
     fprintf(stderr,"\t\t-e eps         stop if error<eps (default: ignore error)\n");
     fprintf(stderr,"\t\t-d df          damping factor (default: 0.9)\n");
@@ -234,7 +234,7 @@ int main (int argc, char **argv) {
   if(nblocks==1) {
     size_t msize = mload_from_file(&asize, &a, argv[1]); // also init k2 library
     if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
-    if (verbose) mshow_stats(size,asize,&a,argv[1],stdout);
+    if (verbose>1) mshow_stats(size,asize,&a,argv[1],stdout);
   }
   else {
     mload_from_file_multipart(&asize, size, rblocks, nblocks, argv[1], ext);

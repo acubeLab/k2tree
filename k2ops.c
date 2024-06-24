@@ -399,10 +399,12 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // multiply :asize x :asize k2 compressed matrix :a by vector :x
 // storing the result in vector :y
 // :a must be of size at least 2*MMsize
-// :x and :y are both of :size <= :asize. :a elements 
-// with index >= :size are guaranteed to be zero
-// The algorithm must ensures that entries of :x and :y
+// :x and :y are both of :size <= :asize. 
+// :a elements with index >= :size are guaranteed to be zero
+// The algorithm ensures that entries of :x and :y
 // with index >= :size are not accessed
+// if clear_y is true y is initialized to 0, otherwise newly computed values are simply 
+// added to y (this is used for example in multithread matrix-vector multiplication) 
 void mvmult(size_t asize, const k2mat_t *a, size_t size, vfloat *x, vfloat *y, bool clear_y)
 {
   assert(size <= asize);
