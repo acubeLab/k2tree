@@ -65,6 +65,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <sys/times.h>
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef B128MAT
 #include "b128.h"
@@ -100,8 +101,12 @@ typedef struct {
   size_t size;   // size of the input/output vectors
   size_t asize;  // internal size of the matrix block
   int op;        // operation to execute
+  #ifndef USE_BARRIER
   sem_t *in;     // semaphore for input shared with the main thread
   sem_t *out;    // semaphore for output shared with the main thread
+  #else
+  pthread_barrier_t *barrier; // barrier for synchronization
+  #endif
 } tdata;
 
 
@@ -253,12 +258,20 @@ int main (int argc, char **argv) {
   // data structures for multithread computation (nblocks>1)
   tdata td[nblocks];
   pthread_t t[nblocks];
+  #ifndef USE_BARRIER
   sem_t tsem_in, tsem_out;
-  
+  #else
+  pthread_barrier_t tbarrier;
+  #endif
+
   // initialize thread data and start threads
   if(nblocks>1) {
+    #ifndef USE_BARRIER
     xsem_init(&tsem_in,0,0,__LINE__,__FILE__);
     xsem_init(&tsem_out,0,0,__LINE__,__FILE__);
+    #else
+    pthread_barrier_init(&tbarrier,NULL,nblocks+1);
+    #endif
     for(int i=0;i<nblocks;i++) {
       td[i].a = &rblocks[i];
       td[i].size = size;
@@ -266,8 +279,12 @@ int main (int argc, char **argv) {
       td[i].rv = y;      // right vector
       td[i].lv = z;      // left vector
       td[i].op = 0;      // right multiplication
+      #ifndef USE_BARRIER
       td[i].in = &tsem_in;
       td[i].out = &tsem_out;
+      #else
+      td[i].barrier = &tbarrier;
+      #endif
       xpthread_create(&t[i],NULL,&block_main,&td[i],__LINE__,__FILE__);
     }
   }
@@ -288,8 +305,13 @@ int main (int argc, char **argv) {
     if (nblocks==1) 
       mvmult(asize,&a,size,y->v,z->v, true);       // z = M*y
     else {
+      #ifndef USE_BARRIER
       for(int i=0;i<nblocks;i++) xsem_post(&tsem_in,__LINE__,__FILE__);   // start threads
       for(int i=0;i<nblocks;i++) xsem_wait(&tsem_out,__LINE__,__FILE__);  // wait threads 
+      #else
+      pthread_barrier_wait(&tbarrier);
+      pthread_barrier_wait(&tbarrier);
+      #endif
     }
     #ifdef DETAILED_TIMING
     t2 = times(&ignored);
@@ -319,8 +341,14 @@ int main (int argc, char **argv) {
   // stop and join threads
   if(nblocks>1) {
     for(int i=0;i<nblocks;i++) {
-      td[i].op = -1; xsem_post(&tsem_in,__LINE__,__FILE__);
+      td[i].op = -1;
+      #ifndef USE_BARRIER 
+      xsem_post(&tsem_in,__LINE__,__FILE__);
+      #endif
     }
+    #ifdef USE_BARRIER
+    pthread_barrier_wait(&tbarrier);
+    #endif
     for(int i=0;i<nblocks;i++)
       xpthread_join(t[i],NULL,__LINE__,__FILE__);
   }
@@ -375,7 +403,7 @@ int main (int argc, char **argv) {
     fprintf(stderr,"Current memory allocation: %zu bytes\n", malloc_count_current());
   #endif
   #ifdef DETAILED_TIMING
-  fprintf(stderr,"Total mult time (secs): %lf  Average: %lf\n", ((double)m1)/sysconf(_SC_CLK_TCK), ((double)m1/iter)/sysconf(_SC_CLK_TCK));
+  fprintf(stderr,"Total mult time (secs): %lf  Average: %lf\n", (1.0*m1)/sysconf(_SC_CLK_TCK), (1.0*m1/iter)/sysconf(_SC_CLK_TCK));
   #endif
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));  
   return 0;
@@ -392,15 +420,23 @@ static void *block_main(void *v)
   assert(td->lv!=NULL); //  
   assert(td->size <= td->asize);
   while(true) {
-    // wait for input 
+    // wait for input
+    #ifndef USE_BARRIER 
     xsem_wait(td->in,__LINE__,__FILE__);
+    #else
+    pthread_barrier_wait(td->barrier);
+    #endif
     if(td->op<0) break;  // exit loop
     else if(td->op==0) { //right mult
       mvmult(td->asize,td->a,td->size,td->rv->v,td->lv->v,false);
     }
     else quit("Unknown operation", __LINE__, __FILE__);
-    // output ready 
+    // output ready
+    #ifndef USE_BARRIER 
     xsem_post(td->out,__LINE__,__FILE__);
+    #else
+    pthread_barrier_wait(td->barrier);
+    #endif
   }
   return NULL;
 }

@@ -6,21 +6,22 @@ K2TOOL = "k2sparse.x"
 K2EXT = ".k2"
 
 Description = """
-Quick and dirty tool that takes a text file containing the list of pairs <row col> 
-of the positions of the nonzeros of a binary matrix in row major order, 
-and a parameter b, and splits the list into b files (almost) equally distributing 
-the nonzeros among them. The files are later compressed individually with k2sparse.x
+Quick and dirty tool that takes a text file containing the list of
+pairs of row/column indices of the nonzeros of a binary matrix
+and a parameter b, and splits the list into b files 
+(almost) equally distributing the nonzeros among them. 
+The files are later compressed individually with k2sparse.x
 
-The nonzeros are almost equally distributed since the nonzers of a given row always 
-go together in the same file: we are splitting the matrix by rows since this 
-simplify the matrix-vector multiplication. Note that the index of the row elements 
-are not modified in the copy.
+The nonzeros are almost equally distributed since the nonzers of a given row 
+always go together in the same file: we are splitting the matrix by rows 
+since this simplifies the matrix-vector multiplication. Note that the index 
+of the row elements are not modified in the copy.
 
 If the number of nonzero is not provided with the -n option the program will
 get it counting the number of lines in the input file.
 
-The input file is assumed to be sorted by row: it is not necessary that elements
-in the same row are also sorted by column"""
+The input file is assumed to be sorted by row: it is not necessary that 
+elements in the same row are also sorted by column"""
 
 
 
