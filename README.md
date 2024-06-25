@@ -107,15 +107,15 @@ Usage:
       k2sparse.x [options] filename
 
 Options:
-    -d      decompress
-    -n      do not write the output file, only show stats
-    -o out  outfile name (def. compr: infile.k2, decompr: infile.txt)
-    -s S    matrix actual size (def. largest index+1), compression only
-    -m M    minimatrix size (def. 2), compression only
-    -1      do not compact all 1's submatrices, compression only
-    -c      compress->decompress->check
-    -h      show this help message
-    -v      verbose
+	-d      decompress
+	-n      do not write the output file, only show stats
+	-o out  outfile name (def. compr: infile.k2, decompr: infile.txt)
+	-s S    matrix actual size (def. largest index+1) [compression only]
+	-m M    minimatrix size (def. 2) [compression only]
+	-1      compact all 1's submatrices [compression only]
+	-c      compress->decompress->check
+	-h      show this help message
+	-v      verbose
 
 Default action is to compress filename to filename.k2
 ```
@@ -132,7 +132,7 @@ By default the input matrix is assumed to be of size 1+(largest index in the inp
 
 
 
-### Product of matrices in k2 format
+## Product of matrices in k2 format
 
 The executable `k2mult.c` can be used to multiply two compressed matrices in k2 format. The matrices must have the same size and must have been compressed with the same `-m` parameter. The output is still in k2 format.
 
@@ -171,10 +171,19 @@ should eventually display the matrix `t8.bbm` squared:
     1    1    1    1    0    1    1    1
 ```
 
+## Pagerank computation 
 
-### Matrices represented as bitarrays
+The Pagerank is ideal for testing the speed of the matrix-vector product in a real-world scenario.
+Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
+it using the `mtx2rowm` tool that ...
 
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the interchange between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^30$. 
+
+
+
+
+## Matrices represented as bitarrays
+
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^30$. 
 
 The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
 
@@ -185,7 +194,7 @@ The program `bbmmult.x` computes the product of two `.bbm` matrices using `openm
 
 
 
-### Additional tools 
+## Additional tools 
 
 
 The program `k2info.x` display statics on the k2-compressed files passed on the command line.

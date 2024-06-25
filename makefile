@@ -23,7 +23,7 @@ k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 k2pagerank.o: k2pagerank.c k2.h bbm.h xerrors.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $< -DDETAILED_TIMING
 
 k2bpagerank.o: k2pagerank.c k2.h bbm.h xerrors.h
 	$(CC) $(CFLAGS) -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING

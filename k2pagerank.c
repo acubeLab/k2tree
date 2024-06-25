@@ -50,7 +50,14 @@
  *   3. compute the new rank values but do not store them, instead
  *      compute the error, dnr, and Y for the next iteration
  
-   Copyright August 2024-today   ---  giovanni.manzini@unipi.it
+ * Note: the program can be compiled with -DUSE_BARRIER to use pthread barriers
+ *       instead of semaphores for synchronization between the main thread and
+ *       the worker threads. Experiments show that the barrier version is
+ *       minimally faster than the semaphore version (183 vs 185 for it-2004) 
+ *       using 8 threads on a machine with plenty of cores. 
+ * 
+ * 
+   Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
