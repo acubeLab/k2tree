@@ -175,9 +175,9 @@ should eventually display the matrix `t8.bbm` squared:
 
 The Pagerank is ideal for testing the speed of the matrix-vector product in a real-world scenario.
 Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
-it using the `mtx2rowm` tool that ...
-
-
+it using the `mtx2rowm` tool that after the conversion provides some minimal instructions to
+compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank  
+vector (using `k2pagerank.x`) possilby using multiple threads. 
 
 
 

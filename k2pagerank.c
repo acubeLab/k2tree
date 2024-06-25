@@ -55,8 +55,21 @@
  *       the worker threads. Experiments show that the barrier version is
  *       minimally faster than the semaphore version (183 vs 185 for it-2004) 
  *       using 8 threads on a machine with plenty of cores. 
+ *       Compiling with -DDETAILED_TIMING provides the time spent in matrix
+ *       multiplication only which turns out to use roughly 90% of the total time
+ *       (168 out of 184 for it-2004 8 threads) this suggests that 
+ *       parallelizing the vector update and error computation beween 
+ *       multiplications would not provide a significant speedup.
+ *       Similar results are obtained for arabic-2005.
+ *       Experiments for 16 threads on it-2004 confirm this trend:
+ *          semaphores:  elapsed 107, multiplication only: 89 secs
+ *          barriers:    elapsed 106, multiplication only: 90 secs
+ *       I tried to measure the memory usage with malloc_count but it seems
+ *       that the library is no longer working properly.
  * 
- * 
+ *       Although the code contains macros referring to the b128mat econding
+ *       it cannot be compiled with -DB128MAT because the b128 library is
+ *       missing (at least) the matrix vector multiplication functions.   
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
@@ -85,7 +98,9 @@ extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type
 #include "bbm.h"
-#include "xerrors.h"
+#include "extra/xerrors.h"
+
+
 
 // for compatibilty with matrepair
 typedef struct {
@@ -125,7 +140,7 @@ static void minHeapify(double v[], int arr[], int n, int i);
 static void kLargest(double v[], int arr[], int n, int k);
 static vector *vector_create_value(size_t n, vfloat v);
 static void vector_destroy(vector *v);
-static  void mload_from_file_multipart(size_t *, size_t, k2mat_t *, int, char *, char *);
+static void mload_from_file_multipart(size_t *, size_t, k2mat_t *, int, char *, char *);
 static void *block_main(void *v);
 
 
@@ -222,13 +237,13 @@ int main (int argc, char **argv) {
     if(fclose(ccol_file)!=0) quit("Error closing col_count_file", __LINE__, __FILE__);
   }
 
+  // compute # dandling nodes and arcs if verbose
   if(verbose>0) {
     fprintf(stderr,"Number of nodes: %ld\n",size);
     long dn=0,arcs=0;
-    for(int i=0;i<size;i++) {
+    for(int i=0;i<size;i++)
       if(outd[i]==0) dn++;
       else arcs += outd[i];
-    }
     fprintf(stderr,"Number of dandling nodes: %ld\n",dn);
     fprintf(stderr,"Number of arcs: %ld\n",arcs);
   }
@@ -404,13 +419,9 @@ int main (int argc, char **argv) {
   // destroy everything
   free(top); free(aux);
   vector_destroy(x);
-  #ifdef MALLOC_COUNT
-    fprintf(stderr,"Peak memory allocation: %zu bytes, %.4lf bytes/entries\n",
-           malloc_count_peak(), (double)malloc_count_peak()/(rows*cols));
-    fprintf(stderr,"Current memory allocation: %zu bytes\n", malloc_count_current());
-  #endif
   #ifdef DETAILED_TIMING
-  fprintf(stderr,"Total mult time (secs): %lf  Average: %lf\n", (1.0*m1)/sysconf(_SC_CLK_TCK), (1.0*m1/iter)/sysconf(_SC_CLK_TCK));
+  fprintf(stderr,"Total mult time (secs): %lf  Average: %lf\n", ((double)m1)/((double)sysconf(_SC_CLK_TCK)), 
+                                                         ((double)m1/(double)iter)/((double) sysconf(_SC_CLK_TCK)));
   #endif
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));  
   return 0;
@@ -449,7 +460,7 @@ static void *block_main(void *v)
 }
 
 
-// loadt the nb blocks of a matrix and store them in the array of k2mat_t
+// load the nb blocks of a matrix and store them in the array of k2mat_t
 static void mload_from_file_multipart(size_t *asize, size_t size, k2mat_t *b, int nb, char *name, char *ext) {
   assert(nb>1);
   size_t as=0, msize; 
