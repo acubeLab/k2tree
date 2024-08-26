@@ -30,7 +30,7 @@
    
    Recall than when working with values >= 2^32 stored in an uint64_t 
    we cannot safely compute products: this is why we have the functions
-   altb2 and aeqb2 testing whether a<b*b or a==b*b without multiplications 
+   a_lt_b2 and a_eq_b2 testing whether a<b*b or a==b*b without multiplications 
     
    The conversion k2->txt is done doing a visit of the tree in preorder and
    each time a nonzero entry is found its indices are written to the output file 
@@ -51,8 +51,8 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat_t *c);
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
-static __inline__ bool a_eq_b2(uint64_t a, uint64_t b);
-static __inline__ bool a_lt_b2(uint64_t a, uint64_t b);
+static inline bool a_eq_b2(uint64_t a, uint64_t b);
+static inline bool a_lt_b2(uint64_t a, uint64_t b);
 
 
 
@@ -138,17 +138,17 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
 
 // compare a and b^2 with only operations
 // involving uint64_t and without overflow 
-static __inline__ bool a_eq_b2(uint64_t a, uint64_t b)
+static inline bool a_eq_b2(uint64_t a, uint64_t b)
 {
   return (a/b==b) ? (a%b==0) : false;
 }
 
-static __inline__ bool a_lt_b2(uint64_t a, uint64_t b) 
+static inline bool a_lt_b2(uint64_t a, uint64_t b) 
 {
   return (a/b<b);
 }
 
-// in a sorted uint64_t array ia[0,n-1] containing distinct values find 
+// given a sorted uint64_t array ia[0,n-1] containing distinct values find 
 // the first entry >= x using binary search 
 // return n if no such entry exists
 static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
@@ -172,22 +172,22 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x) {
 // into a k2mat_t structure
 // Parameters:
 //   ia[0,n-1] array containing the distinct interleaved entries 
-//   imin  smallest value assigned to the current submatrix 
+//   smin  smallest value assigned to the current submatrix 
 //   size  submatrix size (has the form 2^k*MMsize)
 //   *c    output k2mat_t structure to be filled in dfs order
-// all entries in ia[0,n-1] are in the range [imin, imin+size*size) 
+// all entries in ia[0,n-1] are in the range [smin, smin+size*size) 
 // all these entries must be encoded in the k2mat c 
-// In previous versions of the code also the parameter imax = imin+size^2
+// In previous versions of the code also the parameter imax = smin+size^2
 // was used explicitly: it has been removed since for size==2^32
-// such value could be 2^64 and tehrefore not representable in a uint64  
+// such value could be 2^64 and therefore not representable in a uint64  
 // called by mread_from_ia()
-static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat_t *c) {
-  //printf("Size=%zu, n=%zu, imin=%lu\n",size,n,imin);
+static void mencode_ia(uint64_t *ia, size_t n, uint64_t smin, size_t size, k2mat_t *c) {
+  //printf("Size=%zu, n=%zu, smin=%lu\n",size,n,smin);
   assert(ia!=NULL);
   assert(n>0);
-  assert(ia[0]>=imin); 
-  // assert(ia[n-1]<imin+size*size); replaced by the following line
-  assert( a_lt_b2(ia[n-1]-imin, size)); 
+  assert(ia[0]>=smin); 
+  // assert(ia[n-1]<smin+size*size); replaced by the following line
+  assert( a_lt_b2(ia[n-1]-smin, size)); 
   assert(size%2==0 && size>=2*MMsize);
   // case of a full submatrix
   if(a_eq_b2(n,size) && Use_all_ones_node) { // equivalent to (n==size*size) but no overflow   
@@ -197,14 +197,14 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat
   // determine range of submatrices
   assert(size/2<UINT32_MAX);  // check that size/2 can be squared without overflow 
   uint64_t range = (size/2)*(size/2);
-  uint64_t left = imin + range;
+  uint64_t left = smin + range;
   uint64_t mid = left+range;
   uint64_t right = mid+range;
-  // printf("range=%lu imax-imin=%lu\n",range,right+range-imin);
+  // printf("range=%lu imax-smin=%lu\n",range,right+range-smin);
   if(size==1UL+UINT32_MAX) // max value size=2^32 treated separately
-    assert(right-imin>0 && right-imin+range==0); // equiv to right-imin+range==2^64
+    assert(right-smin>0 && right-smin+range==0); // equiv to right-smin+range==2^64
   else   
-    assert(a_eq_b2(right-imin+range,size));  // equiv to: right+range == imin + size^2
+    assert(a_eq_b2(right-smin+range,size));  // equiv to: right+range == smin + size^2
   // determine range in ia[] of the 4 submatrices entries
   size_t imid = binsearch(ia,n,mid);    //   first entry of A[10]
   size_t ileft = imid>0 ? binsearch(ia,imid,left):0; // first entry of A[01]
@@ -212,7 +212,7 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat
   // the four submatrices are: 
   //    ia[0,ileft-1], ia[ileft,imid-1], ia[imid,iright-1], ia[iright,n-1]
   // and contain values in the ranges
-  //    [imin,left), [left,mid), [mid,right), [right,imin+size^2)
+  //    [smin,left), [left,mid), [mid,right), [right,smin+size^2)
   // start building c
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_ONES as root placeholder 
   node_t rootc=NO_CHILDREN;                 // actual root node to be computed
@@ -221,9 +221,9 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat
   if(ileft>0) { // submatrix 00 is not empty
     rootc |= (1<<0); // set 00 bit
     if(size>2*MMsize) // if size>2*MMsize recurse
-      mencode_ia(ia,ileft,imin,size/2,c);
+      mencode_ia(ia,ileft,smin,size/2,c);
     else { // size==2*MMsize: write a minimatrix
-      minimat_t cx = minimat_from_ia(ia,ileft,imin,size/2);
+      minimat_t cx = minimat_from_ia(ia,ileft,smin,size/2);
       k2add_minimat(c,cx);
     }
   }
