@@ -10,7 +10,8 @@
 #ifndef _K2TYPEDEFS_H
 #define _K2TYPEDEFS_H 1
 
-
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>

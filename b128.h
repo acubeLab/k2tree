@@ -5,6 +5,8 @@
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
+#include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>

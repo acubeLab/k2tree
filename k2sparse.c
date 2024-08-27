@@ -13,8 +13,6 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
@@ -33,11 +31,13 @@ bool Use_all_ones_node; // not used: added for compatibility with k2mat
 #else // k2mat
 #include "k2.h"
 #define default_cext ".k2"
-extern bool Use_all_ones_node; // use the special ALL_ONES node?
+extern bool Use_all_ones_node; // use the special ALL_ONES node
 #endif
 // used by both matrix type 
 #define default_dext ".txt"
 #define matrix_checker "matrixcmp.x"
+// global variable used only for k2 matrices 
+int32_t Depth_subtree_size_save = 0; // levels for which we save subtree size (def 0)
 
 
 // static functions at the end of the file
@@ -60,7 +60,7 @@ int main (int argc, char **argv) {
   int64_t xsize = 0;
   char *outfile = NULL;
   Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "o:m:s:dcnhv1")) != -1) {
+  while ((c=getopt(argc, argv, "o:m:s:dcnhv1D")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -77,6 +77,8 @@ int main (int argc, char **argv) {
         mmsize = atoi(optarg); break;
       case '1':
         Use_all_ones_node = true; break;
+      case 'D':
+        Depth_subtree_size_save = atoi(optarg); break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -177,6 +179,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1) [compression only]\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2) [compression only]\n");
     fprintf(stderr,"\t-1      compact all 1's submatrices [compression only]\n");
+    fprintf(stderr,"\t-D D    limit for storing subtree sizes (def. 0) [compression only]\n");
     #endif  
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    
