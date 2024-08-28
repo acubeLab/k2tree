@@ -8,7 +8,7 @@
    (virtually since they are not stored)
 
    The conversion txt->k2 is done using an auxiliary "interleaved" array:
-   each matrixc entry consits of two uint32_t (row and column indices).
+   each matrix entry consists of two uint32_t (row and column indices).
    A unique entry identifier is obtained interleaving the bits of the two indices:
    as in:    r31 c31 ... r2 c2 r1 c1 r0 c0   where
    ri is the i-th bit of the row index and ci is the i-th bit of the column index
@@ -235,7 +235,7 @@ size_t k2dfs_size_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *sa_p
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize)  // end of recursion
-        *pos += (child_size = Minimat_node_ratio);
+        *pos += (child_size = Minimat_node_ratio)
       else { // recurse on submatrix
         child_size =  k2dfs_size_visit(size/2,m,pos,sa_pos,depth2check-1); // read submatrix and advance pos
       }
@@ -256,6 +256,128 @@ size_t k2dfs_size_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *sa_p
   assert(*pos == pos_save + subtree_size); // we should not go beyond the end of the k2mat_t structure
   return subtree_size;
 }
+
+
+typedef struct {
+  uint64_t *v;    // array of u64's
+  size_t n;          // number of elements 
+  size_t nmax;       // maximumt capacity 
+} u64_vector_t;
+
+
+
+// do a dfs visit of the k2 matrix :m and write the subtree sizes and the econding 
+// of the size in the all_sizes growing array z
+// the returned value is the total size of the k2 matrix and in the upper 16 bits
+// the cost of encoding the sizes (in # of u16's)
+// 
+// Assuming the root of T has tree children the subtree represention is something like:
+//   R111111111222222333333333333
+// we need to compute and return the total size of the representation ie the length of 
+// the above string (ie #R(==1) + #1 + #2 + #3)  and we need to store in z an ecoding 
+// of #1 and #2 followed by the same information for the subtrees 1, 2 and 3
+// This information stored in z for T will be called the subtree information for T.
+// We can fill z with a DFS visit of the k2tree, when we reach the a subtree T
+// aboe we leave two empty slots in z, call the function recursively getting 
+// #1, #2 and #3, storing #1, #2 in the empty slots and return 1 + #1 + #2 + #3
+// However, since z is used to skip subtree 1 and/or 2, in z together with 
+// #1 we also need to store the total information stored in z for the subtree 
+// rooted at 1, and the same for the subtree rooted at 2.
+// Hence, array t will not simply contain the encoding of 
+//     <#1> <#2> info_Sub(1) info_Sub(2) info_Sub(3)
+// (where < > denotes an encoding, for example 7x8), but
+//     <#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|> info_Sub(1) info_Sub(2) info_Sub(3) 
+// (to complicate things info Sub(i) is different from above because 
+//  now includes the additional values <|info Sub()|> for the subtrees  
+// To do the computation this function, for each subtree T, returns 2 values:
+//   1. the total length of T (as before, 1+ #1 + #2 + #3)
+//   2. the total length of the above complete encoding for of T subtree information
+//      If E1, E2, E3 are the lenghts of the encodings 
+//      for the subtree  Ei = |info Sub(i)|   (obtained by the recursive calls) 
+//      the the cost of the encoding  of T is 
+//        |<#1>| + |<E1>| + |<#2>| + |<E2>| + E1 + E2 + E3
+//      note that in t empty slots the function has to store 
+//      the values #1 E1 #2 E2
+// To simplify the code (!!!) the function returns a single u64, with
+// the less significant 48 bits storing the total length of T (item 1)
+// and in the more significant 16 bits the lengths of the econdings
+// Hence the recursive calls return: 
+//      A1 = #1--E1,    A2 = #2--E2,    A3 = #3--E3
+// and the function should return
+//      1+ #1 + #2 + #3 -- |<#1>| + |<E1>| + |<#2>| + |<|E2|>| + E1 + E2 + E3
+// assuming there are no overflows, the desired value is
+//      1+A1+A2+A3 + (|<#1>| + |<E1>| + |<#2>| + |<|E2|>|)<<48
+// The above scheme is valid for ordinary internal nodes. 
+// If T is an ALL_ONES leaf, then its size is 1 and the size of the 
+//  subtree sizes encoding is 0.
+// If T has height 1, then its size is 1+#child*Minimat_node_ratio
+//  but there is no need to store the subtree size information since 
+//  each subtree has size Minimat_node_ratio
+// If T has depth2go==1 we need to store the subtree size information 
+//  for T as usual, but we know that we are not storing information for
+//  T subtrees so E1=E2=E3=0. Since this is something we can check
+//  during the visit we can simply avoid storing <E1> and <E2>
+//  (we can change that, if we want to use a non fied depth partitioning)
+// If T has depth2go<=0 we need to report T size as usual, but 
+//  we do not need to store any subtree information and we report 0 
+//  as the total lenght  of the subtree information
+// Note that in this function we are not actually encoding the values 
+// but computing the values that will be later encoded. Such values are stored 
+// in z using the above 48+16 scheme, the values then have to be stored (on disk)
+// using the appropriate scheme. In a first attempt we can avoid the encoding
+// and just use the array z as above. In that case we can measure everything
+// in uint64's so we simply have that |<#1>| + |<E1>| = 1 (1 uint64_t)
+uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, u64_vector_t *z, int32_t depth2go)
+{
+  assert(size>MMsize);
+  assert(size%2==0);
+  assert(*pos<m->pos); // implies m is non-empty
+  size_t pos_save = *pos;  // save starting position of subtree
+  node_t root = k2read_node(m,*pos); (*pos)++;
+  assert(root<ILLEGAL_NODE); 
+  if(root==ALL_ONES) { 
+    assert(Use_all_ones_node);
+    return 1; // all 1's matrix consists of root only, subtree size is 1
+  }
+  // we have a non-singleton subtree to traverse 
+  // compute number of children
+  size_t nchildren = __builtin_popcountll(root);
+  assert(nchildren>0 && nchildren<=4);
+
+  size_t zn_save = *z->n; // save starting position in size_array[]
+  if(depth2check>0)
+    *sa_pos += (nchildren-1); // skip entries for children (except last)
+  size_t subtree_size = 1;     // account for root node
+  size_t child_size = 0;       // size of a child subtrees
+  size_t csize[4];             // sizes of the children subtrees
+  size_t cpos = 0;             // current position in size[]
+  for(int i=0;i<4;i++) 
+    if(root & (1<<i)) {
+      if(size==2*MMsize)  // end of recursion
+        *pos += (child_size = Minimat_node_ratio);
+      else { // recurse on submatrix
+        child_size =  k2dfs_sizes(size/2,m,pos,t,depth2go-1); // read submatrix and advance pos
+      }
+      subtree_size += (csize[cpos++] = child_size);
+    }
+  assert(cpos==nchildren); // we should have visited all children
+  // check subtree size for all children except last one
+  if(depth2check>0) {
+    for(int i=0; i<cpos-1; i++) {
+      assert(sa_pos_save+i < SIZEADIM); // we must stay within size_array[]
+      if(size_array[sa_pos_save + i] != csize[i]) {
+        fprintf(stderr,"Mismatch: Subtree size stored %zu computed: %zu (size: %zu)\n",
+                size_array[sa_pos_save + i],csize[i],size);
+      }
+      // else fprintf(stdout,"OK: Subtree size stored %zu computed: %zu (size: %zu)\n",size_array[sa_pos_save + i],csize[i],size);
+    }
+  }
+  assert(*pos == pos_save + subtree_size); // we should not go beyond the end of the k2mat_t structure
+  return subtree_size;
+}
+
+
+
 
 
 // compress the matrix of size msize represented by the interleaved
