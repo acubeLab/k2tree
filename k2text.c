@@ -107,8 +107,8 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 
 
 // subtree size computation and verification 
-extern int32_t Depth_subtree_size_save;
-#define SIZEADIM 1000
+int32_t Depth_subtree_size_save=0;
+#define SIZEADIM 1000000
 static size_t size_array[SIZEADIM];
 static size_t size_array_pos=0;
 
@@ -242,7 +242,6 @@ size_t k2dfs_size_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *sa_p
       subtree_size += (csize[cpos++] = child_size);
     }
   assert(cpos==nchildren); // we should have visited all children
-  assert(cpos>0 && cpos <=4);      // at least one submatrix is not empty
   // check subtree size for all children except last one
   if(depth2check>0) {
     for(int i=0; i<cpos-1; i++) {
@@ -251,17 +250,12 @@ size_t k2dfs_size_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *sa_p
         fprintf(stderr,"Mismatch: Subtree size stored %zu computed: %zu (size: %zu)\n",
                 size_array[sa_pos_save + i],csize[i],size);
       }
-      else  {
-        fprintf(stdout,"OK: Subtree size stored %zu computed: %zu (size: %zu)\n",
-                size_array[sa_pos_save + i],csize[i],size);
-      }
+      // else fprintf(stdout,"OK: Subtree size stored %zu computed: %zu (size: %zu)\n",size_array[sa_pos_save + i],csize[i],size);
     }
   }
   assert(*pos == pos_save + subtree_size); // we should not go beyond the end of the k2mat_t structure
   return subtree_size;
 }
-
-
 
 
 // compress the matrix of size msize represented by the interleaved
@@ -297,7 +291,7 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
     puts("Computing and checking subtree sizes");
     size_t pos;
     pos = getsize_ia(ia,n,0,asize,Depth_subtree_size_save);
-    printf("Returned by getsize_is: %zu, sizes stored: %zu\n", pos, size_array_pos);
+    printf("Returned by getsize_ia: %zu, sizes stored: %zu\n", pos, size_array_pos);
     pos = 0; size_array_pos = SIZEADIM - size_array_pos; // start from the end
     size_t tot = k2dfs_size_visit(asize,a,&pos,&size_array_pos,Depth_subtree_size_save);
     printf("Total size of k2 matrix: %zu, pos=%zu\n",tot,pos);

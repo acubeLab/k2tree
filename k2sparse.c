@@ -28,16 +28,18 @@
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
 bool Use_all_ones_node; // not used: added for compatibility with k2mat 
+int32_t Depth_subtree_size_save; // not used: added for compatibility with k2mat 
 #else // k2mat
 #include "k2.h"
 #define default_cext ".k2"
 extern bool Use_all_ones_node; // use the special ALL_ONES node
+extern int32_t Depth_subtree_size_save; // levels for which we save subtree size (def 0)
 #endif
 // used by both matrix type 
 #define default_dext ".txt"
 #define matrix_checker "matrixcmp.x"
 // global variable used only for k2 matrices 
-int32_t Depth_subtree_size_save = 0; // levels for which we save subtree size (def 0)
+
 
 
 // static functions at the end of the file
@@ -60,6 +62,7 @@ int main (int argc, char **argv) {
   int64_t xsize = 0;
   char *outfile = NULL;
   Use_all_ones_node = false;
+  Depth_subtree_size_save = 0;
   while ((c=getopt(argc, argv, "o:m:s:D:dcnhv1")) != -1) {
     switch (c) 
       {
