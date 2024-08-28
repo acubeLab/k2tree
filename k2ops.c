@@ -13,8 +13,8 @@
 #define _GNU_SOURCE
 #endif
 #pragma GCC target ("sse4.2")  // ensure sse4.2 compiler switch it is used 
-#include "k2aux.c"
-#include "k2text.c"
+#include "k2aux.c"    // includes minimats.c k2.h bbm.h
+#include "k2text.c"   // includes k2.h 
 #include "bbm.h"
 
 static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);

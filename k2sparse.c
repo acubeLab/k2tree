@@ -60,7 +60,7 @@ int main (int argc, char **argv) {
   int64_t xsize = 0;
   char *outfile = NULL;
   Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "o:m:s:dcnhv1D")) != -1) {
+  while ((c=getopt(argc, argv, "o:m:s:D:dcnhv1")) != -1) {
     switch (c) 
       {
       case 'o':

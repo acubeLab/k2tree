@@ -107,7 +107,7 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 
 
 // subtree size computation and verification 
-
+extern int32_t Depth_subtree_size_save;
 #define SIZEADIM 1000
 static size_t size_array[SIZEADIM];
 static size_t size_array_pos=0;
@@ -216,7 +216,7 @@ size_t k2dfs_size_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *sa_p
   assert(*pos<m->pos); // implies m is non-empty
   size_t pos_save = *pos;  // save starting position of subtree
   node_t root = k2read_node(m,*pos); (*pos)++;
-  assert(root<ILLEGAL_NODE); // all 1's matrix should not be visited
+  assert(root<ILLEGAL_NODE); 
   if(root==ALL_ONES) { 
     assert(Use_all_ones_node);
     return 1; // all 1's matrix consists of root only, subtree size is 1
@@ -235,23 +235,24 @@ size_t k2dfs_size_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *sa_p
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize)  // end of recursion
-        child_size = Minimat_node_ratio;
+        *pos += (child_size = Minimat_node_ratio);
       else { // recurse on submatrix
         child_size =  k2dfs_size_visit(size/2,m,pos,sa_pos,depth2check-1); // read submatrix and advance pos
       }
       subtree_size += (csize[cpos++] = child_size);
     }
+  assert(cpos==nchildren); // we should have visited all children
   assert(cpos>0 && cpos <=4);      // at least one submatrix is not empty
-  // check subtree size
+  // check subtree size for all children except last one
   if(depth2check>0) {
     for(int i=0; i<cpos-1; i++) {
       assert(sa_pos_save+i < SIZEADIM); // we must stay within size_array[]
       if(size_array[sa_pos_save + i] != csize[i]) {
-        fprintf(stderr,"Subtree size mismatch stored %zu computed: %zu (size: %zu))\n",
+        fprintf(stderr,"Mismatch: Subtree size stored %zu computed: %zu (size: %zu)\n",
                 size_array[sa_pos_save + i],csize[i],size);
       }
       else  {
-        fprintf(stdout,"Subtree size stored %zu computed: %zu (size: %zu)\n",
+        fprintf(stdout,"OK: Subtree size stored %zu computed: %zu (size: %zu)\n",
                 size_array[sa_pos_save + i],csize[i],size);
       }
     }
@@ -293,7 +294,13 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   // encode ia[0,n-1] into the k2mat_t structure a
   mencode_ia(ia,n,0,asize,a);
   if(Depth_subtree_size_save > 0) {
-    getsize_ia(ia,n,0,asize,Depth_subtree_size_save);
+    puts("Computing and checking subtree sizes");
+    size_t pos;
+    pos = getsize_ia(ia,n,0,asize,Depth_subtree_size_save);
+    printf("Returned by getsize_is: %zu, sizes stored: %zu\n", pos, size_array_pos);
+    pos = 0; size_array_pos = SIZEADIM - size_array_pos; // start from the end
+    size_t tot = k2dfs_size_visit(asize,a,&pos,&size_array_pos,Depth_subtree_size_save);
+    printf("Total size of k2 matrix: %zu, pos=%zu\n",tot,pos);
   }
   return asize;
 }

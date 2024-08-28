@@ -17,7 +17,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include "minimats.c"
+#include "minimats.c" // includes k2.h bbm.h
 
 
 
