@@ -283,7 +283,7 @@ void vu64_free(vu64_t *z)
 // add i elements at the end of z
 void vu64_grow(vu64_t *z, size_t i) 
 {
-  z->n +=1;
+  z->n +=i;
   if(z->n>z->nmax) {
     z->nmax *= 2;
     z->v = realloc(z->v, z->nmax*sizeof *(z->v) );
@@ -443,12 +443,16 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   mencode_ia(ia,n,0,asize,a);
   if(Depth_subtree_size_save > 0) {
     puts("Computing and checking subtree sizes");
-    size_t pos;
-    pos = getsize_ia(ia,n,0,asize,Depth_subtree_size_save);
-    printf("Returned by getsize_ia: %zu, sizes stored: %zu\n", pos, size_array_pos);
-    pos = 0; size_array_pos = SIZEADIM - size_array_pos; // start from the end
-    size_t tot = k2dfs_size_visit(asize,a,&pos,&size_array_pos,Depth_subtree_size_save);
-    printf("Total size of k2 matrix: %zu, pos=%zu\n",tot,pos);
+    vu64_t z;
+    vu64_init(&z);
+    size_t pos=0;
+    uint64_t p = k2dfs_sizes(asize,a,&pos,&z,Depth_subtree_size_save);
+    assert(pos==a->pos);
+    printf("Returned by k2dfs: %zu, sizes stored: %zu\n", p&TSIZEMASK, z.n);
+    //pos = 0; size_array_pos = SIZEADIM - size_array_pos; // start from the end
+    //size_t tot = k2dfs_size_visit(asize,a,&pos,&size_array_pos,Depth_subtree_size_save);
+    //printf("Total size of k2 matrix: %zu, pos=%zu\n",tot,pos);
+    vu64_free(&z);
   }
   return asize;
 }
