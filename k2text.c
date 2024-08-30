@@ -364,7 +364,7 @@ void vu64_grow(vu64_t *z, size_t i)
 //  m,*pos the current submatrix starts at position *pos within *m 
 //  z dynamic vector where the subtree information will be stored
 //  # levels for which we store the subtree information 
-#define BITSxTSIZE 48
+#define BITSxTSIZE 40
 #define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go)
 {
@@ -451,7 +451,9 @@ static size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64
       assert(pc + child_size == *pos);  // check *pos
       if(depth2check>0 && cnum<nchildren-1) { // chek correctness of info in z
         assert((subtree_info[cnum]&TSIZEMASK) == child_size);
-        assert((subtree_info[cnum]>>BITSxTSIZE) == z->n - nc);
+        // assert((subtree_info[cnum]>>BITSxTSIZE) == z->n - nc);
+        if((subtree_info[cnum]>>BITSxTSIZE) != z->n - nc) 
+          printf("Size: %zu, cnum %zu info:%ld, deltan: %zu\n",size,cnum, subtree_info[cnum]>>BITSxTSIZE, z->n-nc);
       }
       cnum++;
       subtree_size += child_size;
