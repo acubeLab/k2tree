@@ -12,6 +12,10 @@ EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x
 # targets not producing a file declared phony
 .PHONY: all clean release
 
+# keep intermediate files
+.SECONDARY:
+
+
 all: $(EXECS)
 
 

@@ -294,10 +294,10 @@ void vu64_grow(vu64_t *z, size_t i)
 }
 
 
-// do a dfs visit of the k2 matrix :m and write the subtree sizes and the econding 
-// of the sizes in the growing array z
+// The next function does a dfs visit of the k2 matrix :m and write 
+// the subtree sizes and the econding of the sizes in the growing array z
 // the returned value is the total size of the k2 submatrix (in nibbles) 
-// and in the upper 16 bits the cost of subtree encoding (ie the cost
+// and in the upper 24 bits the cost of subtree encoding (ie the cost
 // of encoding recursively the submatrices) 
 // 
 // Explanation:
@@ -319,7 +319,7 @@ void vu64_grow(vu64_t *z, size_t i)
 //     <#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|> info_Sub(1) info_Sub(2) info_Sub(3) 
 // (to complicate things info Sub(i) is different from above because 
 //  now includes the additional values <|info Sub()|> for the subtrees  
-// To do the computation this function, for each subtree T, returns 2 values:
+// To do the computation, this function, for each subtree T, returns 2 values:
 //   1. the total length of T (as before, 1+ #1 + #2 + #3)
 //   2. the total length of the above complete encoding for of T subtree information
 //      If E1, E2, E3 are the lenghts of the encodings 
@@ -329,8 +329,8 @@ void vu64_grow(vu64_t *z, size_t i)
 //      note that in t empty slots the function has to store 
 //      the values #1 E1 #2 E2
 // To simplify the code (!!!) the function returns a single uint64, with
-// the less significant 48 bits storing the total length of T (item 1)
-// and in the more significant 16 bits the lengths of the econdings
+// the less significant 40 bits storing the total length of T (item 1)
+// and in the more significant 24 bits the lengths of the econdings
 // Hence the recursive calls return: (here / means justapoxition) 
 //      A1 = #1/E1,    A2 = #2/E2,    A3 = #3/E3
 // and the function should return
@@ -347,25 +347,44 @@ void vu64_grow(vu64_t *z, size_t i)
 //  for T as usual, but we know that we are not storing information for
 //  T subtrees so E1=E2=E3=0. Since this is something we can check
 //  during the visit we can simply avoid storing <E1> and <E2>
-//  (we can change that: if it is conveninet or we want to use a 
-//   variable depth partitioning, we can store 0 instead)
+//  (at the moment for simplicity we do store them)
 // If T has depth2go<=0 we need to report T size as usual, but 
 //  we do not need to store any subtree information and we report 0 
-//  as the total lenght  of the subtree information
+//  as the total lenght of the subtree information
 // Note that in this function we are not actually encoding the values 
 // but computing the values that will be later encoded. Such values are stored 
-// in z using the above 48+16 scheme, the values then have to be stored (on disk)
+// in z using the above 40+24 scheme, the values then have to be stored (on disk)
 // using the appropriate scheme. In a first attempt we can avoid the encoding
 // and just use the array z as above. In that case we can measure everything
 // in uint64's so we simply have that |<#1>| + |<E1>| = 1 (1 uint64_t)
 //
+// Note: the above scheme can be probably improved in speed with a minimal
+// space increase. Given the structure 
+//  <#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|> info_Sub(1) info_Sub(2) info_Sub(3) 
+// a major issue is that to reach the info_Sub() information one has to
+// to skip the "<#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|>" part and then
+// possibly sum together |info_Sub(1)|, |info_Sub(2)| etc. So we could
+// store also len(<#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|>), and we could 
+// store |info_Sub(1)| + |info_Sub(2)| instead of |info_Sub(2)| and so on. 
+
+// Constant to store size and esizes in a single value
+#define BITSxTSIZE 40
+#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
+// note: potential overflow if tree sizes cannot be expressed in BITSxTSIZE bits
+// and if the encoding size cannot be expressed with 64-BITSxTSIZE 
+// setting BITSxTSIZE at least 40 make the first event unlikely,
+// while the second event is possible if we keep information for many levels. 
+// The first event should be detected by the test on *pos immediately 
+// before the final return. The second event is detected using 
+// __builtin_add_overflow (-ftrapv or fsanitize do not work since they are 
+// for signed int and they would add extra checks for all operations)
+// 
+#define CHECK_ESIZE_OVERFLOW 1
 // Parameters:
 //  size of the current submatrix
 //  m,*pos the current submatrix starts at position *pos within *m 
 //  z dynamic vector where the subtree information will be stored
 //  # levels for which we store the subtree information 
-#define BITSxTSIZE 40
-#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go)
 {
   assert(size>MMsize);
@@ -397,17 +416,33 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
       else { // recurse on submatrix
         child_size =  k2dfs_sizes(size/2,m,pos,z,depth2go-1); // read submatrix and advance pos
       }
-      subtree_size += (csize[cpos++] = child_size); // we are summing sizes and esizes
+      #ifdef CHECK_ESIZE_OVERFLOW
+      // save size and esize for possible later storage in z
+      csize[cpos++] = child_size;
+      // sum sizes and esizes, check for possible overflow    
+      if(__builtin_add_overflow(subtree_size,child_size,&subtree_size))
+        quit("Overflow in subtree encoding: make BITSxTSIZE smaller if possible",__LINE__,__FILE__);      
+      #else
+      subtree_size += (csize[cpos++] = child_size); // save and sum sizes and esizes, no check
+      #endif
     }
   assert(cpos==nchildren); // we should have visited all children
   // check subtree size for all children except last one
   if(depth2go>0) {
     for(int i=0; i<cpos-1; i++)
       z->v[zn_save++] = csize[i];
+    #ifdef CHECK_ESIZE_OVERFLOW
+      if(__builtin_add_overflow(subtree_size,(nchildren-1)<<BITSxTSIZE,&subtree_size))
+        quit("Overflow in subtree encoding: make BITSxTSIZE smaller if possible",__LINE__,__FILE__);      
+    #else
     subtree_size += (nchildren-1)<<BITSxTSIZE;
+    #endif
   }
   else assert(subtree_size>>BITSxTSIZE == 0); // there should not be any subtree encodings
-  assert(*pos == pos_save + (subtree_size&TSIZEMASK)); // double check size
+  if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size
+    fprintf(stderr,"Scanned size: %zu, computed size: %lu\n", *pos-pos_save,subtree_size&TSIZEMASK); 
+    quit("Error or overflow in size encoding",__LINE__,__FILE__);
+  } 
   return subtree_size;
 }
 
