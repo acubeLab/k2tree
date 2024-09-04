@@ -296,7 +296,9 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
 
 
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
-// the checking is done recursively up to depth depth2check 
+// the checking is done recursively up to depth depth2check
+// TO BE DELETED: k2dfs_check_sizes is more general (does not depend on a fixed depth)
+//                and perform some extra check (namely on the value <Sub3>) 
 static size_t k2dfs_check_sizes_depth(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2check)
 {
   assert(size>MMsize);
@@ -349,13 +351,29 @@ static size_t k2dfs_check_sizes_depth(size_t size, const k2mat_t *m, size_t *pos
 
 
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
-// the checking is done recursively until the subtree encodings are >0
-// here we are calling tree the one we are exploring, 
+// the checking is done recursively: but as soon as for a subtree the encoding 
+// has length 0, that subtree is explored with a fast dfs visit that only reports 
+// the subtree size.
+// in the code we call tree the one we are exploring (representing :m) 
 // and subtrees its immediate descendant
-// if check is true the the encoding of the current tree is stored in z
-// and has to be checked. Recall that if the tree has 3 non empty children
+// Recall that if the tree has 3 non empty children
 // its encoding consists of 
-//  <T1> <Sub1> <T2><Sub2> Sub1 Sub2 Sub3 (where <x> denotes size of x) 
+//   <T1> <Sub1> <T2><Sub2> Sub1 Sub2 Sub3 (where <x> denotes size of x) 
+// We compare <T1> and <T2> with the size returned from the subtree visit
+// <T3> is not stoeed so it is checked at the upper level where
+// 1 + <T1> + <T2> + <T3> will be compared with the size stored for 
+// T's parent. <Sub1> and <Sub2> are tested with the amount of data
+// scanned during the visit of T1 and T2. The value <Sub3> is obtained as
+//  <Sub3> = tot_encode_size - <<T1> <Sub1> <T2><Sub2>> - <Sub1> - <Sub2>
+// and is compared with the amount of data scanned during the visit of T3
+// Parameters:
+//  size of the current submatrix
+//  m,*pos the current submatrix starts at position *pos within *m 
+//  z  dynamic vector where the subtree information to be checked is stored
+//  tot_encode_size total size of the encoding for tree (and subtrees)
+//                  as obtaned at the previous level (T's parent)
+// Return:
+// size of the encoding of tree T in m (hence not including the info in z) 
 static size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size)
 {
@@ -385,8 +403,7 @@ static size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64
     if(root & (1<<i)) {
       size_t pc = *pos;  // save current position in m and z 
       size_t nc = z->n;
-      size_t child_subtree_size=0;
-      size_t child_encode_size = 0;
+      size_t child_subtree_size=0, child_encode_size = 0;
       // compute size of subtree encoding
       if(cnum<nchildren-1) {
         child_encode_size = subtree_info[cnum]>>BITSxTSIZE;
@@ -396,14 +413,17 @@ static size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64
         child_encode_size = tot_encode_size -encode_seen; // remaining encoding 
       // ------- go down one level ----------- 
       if(size==2*MMsize)  // end of recursion
-        *pos += (child_subtree_size = Minimat_node_ratio);
-      else if(child_encode_size==0) 
-        k2dfs_visit_fast(size/2,m,pos);  // advance pos to the of subtree 
-      else // recurse on subtree
+        *pos += (child_subtree_size = Minimat_node_ratio); // update *pos and child_subtree_size
+      else if(child_encode_size==0) {
+        k2dfs_visit_fast(size/2,m,pos);  // advance pos to the of subtree
+        child_subtree_size = *pos -pc;   // recover subtree size from advancemente in *pos
+      }
+      else {// recurse on subtree
         child_subtree_size =  k2dfs_check_sizes(size/2,m,pos,z,child_encode_size);
-      // check that child_subtree_size matches the advancement in *pos
-      if(child_subtree_size != *pos -pc) 
-        fprintf(stderr,"Subtree scanned size: %zu, reported size: %zu\n",*pos-pc,child_subtree_size);
+        // check that child_subtree_size matches the advancement in *pos
+        if(child_subtree_size != *pos -pc) 
+          fprintf(stderr,"Subtree scanned size: %zu, reported size: %zu\n",*pos-pc,child_subtree_size);
+      }
       // if not last child check that stored subtree size matches
       if(cnum<nchildren-1 && child_subtree_size!=(subtree_info[cnum]&TSIZEMASK))
         fprintf(stderr,"Subtree stored size: %zu, reported size: %zu\n",subtree_info[cnum]&TSIZEMASK,child_subtree_size);
