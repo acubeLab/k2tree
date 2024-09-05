@@ -4,7 +4,7 @@ LDFLAGS=-fsanitize=undefined
 CC=gcc
 
 # main executables 
-K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x k2pagerank.x k2bpagerank.x
+K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x k2pagerank.x k2bpagerank.x k2se.x
 B128EXECS=b128bbm.x b128sparse.x b128mult.x
 EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x 
 
@@ -20,7 +20,7 @@ all: $(EXECS)
 
 
 # rule for generic k2xxx executable
-k2%.x: k2%.o k2ops.o bbm.o
+k2%.x: k2%.o k2ops.o bbm.o vu64.o
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
 # rule for k2mult.o k2sparse.o
@@ -33,7 +33,7 @@ k2pagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h
 k2bpagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
 	$(CC) $(CFLAGS) -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
 
-k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o
+k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o vu64.o
 	$(CC) $(CFLAGS) -o $@ $^ 
 
 k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h

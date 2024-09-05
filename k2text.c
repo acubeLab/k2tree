@@ -107,7 +107,7 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 // subtree size computation and verification 
 int32_t Depth_subtree_size_save=0;
 
-
+#if 0
 // resizable vector of uint64's
 typedef struct {
   uint64_t *v;       // array of u64's
@@ -140,7 +140,7 @@ void vu64_grow(vu64_t *z, size_t i)
     if(z->v==NULL) quit("realloc failed",__LINE__,__FILE__);
   }
 }
-
+#endif
 
 // The next function does a dfs visit of the k2 matrix :m and write 
 // the subtree sizes and the econding of the sizes in the growing array z
@@ -294,7 +294,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
   return subtree_size;
 }
 
-
+#if 0
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
 // the checking is done recursively up to depth depth2check
 // TO BE DELETED: k2dfs_check_sizes is more general (does not depend on a fixed depth)
@@ -348,7 +348,7 @@ static size_t k2dfs_check_sizes_depth(size_t size, const k2mat_t *m, size_t *pos
   assert(*pos == pos_save + subtree_size); // check subtree size
   return subtree_size;
 }
-
+#endif
 
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
 // the checking is done recursively: but as soon as for a subtree the encoding 
@@ -374,7 +374,7 @@ static size_t k2dfs_check_sizes_depth(size_t size, const k2mat_t *m, size_t *pos
 //                  as obtaned at the previous level (T's parent)
 // Return:
 // size of the encoding of tree T in m (hence not including the info in z) 
-static size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
+size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size)
 {
   assert(size>MMsize);

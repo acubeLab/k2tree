@@ -1,0 +1,148 @@
+/* Compression and decompression of boolean matrices using k2 trees
+
+   k2se: compute the subtree encoding info for a k2 matrix 
+
+   Copyright August 2023-today   ---  giovanni.manzini@unipi.it
+*/
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
+#include <time.h>
+#include <limits.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <libgen.h>
+#include "k2.h"
+#define default_ext ".se"
+#define BITSxTSIZE 40
+#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
+
+
+// static functions at the end of the file
+static void usage_and_exit(char *name);
+static void quit(const char *msg, int line, char *file);
+
+
+
+int main (int argc, char **argv) { 
+  extern char *optarg;
+  extern int optind, opterr, optopt;
+  int verbose=0;
+  int c;
+  char iname[PATH_MAX], oname[PATH_MAX];
+  time_t start_wc = time(NULL);
+
+  /* ------------- read options from command line ----------- */
+  opterr = 0;
+  bool check = false, write = true;
+  char *outfile = NULL;
+  int32_t depth_subtree = 0;
+  while ((c=getopt(argc, argv, "o:m:s:D:dcnhv1")) != -1) {
+    switch (c) 
+      {
+      case 'o':
+        outfile = optarg; break;
+      case 'c':
+        check = true; break;
+      case 'n':
+        write = false; break;
+      case 'D':
+        depth_subtree = atoi(optarg); break;
+      case 'h':
+        usage_and_exit(argv[0]); break;        
+      case 'v':
+        verbose++; break;
+      case '?':
+        fprintf(stderr,"Unknown option: %c\n", optopt);
+        exit(1);
+      }
+  }
+  if(verbose>0) {
+    fputs("==== Command line:\n",stdout);
+    for(int i=0;i<argc;i++)
+      fprintf(stdout," %s",argv[i]);
+    fputs("\n",stdout);  
+  }
+
+  // virtually get rid of options from the command line 
+  optind -=1;
+  if (argc-optind != 2) usage_and_exit(argv[0]); 
+  argv += optind; argc -= optind;
+
+  // assign default extension and create file names
+  sprintf(iname,"%s",argv[1]);
+  if(outfile!=NULL)sprintf(oname,"%s",outfile);
+  else       sprintf(oname,"%s%s",argv[1],default_ext); 
+
+  // read input matrix
+  k2mat_t a = K2MAT_INITIALIZER;
+  size_t size, asize;
+  size = mload_from_file(&asize, &a, iname); // also init k2 library
+  if (verbose)  
+      mshow_stats(size, asize,&a,iname,stdout);
+  // compute encoding information
+  printf("Computing subtree sizes up to level: %d\n", depth_subtree);
+  // visit tree, compute and save subtree sizes in z  
+  vu64_t z;
+  vu64_init(&z);
+  size_t pos=0;
+  uint64_t p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
+  assert(pos==a.pos);         // check visit was complete
+  assert((p&TSIZEMASK)==a.pos); // lo bits contain size of whole matrix 
+  printf("Subtree sizes storage: %zu bytes\n", z.n*sizeof(z.v[0]));
+  if(write) {
+    FILE *out = fopen(outfile,"wb");
+    if(!out) quit("Error opening output file",__LINE__,__FILE__);
+    fclose(out);
+  }
+  if(check) { 
+    pos=0;
+    size_t znsave = z.n;
+    z.n=0; // reset z vector
+    size_t pcheck = k2dfs_check_sizes(asize,&a,&pos,&z,znsave);
+    assert(pos==a.pos);      // check visit was complete
+    if(z.n!=znsave)
+      printf("Subtree storage size mismatch! expected: %zu, got: %zu uint64s\n",znsave,z.n);
+    else 
+      if(verbose) printf("Subtree storage size matches: %zu uint64s\n",z.n);
+    if(a.pos!=pcheck)
+      printf("Tree size mismatch! expected: %zu, got: %zu nibbles\n",a.pos,pcheck);
+    else 
+      if(verbose) printf("Tree size matches: %zu nibbles (%zu bytes)\n",pcheck,(pcheck+1)/2);
+  }
+  vu64_free(&z);
+  matrix_free(&a);
+  minimat_reset(); // reset the minimat library and free minimat product table
+  // statistics
+  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
+  fprintf(stderr,"==== Done\n");
+  return EXIT_SUCCESS;
+}
+
+
+static void usage_and_exit(char *name)
+{
+    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+    fputs("Options:\n",stderr);
+    fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
+    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
+    fprintf(stderr,"\t-D D    limit for storing subtree sizes (def. 0)\n");
+    fprintf(stderr,"\t-c      check subtree encoding\n");
+    fprintf(stderr,"\t-h      show this help message\n");    
+    fprintf(stderr,"\t-v      verbose\n\n");
+    exit(1);
+}
+
+
+// write error message and exit
+static void quit(const char *msg, int line, char *file) {
+  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
+               strerror(errno));
+  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
+  exit(1);
+}
+

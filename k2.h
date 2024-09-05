@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
-
+#include "vu64.h"
 
 
 // node constants (depend on node arity, here 4 and not likely to change) 
@@ -103,6 +103,8 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 // from k2text.c
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
 size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize);
-
+uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go);
+size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
+                                size_t tot_encode_size);
 
 #endif /* _K2TYPDEFS_H */

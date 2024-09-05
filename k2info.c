@@ -1,13 +1,14 @@
 /* Compression and decompression of boolean matrices using k2 trees
 
-   k2tcomp: (de)compress matrices in text form: one entry (two indices) per line
+   k2info: provide info on the ecoding of one or more 
+           k2-compressed matrices calling mshow_info on each of them  
+
+   For details of the k2 format see how the encoding is done in 
+     mread_from textfile in  k2text.c (input is list of nonzero entries)
+     mencode_bbm in k2ops.c (input is a one-byte per entry dense matrix)
 
    This code is ready to be compiled with the B128MAT constant defined
-   in that case it will (de)encode the matrices in text form to/from 
-   the B128 format, which is a dense format with one bit per entry. 
-   This option is currently noty supported
-
-   For the details of the k2 format compression see k2text.c
+   in that case it will call mshow_info on the b128 compressed matrices
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */

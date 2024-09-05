@@ -4,9 +4,11 @@
 
    Generates the executable k2sparse.x; if compiled with the B128MAT constant
    defined it generates the executable b128sparse.x which (de)compress matrices 
-   in text form to/from the B128 format,
+   in text form to/from the B128 format (one bit x entry)
 
-   For the details of the k2 format compression see k2text.c
+   For details of the k2 format see how the encoding is done in 
+     mread_from textfile in  k2text.c (input is list of nonzero entries)
+     mencode_bbm in k2ops.c (input is a one-byte per entry dense matrix)
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
@@ -38,8 +40,6 @@ extern int32_t Depth_subtree_size_save; // levels for which we save subtree size
 // used by both matrix type 
 #define default_dext ".txt"
 #define matrix_checker "matrixcmp.x"
-// global variable used only for k2 matrices 
-
 
 
 // static functions at the end of the file
