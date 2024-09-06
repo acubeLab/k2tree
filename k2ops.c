@@ -70,13 +70,13 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats, nz, all1;
-  fprintf(file,"%s -- matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
+  fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file,"Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
+  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
           levels,nodes,minimats, all1, nz);
   // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
-  fprintf(file,"Tree size: %zu bytes, Bits x nonzero: %lf\n",
+  fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
   return nz;
 }

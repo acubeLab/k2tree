@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# compress decompress and chek all files passed one the command line
+# test matrix multiplication speed squaring each input matrix
 
 if [ $# -le 2 ]
 then

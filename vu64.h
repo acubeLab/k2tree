@@ -14,6 +14,7 @@ void vu64_init(vu64_t *z);
 void vu64_free(vu64_t *z);
 // add i elements at the end of z
 void vu64_grow(vu64_t *z, size_t i);
-
+// write to file
+void vu64_write(FILE *f, vu64_t *z);
 
 #endif /* _VU64DEFS_C */

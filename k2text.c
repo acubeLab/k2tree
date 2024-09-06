@@ -54,8 +54,6 @@ static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
 static inline bool a_eq_b2(uint64_t a, uint64_t b);
 static inline bool a_lt_b2(uint64_t a, uint64_t b);
 
-// limit for saving subtree size
-extern int32_t Depth_subtree_size_save;
 
 // read a matrix from the text file :iname (one entry per line)
 // and store it in k2 format
@@ -475,21 +473,6 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   }
   // encode ia[0,n-1] into the k2mat_t structure a
   mencode_ia(ia,n,0,asize,a);
-  if(Depth_subtree_size_save > 0) {
-    puts("Computing and checking subtree sizes");
-    vu64_t z;
-    vu64_init(&z);
-    size_t pos=0,znsave;
-    uint64_t p = k2dfs_sizes(asize,a,&pos,&z,Depth_subtree_size_save);
-    assert(pos==a->pos);
-    printf("Returned by k2dfs_sizes: %zu, sizes stored: %zu\n", p&TSIZEMASK, z.n);
-    pos=0;
-    znsave = z.n;
-    z.n=0;
-    size_t pcheck = k2dfs_check_sizes(asize,a,&pos,&z,znsave);
-    printf("Returned by k2dfs_check_sizes: %zu, sizes read: %zu\n", pcheck, z.n);
-    vu64_free(&z);
-  }
   return asize;
 }
 

@@ -23,6 +23,12 @@ void vu64_free(vu64_t *z)
   z->nmax = z->n=0;
 }
 
+void vu64_write(FILE *f, vu64_t *z)
+{
+  size_t w = fwrite(z->v,sizeof(*(z->v)),z->n,f);
+  if(w!=z->n) quit("Error writing vu64 to file",__LINE__,__FILE__);
+}
+
 // add i elements at the end of z
 void vu64_grow(vu64_t *z, size_t i) 
 {

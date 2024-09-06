@@ -40,7 +40,7 @@ int main (int argc, char **argv) {
   bool check = false, write = true;
   char *outfile = NULL;
   int32_t depth_subtree = 0;
-  while ((c=getopt(argc, argv, "o:m:s:D:dcnhv1")) != -1) {
+  while ((c=getopt(argc, argv, "o:D:cnhv")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -94,11 +94,12 @@ int main (int argc, char **argv) {
   assert((p&TSIZEMASK)==a.pos); // lo bits contain size of whole matrix 
   printf("Subtree sizes storage: %zu bytes\n", z.n*sizeof(z.v[0]));
   if(write) {
-    FILE *out = fopen(outfile,"wb");
+    FILE *out = fopen(oname,"wb");
     if(!out) quit("Error opening output file",__LINE__,__FILE__);
+    vu64_write(out,&z);
     fclose(out);
   }
-  if(check) { 
+  if(check || !write) { // if not writing force check 
     pos=0;
     size_t znsave = z.n;
     z.n=0; // reset z vector
@@ -127,7 +128,7 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
+    fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
     fprintf(stderr,"\t-D D    limit for storing subtree sizes (def. 0)\n");
     fprintf(stderr,"\t-c      check subtree encoding\n");
