@@ -226,9 +226,8 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     }
 }
 
-// as above but does not track nodes. minimates and nonzero
+// as above but does not track nodes, minimates and nonzero
 // used to split a matrix into 4 submatrices
-// still to be tested
 void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 {
   assert(size>MMsize);

@@ -91,10 +91,8 @@
 #include "b128.h"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
-bool Use_all_ones_node; // not used: added for compatibility with k2mat
 #else // k2mat
 #include "k2.h"
-extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type
 #include "bbm.h"

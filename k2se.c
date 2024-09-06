@@ -24,6 +24,7 @@
 // static functions at the end of the file
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
+static size_t intsqrt(size_t n);
 
 
 
@@ -40,7 +41,8 @@ int main (int argc, char **argv) {
   bool check = false, write = true;
   char *outfile = NULL;
   int32_t depth_subtree = 0;
-  while ((c=getopt(argc, argv, "o:D:cnhv")) != -1) {
+  long node_limit = 0;
+  while ((c=getopt(argc, argv, "o:D:N:cnhv")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -51,6 +53,8 @@ int main (int argc, char **argv) {
         write = false; break;
       case 'D':
         depth_subtree = atoi(optarg); break;
+      case 'N':
+        node_limit = atol(optarg); break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -60,6 +64,11 @@ int main (int argc, char **argv) {
         exit(1);
       }
   }
+  if(depth_subtree!=0 && node_limit!=0) 
+    quit("Options -D and -N are incompatible",__LINE__,__FILE__);
+  if(depth_subtree<0 || node_limit<0) 
+    quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
+    
   if(verbose>0) {
     fputs("==== Command line:\n",stdout);
     for(int i=0;i<argc;i++)
@@ -84,12 +93,22 @@ int main (int argc, char **argv) {
   if (verbose)  
       mshow_stats(size, asize,&a,iname,stdout);
   // compute encoding information
-  printf("Computing subtree sizes up to level: %d\n", depth_subtree);
-  // visit tree, compute and save subtree sizes in z  
   vu64_t z;
   vu64_init(&z);
+  uint64_t p;
   size_t pos=0;
-  uint64_t p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
+  // check if the the limit is on the subtree depth or node count
+  if(depth_subtree > 0) {
+    printf("Computing subtree sizes up to level: %d\n", depth_subtree);
+    // visit tree, compute and save subtree sizes in z  
+    p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
+  }
+  else {
+    if(node_limit==0) node_limit = intsqrt(a.pos);
+    printf("Computing subtree sizes up to node limit: %zu\n", node_limit);
+    // visit tree, compute and save subtree sizes in z  
+    p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);
+  }
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // lo bits contain size of whole matrix 
   printf("Subtree sizes storage: %zu bytes\n", z.n*sizeof(z.v[0]));
@@ -136,6 +155,20 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-v      verbose\n\n");
     exit(1);
 }
+
+// compute integer square root
+static size_t intsqrt(size_t n) {
+  // assert(n>=0);
+  size_t x = n;
+  size_t y = (x + 1) / 2;
+  while (y < x) {
+    x = y;
+    y = (x + n / x) / 2;
+  }
+  assert(x*x <= n && (x+1)*(x+1) > n);
+  return x;
+}
+
 
 
 // write error message and exit

@@ -239,10 +239,8 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
   size_t pos_save = *pos;  // save starting position of subtree
   node_t root = k2read_node(m,*pos); (*pos)++;
   assert(root<ILLEGAL_NODE); 
-  if(root==ALL_ONES) { 
-    assert(Use_all_ones_node); // all 1's matrix consists of root only, 
+  if(root==ALL_ONES)            // all 1's matrix consists of root only, 
     return 1;                  // size is 1 subtree encoding size 0
-  }
   // we have a non-singleton subtree to traverse 
   // compute number of children
   size_t nchildren = __builtin_popcountll(root);
@@ -292,61 +290,62 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
   return subtree_size;
 }
 
-#if 0
-// do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
-// the checking is done recursively up to depth depth2check
-// TO BE DELETED: k2dfs_check_sizes is more general (does not depend on a fixed depth)
-//                and perform some extra check (namely on the value <Sub3>) 
-static size_t k2dfs_check_sizes_depth(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2check)
+// as above but subtree information is stored only for large trees
+uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit)
 {
   assert(size>MMsize);
   assert(size%2==0);
-  assert(*pos<m->pos);        // implies m is non-empty
-  size_t pos_save = *pos;     // save starting position of subtree
+  assert(*pos<m->pos); // implies m is non-empty
+  size_t pos_save = *pos;  // save starting position of subtree
   node_t root = k2read_node(m,*pos); (*pos)++;
-  assert(root<ILLEGAL_NODE);
-  if(root==ALL_ONES) { 
-    assert(Use_all_ones_node); // all 1's matrix consists of root only, 
-    return 1;                  // subtree size is 1 no subtree info to check
-  }
-  // we have a non-singleton subtree T to traverse 
+  assert(root<ILLEGAL_NODE); 
+  if(root==ALL_ONES)           // all 1's matrix consists of root only, 
+    return 1;                  // size is 1 subtree encoding size 0
+  // we have a non-singleton subtree to traverse 
   // compute number of children
   size_t nchildren = __builtin_popcountll(root);
   assert(nchildren>0 && nchildren<=4);
-  // read subtree information if available 
-  uint64_t *subtree_info = NULL;
-  if(depth2check>0) {
-    subtree_info = &(z->v[z->n]);  // starting point of T information
-    z->n += nchildren-1;
-  }
-  size_t cnum = 0;             // current position in size[]
+
+  size_t zn_save = z->n; // save starting position in size_array[]
+  vu64_grow(z,nchildren-1);
   size_t subtree_size = 1;     // account for root node
+  size_t child_size = 0;       // size/esize of a child subtrees
+  size_t csize[4];             // sizes/esizes of the children subtrees
+  size_t cpos = 0;             // current position in size[]
   for(int i=0;i<4;i++) 
-    // invariant: both *pos and z->n point to the beginning of subtree cnum
     if(root & (1<<i)) {
-      size_t pc = *pos;
-      size_t nc = z->n;
-      size_t child_size;
       if(size==2*MMsize)  // end of recursion
         *pos += (child_size = Minimat_node_ratio);
       else { // recurse on submatrix
-        child_size =  k2dfs_check_sizes_depth(size/2,m,pos,z,depth2check-1);
+        child_size =  k2dfs_sizes_limit(size/2,m,pos,z,limit); // read submatrix and advance pos
       }
-      assert(pc + child_size == *pos);  // check *pos
-      if(depth2check>0 && cnum<nchildren-1) { // chek correctness of info in z
-        assert((subtree_info[cnum]&TSIZEMASK) == child_size);
-        // assert((subtree_info[cnum]>>BITSxTSIZE) == z->n - nc);
-        if((subtree_info[cnum]>>BITSxTSIZE) != z->n - nc) 
-          printf("Size: %zu, cnum %zu info:%ld, deltan: %zu\n",size,cnum, subtree_info[cnum]>>BITSxTSIZE, z->n-nc);
-      }
-      cnum++;
-      subtree_size += child_size;
-    }  
-  assert(cnum==nchildren); // we should have visited all children
-  assert(*pos == pos_save + subtree_size); // check subtree size
+      // save size and esize for possible later storage in z
+      csize[cpos++] = child_size;
+      // add sizes and esizes to subtree_size, check for possible overflow    
+      if(__builtin_add_overflow(subtree_size,child_size,&subtree_size))
+        quit("Overflow in subtree encoding: make BITSxTSIZE smaller if possible",__LINE__,__FILE__);      
+    }
+  assert(cpos==nchildren); // we should have visited all children
+  // check subtree size for all children except last one
+  if((subtree_size&TSIZEMASK)>limit) {
+    for(int i=0; i<cpos-1; i++)
+      z->v[zn_save++] = csize[i];
+    // add nchildren-1 to the encoding size, checking for overflow   
+    if(__builtin_add_overflow(subtree_size,(nchildren-1)<<BITSxTSIZE,&subtree_size))
+      quit("Overflow in subtree encoding: make BITSxTSIZE smaller if possible",__LINE__,__FILE__);      
+  }
+  else {
+    assert(subtree_size>>BITSxTSIZE == 0); // there should not be any subtree encodings
+    assert(z->n == zn_save+nchildren-1);   // no subtree information stored
+    z->n = zn_save;                        // no subtree information
+  }
+  if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size
+    fprintf(stderr,"Scanned size: %zu, computed size: %lu\n", *pos-pos_save,subtree_size&TSIZEMASK); 
+    quit("Error or overflow in size encoding",__LINE__,__FILE__);
+  } 
   return subtree_size;
 }
-#endif
+
 
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
 // the checking is done recursively: but as soon as for a subtree the encoding 
@@ -381,10 +380,9 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
   size_t pos_save = *pos;     // save starting position of tree
   node_t root = k2read_node(m,*pos); (*pos)++;
   assert(root<ILLEGAL_NODE);
-  if(root==ALL_ONES) { 
-    assert(Use_all_ones_node); // all 1's matrix consists of root only, 
-    return 1;                  // tree size is 1 no subtree info to check
-  }
+  if(root==ALL_ONES)          // all 1's matrix consists of root only, 
+    return 1;                 // tree size is 1 no subtree info to check
+  
   // we have a non-singleton tree T to traverse 
   // compute number of children
   size_t nchildren = __builtin_popcountll(root);

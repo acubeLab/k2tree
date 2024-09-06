@@ -213,7 +213,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
       else assert((rootc & (1 << k)) == 0);
       if (cx != MINIMAT1s) all_ones = false;
     }
-    // reduntant check: all_ones=> 4 minimats stored
+    // redundant check: all_ones=> 4 minimats stored
     assert(!all_ones || (rootc==ALL_CHILDREN&&k2pos(c)==rootpos+1+4*Minimat_node_ratio)); 
   }
   else { // size>2*MMsize: children are k2 matrices, possibly use recursion

@@ -104,6 +104,7 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
 size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize);
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go);
+uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit);
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size);
 

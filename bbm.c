@@ -1,11 +1,11 @@
 /* functions for bbm matrices (binary byte matrix)
 
-   Technical note: matrix sizes are int, therefore limited to 2^31, but values related
-   to the overall number of elements can be up to 2^61 therefore are always 
-   stored into a size_t variable (usually 64 bits))  
+   Technical note: although matrix sizes are size_t, therefore theoretically 
+   of size up to 2^64, we need to store the matrix in a contiguous memory area, 
+   hence size**2 must be at most 2^64 -1, so the actual limit for size is 2^32-1.
 
-   Hence a size x size bbm matrix is represented by a one-dimensional uint8_t array b[]
-   and of its length, equals to size*size, stored in a size_t variable
+   A size x size bbm matrix is represented by a one-dimensional uint8_t array b[]
+   and by its length, equals to size*size, stored in a size_t variable
    The entries should be 0/1, ie two different nonzero values are considered 
    different by mequals_bbm(). 
 */
@@ -45,6 +45,7 @@ static size_t intsqrt(size_t n) {
 // alloc memory for a size x size bbm matrix
 uint8_t *bbm_alloc(size_t size)
 {
+  if(size>=UINT32_MAX) quit("Matrix too large",__LINE__,__FILE__);
   size_t length = size*size;
   uint8_t *buffer = malloc(length);
   if(buffer==NULL) quit("Out of memory",__LINE__,__FILE__);
