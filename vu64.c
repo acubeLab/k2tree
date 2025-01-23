@@ -29,11 +29,11 @@ void vu64_write(FILE *f, vu64_t *z)
   if(w!=z->n) quit("Error writing vu64 to file",__LINE__,__FILE__);
 }
 
-// add i elements at the end of z
+// make sure the is space for i more elements at the end of z
 void vu64_grow(vu64_t *z, size_t i) 
 {
   z->n +=i;
-  if(z->n>z->nmax) {
+  while(z->n>z->nmax) {
     z->nmax *= 2;
     z->v = realloc(z->v, z->nmax*sizeof *(z->v) );
     if(z->v==NULL) quit("realloc failed",__LINE__,__FILE__);

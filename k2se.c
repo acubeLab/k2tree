@@ -86,18 +86,18 @@ int main (int argc, char **argv) {
   if(outfile!=NULL)sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
 
-  // read input matrix
+  // read input compressed matrix
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
   if (verbose)  
       mshow_stats(size, asize,&a,iname,stdout);
   // compute encoding information
-  vu64_t z;
+  vu64_t z;      // resizable array to contain the subtree sizes
   vu64_init(&z);
   uint64_t p;
   size_t pos=0;
-  // check if the the limit is on the subtree depth or node count
+  // check if the limit is on the subtree depth or node count
   if(depth_subtree > 0) {
     printf("Computing subtree sizes up to level: %d\n", depth_subtree);
     // visit tree, compute and save subtree sizes in z  
@@ -110,7 +110,7 @@ int main (int argc, char **argv) {
     p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);
   }
   assert(pos==a.pos);         // check visit was complete
-  assert((p&TSIZEMASK)==a.pos); // lo bits contain size of whole matrix 
+  assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
   printf("Subtree sizes storage: %zu bytes\n", z.n*sizeof(z.v[0]));
   if(write) {
     FILE *out = fopen(oname,"wb");
@@ -149,7 +149,8 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
-    fprintf(stderr,"\t-D D    limit for storing subtree sizes (def. 0)\n");
+    fprintf(stderr,"\t-D D    depth limit for storing subtree sizes (def. 0)\n");
+    fprintf(stderr,"\t-N N    #node limit for storing subtree sizes (def. sqrt(tot_nodes))\n");
     fprintf(stderr,"\t-c      check subtree encoding\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
