@@ -119,9 +119,9 @@ int main (int argc, char **argv) {
     fclose(out);
   }
   if(check || !write) { // if not writing force check 
-    pos=0;
     size_t znsave = z.n;
     z.n=0; // reset z vector
+    pos=0; // start from position 0 in the k2 matrix
     size_t pcheck = k2dfs_check_sizes(asize,&a,&pos,&z,znsave);
     assert(pos==a.pos);      // check visit was complete
     if(z.n!=znsave)
@@ -149,7 +149,7 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
-    fprintf(stderr,"\t-D D    depth limit for storing subtree sizes (def. 0)\n");
+    fprintf(stderr,"\t-D D    depth limit for storing subtree sizes (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree sizes (def. sqrt(tot_nodes))\n");
     fprintf(stderr,"\t-c      check subtree encoding\n");
     fprintf(stderr,"\t-h      show this help message\n");    

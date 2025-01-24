@@ -286,6 +286,7 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   *c = *a; // copy all fields
   c->pos = c->offset + end;     // actual ending position of c in buffer
   c->offset += start;           // actual starting position of c in buffer
+  c->subtse = NULL;             // if necessary will be initialized later 
   c->read_only = true;   // c is read only
 }
 
@@ -295,7 +296,7 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   k2_free(c);
-  *c = *a; // copy all fields
+  *c = *a; // copy all fields (caution, including subtse, ie subtree sizes) 
   c->read_only = true;   // c is read only
 }
 

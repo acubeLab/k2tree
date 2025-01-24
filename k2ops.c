@@ -624,7 +624,7 @@ static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 }
 
 // split input matrices and recurse matrix multiplication  
-//   an input 0 matrix is represented as NULL
+//   the input matrices are not all 0's
 //   an output 0 matrix is represented as an empty matrix (no root node)   
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {

@@ -47,12 +47,13 @@ typedef struct k2mat {
   size_t pos;   // position where next node is written
   size_t lenb;  // number of nodes that can be written in b without reallocating
   size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
-                // only read only matrices can have a positive offset 
-  bool read_only; // if true write and add operations are not allowed
-                  // all matrices created by splitting are read only            
+                // only read only matrices can have a positive offset
+  uint64_t *subtse; // subtrees size encoding if present, or NULL 
+  bool read_only;   // if true write and add operations are not allowed
+                    // all matrices created by splitting are read only            
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0,0,0,false}
+#define K2MAT_INITIALIZER {NULL,0,0,0,NULL,false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)

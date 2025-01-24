@@ -29,7 +29,7 @@ void vu64_write(FILE *f, vu64_t *z)
   if(w!=z->n) quit("Error writing vu64 to file",__LINE__,__FILE__);
 }
 
-// make sure the is space for i more elements at the end of z
+// make sure there is space for i more elements at the end of z
 void vu64_grow(vu64_t *z, size_t i) 
 {
   z->n +=i;

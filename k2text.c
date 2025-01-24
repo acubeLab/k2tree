@@ -140,49 +140,54 @@ void vu64_grow(vu64_t *z, size_t i)
 }
 #endif
 
-// The next function does a dfs visit of the k2 matrix :m and write 
+// The next function does a dfs visit of the k2 matrix :m and writes 
 // the subtree sizes and the econding of the sizes in the growing array z
 // the returned value is the total size of the k2 submatrix (in nibbles) 
 // and in the upper 24 bits the cost of subtree encoding (ie the cost
 // of encoding recursively the submatrices) 
 // 
 // Explanation:
-// Assuming the root of T has tree children the subtree represention is something like:
+// Assuming the root R of T has tree children the subtree represention is something like:
 //   R111111111222222333333333333
 // we need to compute and return the total size of the representation ie the length of 
 // the above string (ie #R(==1) + #1 + #2 + #3)  and we need to store in z an encoding 
 // of #1 and #2 followed by the same information for the subtrees 1, 2 and 3
-// This information stored in z for T will be called the subtree information for T.
-// We can fill z with a DFS visit of the k2tree, when we reach the a subtree T
-// aboe we leave two empty slots in z, call the function recursively getting 
+// This information stored in z for T is called the subtree information for T.
+// We can fill z with a DFS visit of the k2tree, when we reach a subtree T
+// above we leave two empty slots in z, call the function recursively getting 
 // #1, #2 and #3, storing #1, #2 in the empty slots and return 1 + #1 + #2 + #3
 // However, since z is used to skip subtree 1 and/or 2, in z together with 
 // #1 we also need to store the total information stored in z for the subtree 
-// rooted at 1, and the same for the subtree rooted at 2.
-// Hence, array t will not simply contain the encoding of 
+// rooted at 1, and the same for the subtree rooted at 2 (because we need
+// to be able to sip this information as well). 
+// Hence, array z will not simply contain the encoding of 
 //     <#1> <#2> info_Sub(1) info_Sub(2) info_Sub(3)
-// (where < > denotes an encoding, for example 7x8), but
+// (where < > denotes an encoding of a size, for example 7x8), but
 //     <#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|> info_Sub(1) info_Sub(2) info_Sub(3) 
 // (to complicate things info Sub(i) is different from above because 
 //  now includes the additional values <|info Sub()|> for the subtrees  
 // To do the computation, this function, for each subtree T, returns 2 values:
 //   1. the total length of T encoding (as before, 1+ #1 + #2 + #3)
+//      this is the amount of info that we need to skip in the k2 matri to skip T
 //   2. the total length of the above complete encoding of T subtree information
+//      this is the amont of info we need to skip in z to skip T 
 //      If E1, E2, E3 are the lenghts of the encodings 
-//      for the subtree  Ei = |info Sub(i)|   (obtained by the recursive calls) 
-//      then the cost of the encoding of T is 
+//      for the subtree  Ei = |info Sub(i)|   (obtained by the recursive calls)
+//      in z for T we store  
+//         <#1> <E1> <#2> <E2> info_Sub(1) info_Sub(2) info_Sub(3)
+//      hence the cost of the encoding (of the subtrees) of T is 
 //        |<#1>| + |<E1>| + |<#2>| + |<E2>| + E1 + E2 + E3
-//      note that in z's empty slots the function has to store 
-//      the values #1 E1 #2 E2
+//      note that in the above example in z's empty slots the function has 
+//      to store the values #1 E1, #2 E2
 // To simplify the code (!!!) the function returns a single uint64, with
 // the less significant 40 bits storing the total length of T (item 1)
-// and in the more significant 24 bits the lengths of the econdings
+// and in the more significant 24 bits the lengths of the encodings
 // Hence the recursive calls return: (here / means justapoxition) 
 //      A1 = #1/E1,    A2 = #2/E2,    A3 = #3/E3
 // and the function should return
 //      1+ #1 + #2 + #3 / |<#1>| + |<E1>| + |<#2>| + |<|E2|>| + E1 + E2 + E3
 // assuming there are no overflows, the desired value is
-//      1+A1+A2+A3 + (|<#1>| + |<E1>| + |<#2>| + |<|E2|>|)<<48
+//      1+A1+A2+A3 + (|<#1>| + |<E1>| + |<#2>| + |<|E2|>|)<<40
 // The above scheme is valid for ordinary internal nodes. 
 // If T is an ALL_ONES leaf, then its size is 1 and the size of the 
 //  subtree sizes encoding is 0.
@@ -193,7 +198,9 @@ void vu64_grow(vu64_t *z, size_t i)
 //  for T as usual, but we know that we are not storing information for
 //  T subtrees so E1=E2=E3=0. Since this is something we can check
 //  during the visit we can simply avoid storing <E1> and <E2>
-//  (at the moment for simplicity we do store them)
+//  (at the moment for we do store them, because it allows us
+//   to use more complex schemes, such as deciding whether to include
+//   subtree size information, based on teh size of the subtree)
 // If T has depth2go<=0 we need to report T size as usual, but 
 //  we do not need to store any subtree information and we report 0 
 //  as the total lenght of the subtree information
@@ -204,6 +211,17 @@ void vu64_grow(vu64_t *z, size_t i)
 // and just use the array z as above. In that case we can measure everything
 // in uint64's so we simply have that |<#1>| + |<E1>| = 1 (1 uint64_t)
 //
+// Note that if we are going to use a more complex encoding (say 7x8)
+// we cannot easily fill the array z from left to right since the 
+// the size of the empty slots we create at the beginning of T's visit
+// is unknow at the beginnig of the visit since it depends on the 
+// subtrees content. A possibile solution could be a 2-pass encoding
+// (in the first pass we compute the correct sizes but we store
+// them in uint64s, then we do the actual encoding using say 7x8,
+// the drawback is larger working space), or we fill z in reverse
+// (first the subtrees and then T, visiting the tree right to left)
+// and then we write it to disk in reverse, drawback: complex code)   
+
 // Note: the above scheme can be probably improved in speed with a minimal
 // space increase. Given the structure 
 //  <#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|> info_Sub(1) info_Sub(2) info_Sub(3) 
@@ -222,7 +240,7 @@ void vu64_grow(vu64_t *z, size_t i)
 // while the second event is possible if we keep information for many levels. 
 // The first event should be detected by the test on *pos immediately 
 // before the final return. The second event is detected using 
-// __builtin_add_overflow (-ftrapv or fsanitize do not work since they are 
+// __builtin_add_overflow (-ftrapv or -fsanitize do not work since they are 
 // for signed int and they would add extra checks for all operations)
 // 
 #define CHECK_ESIZE_OVERFLOW 1
@@ -300,7 +318,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
   node_t root = k2read_node(m,*pos); (*pos)++;
   assert(root<ILLEGAL_NODE); 
   if(root==ALL_ONES)           // all 1's matrix consists of root only, 
-    return 1;                  // size is 1 subtree encoding size 0
+    return 1;                  // size is 1, subtree encoding size 0
   // we have a non-singleton subtree to traverse 
   // compute number of children
   size_t nchildren = __builtin_popcountll(root);
@@ -348,14 +366,14 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
 
 
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
-// the checking is done recursively: but as soon as for a subtree the encoding 
+// the checking is done recursively: but as soon as the encoding of a subtree
 // has length 0, that subtree is explored with a fast dfs visit that only reports 
 // the subtree size.
-// in the code we call tree the one we are exploring (representing :m) 
+// in the code below we call tree the one we are exploring (representing :m) 
 // and subtrees its immediate descendant
 // Recall that if the tree has 3 non empty children
 // its encoding consists of 
-//   <T1> <Sub1> <T2><Sub2> Sub1 Sub2 Sub3 (where <x> denotes size of x) 
+//   <T1> <Sub1> <T2> <Sub2> Sub1 Sub2 Sub3 (where <x> denotes size of x) 
 // We compare <T1> and <T2> with the size returned from the subtree visit
 // <T3> is not stoeed so it is checked at the upper level where
 // 1 + <T1> + <T2> + <T3> will be compared with the size stored for 
@@ -368,7 +386,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
 //  m,*pos the current submatrix starts at position *pos within *m 
 //  z  dynamic vector where the subtree information to be checked is stored
 //  tot_encode_size total size of the encoding for tree (and subtrees)
-//                  as obtaned at the previous level (T's parent)
+//                  as obtained at the previous level (T's parent)
 // Return:
 // size of the encoding of tree T in m (hence not including the info in z) 
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
@@ -411,8 +429,8 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
       if(size==2*MMsize)  // end of recursion
         *pos += (child_subtree_size = Minimat_node_ratio); // update *pos and child_subtree_size
       else if(child_encode_size==0) {
-        k2dfs_visit_fast(size/2,m,pos);  // advance pos to the of subtree
-        child_subtree_size = *pos -pc;   // recover subtree size from advancemente in *pos
+        k2dfs_visit_fast(size/2,m,pos);  // advance pos to the end of subtree
+        child_subtree_size = *pos -pc;   // recover subtree size from advancement in *pos
       }
       else {// recurse on subtree
         child_subtree_size =  k2dfs_check_sizes(size/2,m,pos,z,child_encode_size);
