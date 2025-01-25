@@ -199,16 +199,34 @@ void vu64_grow(vu64_t *z, size_t i)
 //  T subtrees so E1=E2=E3=0. Since this is something we can check
 //  during the visit we can simply avoid storing <E1> and <E2>
 //  (at the moment we do store them, because it allows us
-//   to use more complex schemes, such as deciding whether to include
-//   subtree size information, based on the size of the subtree)
-
-// there is a catch here: what about E3?
-
+//   to use more complex schemes, see below "An alternative...")
 // If T has depth2go<=0 we need to report T size as usual, but 
 //  we do not need to store any subtree information and we report 0 
 //  as the total lenght of the subtree information
+// 
+// An alternative scheme is to store the subtree info only for 
+// those subtree which are larger than a certain threshold;
+// in this case we need a trategy to recognize at run time when
+// the subtree info is present without additional external information.
+// The idea is the following (see k2split_k2() for an example):
+//   if m->subtinfo==NULL then there is no subtree info for the current 
+//      tree (and its subtrees!) 
+//   if m->subtinfo!=NULL then it contains the size of its subtree,
+//    in the above example #1 and #2, the size of the last subtree 
+//    is obtained by subtration: #3 = #T -1 (root) - #1 -#2
+//   for each subtree (1,2,3) we need to compute Ei to see if there
+//    is subtree info stored for Ei.
+//    for 1 and 2 we just look at <E1>, <E2> that are saved in subtinfo
+//    while we get E3 by the formula 
+//       m->subtinfo_size = |<#1>| + |<E1>| + |<#2>| + |<E2>| + E1 + E2 + E3
+//    with our simple encoding it is |<#1>| + |<E1>| + |<#2>| + |<E2>| = 2
+//    hence:
+//       E3 = m->subtinfo_size - (nchildren-1) - E1 - E2
+// Note that this requires that each time we create a (sub)matrix we 
+// maintain the correct m->subtinfo_size (which has no other uses).
+
 // Note that in this function we are not actually encoding the values 
-// but computing the values that will be later encoded. Such values are stored 
+// but computing the values that could be later encoded. Such values are stored 
 // in z using the above 40+24 scheme, the values then have to be stored (on disk)
 // using the appropriate scheme. In a first attempt we can avoid the encoding
 // and just use the array z as above. In that case we can measure everything
@@ -369,16 +387,16 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
 
 
 // do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
-// the checking is done recursively: but as soon as the encoding of a subtree
+// the checking is done recursively, but as soon as the encoding of a subtree
 // has length 0, that subtree is explored with a fast dfs visit that only reports 
 // the subtree size.
-// in the code below we call tree the one we are exploring (representing :m) 
-// and subtrees its immediate descendant
+// in the code below we call "tree" the one we are exploring (representing :m) 
+// and "subtrees" its immediate descendant
 // Recall that if the tree has 3 non empty children
 // its encoding consists of 
 //   <T1> <Sub1> <T2> <Sub2> Sub1 Sub2 Sub3 (where <x> denotes size of x) 
 // We compare <T1> and <T2> with the size returned from the subtree visit
-// <T3> is not stoeed so it is checked at the upper level where
+// <T3> is not stored so it is checked at the upper level where
 // 1 + <T1> + <T2> + <T3> will be compared with the size stored for 
 // T's parent. <Sub1> and <Sub2> are tested with the amount of data
 // scanned during the visit of T1 and T2. The value <Sub3> is obtained as

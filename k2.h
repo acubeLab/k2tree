@@ -78,6 +78,8 @@ void minimat_reset();
 
 // from k2aux.c
 void k2add_subtinfo(k2mat_t *a, const char *infofile);
+size_t k2treesize(const k2mat_t *m);
+
 
 // from k2ops.c
 // save a k2-matrix to file

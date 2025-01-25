@@ -31,6 +31,14 @@ size_t k2pos(const k2mat_t *m)
   return m->pos;
 }
 
+// return the size of the tree encoding the (sub)matrix
+size_t k2treesize(const k2mat_t *m)
+{
+  assert(m->pos >= m->offset);
+  return m->pos - m->offset;
+}
+
+
 // delete some nodes resetting m->pos to p
 // if p==0 this empties the matrix 
 void k2setpos(k2mat_t *m, size_t p)
@@ -300,7 +308,7 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   k2_free(c);
-  *c = *a; // copy all fields (caution, including subtse, ie subtree sizes) 
+  *c = *a; // copy all fields (caution, including subtinfo) 
   c->read_only = true;   // c is read only
 }
 
@@ -359,8 +367,8 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
     // compute size of last subtree
-    assert(a->offset + subt_size_tot < k2pos(a)); // there must be a final subtree 
-    subt_size[nchildren-1] = k2pos(a) - a->offset - subt_size_tot; // get size of final subtree
+    assert(subt_size_tot +1 < k2treesize(a)); // there must be a final subtree 
+    subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
     assert(nchildren-1+ subt_info_size_tot <= a->subtinfo_size);
     // remaining information is information for last subtree if any

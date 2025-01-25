@@ -103,7 +103,7 @@ int main (int argc, char **argv) {
   // load matrices
   size = mload_from_file(&asize, &a, iname1); // also init k2 library
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
-  if(0 && strcmp(iname1,iname2)==0) // optimization momentarily disabled 
+  if(false && strcmp(iname1,iname2)==0) // optimization momentarily disabled 
     mmake_pointer(&a,&b);
   else {
     size_t bsize, size1 = mload_from_file(&bsize, &b, iname2);
