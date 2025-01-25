@@ -198,9 +198,12 @@ void vu64_grow(vu64_t *z, size_t i)
 //  for T as usual, but we know that we are not storing information for
 //  T subtrees so E1=E2=E3=0. Since this is something we can check
 //  during the visit we can simply avoid storing <E1> and <E2>
-//  (at the moment for we do store them, because it allows us
+//  (at the moment we do store them, because it allows us
 //   to use more complex schemes, such as deciding whether to include
-//   subtree size information, based on teh size of the subtree)
+//   subtree size information, based on the size of the subtree)
+
+// there is a catch here: what about E3?
+
 // If T has depth2go<=0 we need to report T size as usual, but 
 //  we do not need to store any subtree information and we report 0 
 //  as the total lenght of the subtree information
@@ -231,9 +234,9 @@ void vu64_grow(vu64_t *z, size_t i)
 // store also len(<#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|>), and we could 
 // store |info_Sub(1)| + |info_Sub(2)| instead of |info_Sub(2)| and so on. 
 
-// Constant to store size and esizes in a single value
-#define BITSxTSIZE 40
-#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
+// Constants to store size and esizes in a single value (moved to k2.h) 
+// #define BITSxTSIZE 40
+// #define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 // note: potential overflow if tree sizes cannot be expressed in BITSxTSIZE bits
 // and if the encoding size cannot be expressed with 64-BITSxTSIZE 
 // setting BITSxTSIZE at least 40 make the first event unlikely,

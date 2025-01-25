@@ -42,6 +42,9 @@ int main (int argc, char **argv) {
   int verbose=0;
   int c;
   char iname1[PATH_MAX], iname2[PATH_MAX], oname[PATH_MAX];
+  #ifndef B128MAT
+  char *infofile1=NULL, *infofile2=NULL;
+  #endif
   time_t start_wc = time(NULL);
 
   /* ------------- read options from command line ----------- */
@@ -49,17 +52,23 @@ int main (int argc, char **argv) {
   bool check = false, write = true;
   char *outfile = NULL;
   Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "o:hcnv1")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:o:hcnv1")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;                 
+      #ifndef B128MAT
+      case 'i':
+        infofile1 = optarg; break;                 
+      case 'j':
+        infofile2 = optarg; break;                 
+      case '1':
+        Use_all_ones_node = true; break;
+      #endif
       case 'c':
         check = true; break;      
       case 'n':
         write = false; break;       
-      case '1':
-        Use_all_ones_node = true; break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -91,15 +100,22 @@ int main (int argc, char **argv) {
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
   size_t size, asize;
 
+  // load matrices
   size = mload_from_file(&asize, &a, iname1); // also init k2 library
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
-  if(strcmp(iname1,iname2)==0)
+  if(0 && strcmp(iname1,iname2)==0) // optimization momentarily disabled 
     mmake_pointer(&a,&b);
   else {
     size_t bsize, size1 = mload_from_file(&bsize, &b, iname2);
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
   }
+  // possibly load subtree info
+  #ifndef B128MAT
+  if(infofile1) k2add_subtinfo(&a,infofile1);
+  if(infofile2) k2add_subtinfo(&b,infofile2);
+  #endif
+
   if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
   mmult(asize,&a,&b,&ab);
   if (verbose || !write) 
@@ -154,13 +170,16 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile1 infile2\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
-    fprintf(stderr,"\t-o out  outfile name (def. compr: infile1%s)\n",default_ext);
+    fprintf(stderr,"\t-o out  outfile name (def. infile1%s)\n",default_ext);
     #ifndef B128MAT
     fprintf(stderr,"\t-1      compact all 1's submatrices in the result matrix\n");
+    fprintf(stderr,"\t-i info infile1 subtree info file\n");
+    fprintf(stderr,"\t-j info infile2 subtree info file\n");
     #endif  
-    fprintf(stderr,"\t-c      check multiplication (dense algorithm: O(n^3) time and O(n^2) space)\n");
+    fprintf(stderr,"\t-c      check multiplication (O(n^3) time and O(n^2) space!)\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
+    fprintf(stderr,"Multiply two compressed matrices stored in infile1 infile2\n\n");
     exit(1);
 }
 

@@ -68,6 +68,9 @@ static void k2_free(k2mat_t *m)
   if(m->b!=NULL) free(m->b);
   m->b=NULL;
   m->pos = m->lenb = m->offset = 0;
+  if(m->subtinfo!=NULL) {
+    free(m->subtinfo); m->subtinfo_size=0;
+  }
 }
 
 // nodes are added at the end of a matrix:
@@ -286,7 +289,8 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   *c = *a; // copy all fields
   c->pos = c->offset + end;     // actual ending position of c in buffer
   c->offset += start;           // actual starting position of c in buffer
-  c->subtse = NULL;             // if necessary will be initialized later 
+  c->subtinfo = NULL;           // if necessary will be initialized later 
+  c->subtinfo_size = 0;         // if necessary will be initialized later 
   c->read_only = true;   // c is read only
 }
 
@@ -316,7 +320,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
   // if root is all 1's create 4 all 1's submatrices and stop
-  // this will disappear if we optimize all operations for all 1's matrices
+  // this will disappear if we optimize all operations for all 1's submatrices
   if(root==ALL_ONES) {
     // if root is all 1's create 4 all 1's submatrices 
     // pointing to the same root and stop
@@ -325,22 +329,71 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     return;
   }
   // root is not all 1's: we have the standard structure
+  // and we need to do a real partition of the input matrix 
+
+  // if subtree info is available use it to partition
+  // more efficiently and pass the info at the lower levels
+  // array of subtree sizes and subtree info
+  size_t subt_size[4] = {0,0,0,0};  
+  uint64_t *subt_info[4] = {NULL,NULL,NULL,NULL}; 
+  size_t subt_info_size[4] = {0,0,0,0};  
+  // get number of children
+  size_t nchildren = __builtin_popcountll(root);
+  assert(nchildren>0 && nchildren<=4);  
+  // if we have subtree info fill subt_size[] subt_info[] subt_info_size[] 
+  if(a->subtinfo!=NULL) { 
+    // start of subtree information
+    uint64_t *nextsubtinfo = a->subtinfo + (nchildren-1);
+    size_t subt_size_tot = 0, subt_info_size_tot =0;
+    for(int i=0;i<nchildren-1;i++) {
+      // save subtree size 
+      subt_size[i] = a->subtinfo[i] &TSIZEMASK;    // size of subtree i 
+      assert(subt_size[i]>0);
+      subt_size_tot += subt_size[i];
+      // save subtree info size
+      subt_info_size[i] = a->subtinfo[i] >>BITSxTSIZE;
+      if(subt_info_size[i]>0) {
+        subt_info_size_tot += subt_info_size[i];
+        subt_info[i] = nextsubtinfo;  // subtree has info
+        nextsubtinfo += a->subtinfo[i] >>BITSxTSIZE; // size of subtree i info
+      }
+    }
+    // compute size of last subtree
+    assert(a->offset + subt_size_tot < k2pos(a)); // there must be a final subtree 
+    subt_size[nchildren-1] = k2pos(a) - a->offset - subt_size_tot; // get size of final subtree
+    // consumed information cannot be more than a->subtinfo_size 
+    assert(nchildren-1+ subt_info_size_tot <= a->subtinfo_size);
+    // remaining information is information for last subtree if any
+    subt_info_size[nchildren-1] = a->subtinfo_size - (nchildren-1+ subt_info_size_tot);
+    if(subt_info_size[nchildren-1]>0) {
+      subt_info[nchildren-1] = nextsubtinfo; // save beginning of last subtree info
+      // no need to update nextsubtinfo and subt_info_size_tot
+      assert(subt_info[nchildren-1]+subt_info_size[nchildren-1]== a->subtinfo+a->subtinfo_size);
+    }
+  }
   #ifndef NDEBUG
   size_t nodes=0, minimats=0, nz=0, all1=0;
   #endif
+  int child = 0;   // child index, used for subt_size[] subt_info[] 
   size_t next=pos;
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
       #ifdef NDEBUG
-      k2dfs_visit_fast(size/2,a,&next); // get size of submatrix
+      if(a->subtinfo) next = pos + subt_size[child]; // jump to end of submatrix
+      else k2dfs_visit_fast(size/2,a,&next);   // move to end of submatrix
       #else
-      k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz, &all1); // get size of submatrix
+      k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz, &all1); // move to end of submatrix
+      // if(a->subtinfo) assert(next == pos + subt_size[child]);      // check subtree size is as expected
       assert(next==pos+nodes+minimats*Minimat_node_ratio);
       nodes = minimats = 0; // reset number of matrices and nodes
       #endif
-      k2clone(a, pos, next, &b[i][j]);         // create pointer to submatrix
-      pos = next; // advance to next item
+      k2clone(a, pos, next, &b[i][j]);        // create pointer to submatrix
+      pos = next;                             // advance to next item
+      if(a->subtinfo) {
+        b[i][j].subtinfo = subt_info[child];    // save subt info if available and advance child
+        b[i][j].subtinfo_size = subt_info_size[child++];  // save subt info if available and advance child
+      }
     }
   }
   assert(next+a->offset==k2pos(a));
@@ -365,3 +418,22 @@ size_t k2get_k2size(size_t msize)
   return s;
 }
 
+// add the subtree info to a k2 matrix if available
+void k2add_subtinfo(k2mat_t *a, const char *infofile)
+{
+  assert(infofile!=NULL);
+  size_t elsize = sizeof(*(a->subtinfo));  // size of an element in the subtinfo array
+  FILE *f = fopen(infofile,"rb");
+  if(f==NULL) quit("k2add_subtinfo: cannot open info file", __LINE__,__FILE__);
+  if(fseek(f,0,SEEK_END)!=0) quit("k2add_subtinfo: seek error on info file", __LINE__,__FILE__);
+  long fsize = ftell(f);
+  if(fsize<0) quit("k2add_subtinfo: ftell error on info file", __LINE__,__FILE__);
+  if(fsize%elsize!=0) quit("k2add_subtinfo: invalid info file", __LINE__,__FILE__);;
+  a->subtinfo_size = fsize/elsize;
+  rewind(f);
+  a->subtinfo = malloc(fsize);
+  if(a->subtinfo==NULL) quit("k2add_subtinfo: cannot allocate memory", __LINE__,__FILE__);
+  size_t s = fread(a->subtinfo,elsize,a->subtinfo_size,f);
+  if(s!=a->subtinfo_size) quit("k2add_subtinfo: error reading info file", __LINE__,__FILE__);
+  fclose(f);
+}
