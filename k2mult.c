@@ -179,7 +179,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
     fprintf(stderr,"\t-h        show this help message\n");    
     fprintf(stderr,"\t-v        verbose\n\n");
-    fprintf(stderr,"Multiply two compressed matrices stored in infile1 infile2\n\n");
+    fprintf(stderr,"Multiply two compressed matrices stored in infile1 and infile2\n\n");
     exit(1);
 }
 

@@ -126,9 +126,9 @@ When invoked with `-d` the input file must be a k2 matrix which is then expanded
 
 When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `matrixcmp.x`.
 
-The option `-m` can be used only in compression, currently only with one of the two values `2` and `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
+The option `-m` can be used only in compression, currently only with one of the two values `2` or `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
 
-By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a sligtly more complex compression algorithm. 
+By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a slightly more complex compression algorithm. 
 
 
 
@@ -150,10 +150,10 @@ Options:
     -h        show this help message
     -v        verbose
 
-Multiply two compressed matrices stored in infile1 infile2
+Multiply two compressed matrices stored in infile1 and infile2
 ```
-When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional algorithm applied to the uncompressed inputs. For large matrice this verification can be slow and space consuming. 
-For an explanation of the `-i` and `-j` option see section *Enriched Format* below. 
+When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional $O(n^3)$ time algorithm applied to the uncompressed inputs. For large matrices this verification can be slow and space consuming. 
+For an explanation of the `-i` and `-j` options see section *Enriched format* below. 
 
 
 ### Example:
