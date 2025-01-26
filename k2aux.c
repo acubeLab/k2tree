@@ -361,13 +361,13 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       // save subtree info size
       subt_info_size[i] = a->subtinfo[i] >>BITSxTSIZE;
       if(subt_info_size[i]>0) {
+        subt_info[i] = nextsubtinfo;       // subtree has info, save starting position
+        nextsubtinfo += subt_info_size[i]; // start of next subtree info
         subt_info_size_tot += subt_info_size[i];
-        subt_info[i] = nextsubtinfo;  // subtree has info
-        nextsubtinfo += a->subtinfo[i] >>BITSxTSIZE; // size of subtree i info
       }
     }
     // compute size of last subtree
-    assert(subt_size_tot +1 < k2treesize(a)); // there must be a final subtree 
+    assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
     subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
     assert(nchildren-1+ subt_info_size_tot <= a->subtinfo_size);
@@ -383,7 +383,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   size_t nodes=0, minimats=0, nz=0, all1=0;
   #endif
   int child = 0;   // child index, used for subt_size[] subt_info[] 
-  size_t next=pos;
+  size_t next=pos; //now pos==1 since we already read the root
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
@@ -392,15 +392,15 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       else k2dfs_visit_fast(size/2,a,&next);   // move to end of submatrix
       #else
       k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz, &all1); // move to end of submatrix
-      // if(a->subtinfo) assert(next == pos + subt_size[child]);      // check subtree size is as expected
+      if(a->subtinfo) assert(next == pos + subt_size[child]);  // check subtree size is as expected
       assert(next==pos+nodes+minimats*Minimat_node_ratio);
       nodes = minimats = 0; // reset number of matrices and nodes
       #endif
       k2clone(a, pos, next, &b[i][j]);        // create pointer to submatrix
       pos = next;                             // advance to next item
       if(a->subtinfo) {
-        b[i][j].subtinfo = subt_info[child];    // save subt info if available and advance child
-        b[i][j].subtinfo_size = subt_info_size[child++];  // save subt info if available and advance child
+        b[i][j].subtinfo = subt_info[child];    // save subt info if available
+        b[i][j].subtinfo_size = subt_info_size[child++];  // save subtinfo size and advance child
       }
     }
   }

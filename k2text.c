@@ -428,7 +428,7 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
   assert(nchildren>0 && nchildren<=4);
   // read subtree information if available 
   uint64_t *subtree_info = &(z->v[z->n]); // array with subtree_info information
-  z->n += nchildren-1;                    // advance z->n to subtree encoding
+  z->n += nchildren-1;                    // advance z->n to the subtree encoding area
   size_t encode_seen = nchildren-1;       // consume one item x non-last children 
   // visit children 
   size_t cnum = 0;             // current child 
