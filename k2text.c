@@ -475,6 +475,7 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
     }  
   assert(cnum==nchildren); // we should have visited all children
   assert(*pos == pos_save + tree_size); // check again tree size
+  (void) pos_save; // avoid warning
   return tree_size;
 }
 

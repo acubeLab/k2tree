@@ -138,16 +138,22 @@ The executable `k2mult.c` can be used to multiply two compressed matrices in k2 
 
 ```
 Usage:
-	  k2mult.x [options] iname1 iname2
+      k2mult.x [options] infile1 infile2
 
 Options:
-	-n      do not write output file, only show stats
-	-e ext  extension for the output file (def. .prod)
-	-c      check multiplication (can be slow for large matrices!)
-	-v      verbose
+    -n        do not write output file, only show stats
+    -o out    outfile name (def. infile1.prod)
+    -1        compact all 1's submatrices in the result matrix
+    -i info   infile1 subtree info file
+    -j info   infile2 subtree info file
+    -c        check multiplication (O(n^3) time and O(n^2) space!)
+    -h        show this help message
+    -v        verbose
 
+Multiply two compressed matrices stored in infile1 infile2
 ```
-When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the tradizional algorithm applied to the uncompressed inputs. For large matrice this verification can be slow and space consuming.   
+When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional algorithm applied to the uncompressed inputs. For large matrice this verification can be slow and space consuming. 
+For an explanation of the `-i` and `-j` option see section *Enriched Format* below. 
 
 
 ### Example:
@@ -171,24 +177,47 @@ should eventually display the matrix `t8.bbm` squared:
     1    1    1    1    0    1    1    1
 ```
 
+
+## Enriched format
+
+In order to speedup operations on compressed matrices in k2 format it is possible to use some extra information 
+on its largest subtrees. This information must be computed with `k2subtinfo.x`, for example:
+```bash
+k2subtinfo.x -vc m.k2 -o m.k2.info 
+```
+computes the information for the compressed matrix `m.k2` and stores it in `m.k2.info`. By default the information is computed for the subtrees whose size is at least the square root of the size of the k2 tree representing the whole matrix. 
+Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`, or use the option `-D d` to compute the info only for the subtree at depth up to `d`. 
+
+At the moment this additional information can be used only to speed-up matrix-matrix multiplication. For example write
+```bash
+k2mult.x m1.k2 m2.k2 -i m1.k2.info -j m2.k2.info 
+```
+to compute the product `m1.k2` times `m2.k2` using the extra information `m1.k2.info` for the compressed matrix `m1.k2`
+and `m2.k2.info` for the compressed matrix `m2.k2` (the information can be used also for only one of the two input matrices).
+
+NOTE: to see a real speed improvement at the moment it is necessary to use the release version (`make release`). 
+
+
+
 ## Pagerank computation 
 
-The Pagerank is ideal for testing the speed of the matrix-vector product in a real-world scenario.
+The Pagerank computation is ideal for testing the speed of the matrix-vector product in a real-world scenario.
 Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
 it using the `mtx2rowm` tool that after the conversion provides some minimal instructions to
-compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank  
-vector (using `k2pagerank.x`) possilby using multiple threads. 
+compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank
+vector (using `k2pagerank.x`) possibly using multiple threads. (The program `k2bpagerank.x` is an experiment
+where thread syncronization is done using pthread barriers, but the performances are very similar). 
 
 
 
 ## Matrices represented as bitarrays
 
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^30$. 
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
 
 The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
 
 
-### Product of bbm matrices
+## Product of bbm matrices with openmp
 
 The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
 

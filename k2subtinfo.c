@@ -1,12 +1,21 @@
-/* Compression and decompression of boolean matrices using k2 trees
-
-   k2se: compute the subtree encoding info for a k2 matrix 
-
-   Copyright August 2023-today   ---  giovanni.manzini@unipi.it
+/* Computation of subtree information for a k2 matrix 
+ *
+ * For each node for which the information is provided, we store 
+ * the size of the subtrees rooted at its children (except the last child)
+ * in order to access any such subtree in constant time. 
+ * Since this information is stored into a separate array, we also
+ * store the size of such information for any subtree, so that we can 
+ * reach in O(1) time such information for any given subtree    
+ * 
+ * For the details of the enconding, see the long comment before the 
+ * function k2dfs_sizes() in k2text.c 
+ * 
+ * Copyright August 2024-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#undef NDEBUG      // always compile assertions 
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
@@ -16,7 +25,7 @@
 #include <stdbool.h>
 #include <libgen.h>
 #include "k2.h"
-#define default_ext ".se"
+#define default_ext ".sinfo"
 #define BITSxTSIZE 40
 #define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
@@ -111,7 +120,7 @@ int main (int argc, char **argv) {
   }
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
-  printf("Subtree sizes storage: %zu bytes\n", z.n*sizeof(z.v[0]));
+  printf("Subtree info storage: %zu bytes\n", z.n*sizeof(z.v[0]));
   if(write) {
     FILE *out = fopen(oname,"wb");
     if(!out) quit("Error opening output file",__LINE__,__FILE__);
@@ -149,11 +158,13 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
-    fprintf(stderr,"\t-D D    depth limit for storing subtree sizes (def. do not use depth)\n");
-    fprintf(stderr,"\t-N N    #node limit for storing subtree sizes (def. sqrt(tot_nodes))\n");
-    fprintf(stderr,"\t-c      check subtree encoding\n");
+    fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
+    fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
+    fprintf(stderr,"\t-c      check subtree information\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
+    fprintf(stderr,"Compute and store in a separate file the information about the size\n"
+                   "of the top subtrees of the input compressed matrix.\n\n");
     exit(1);
 }
 

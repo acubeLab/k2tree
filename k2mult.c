@@ -169,16 +169,16 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile1 infile2\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-n      do not write output file, only show stats\n");    
-    fprintf(stderr,"\t-o out  outfile name (def. infile1%s)\n",default_ext);
+    fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
+    fprintf(stderr,"\t-o out    outfile name (def. infile1%s)\n",default_ext);
     #ifndef B128MAT
-    fprintf(stderr,"\t-1      compact all 1's submatrices in the result matrix\n");
-    fprintf(stderr,"\t-i info infile1 subtree info file\n");
-    fprintf(stderr,"\t-j info infile2 subtree info file\n");
+    fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
+    fprintf(stderr,"\t-i info   infile1 subtree info file\n");
+    fprintf(stderr,"\t-j info   infile2 subtree info file\n");
     #endif  
-    fprintf(stderr,"\t-c      check multiplication (O(n^3) time and O(n^2) space!)\n");
-    fprintf(stderr,"\t-h      show this help message\n");    
-    fprintf(stderr,"\t-v      verbose\n\n");
+    fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
+    fprintf(stderr,"\t-h        show this help message\n");    
+    fprintf(stderr,"\t-v        verbose\n\n");
     fprintf(stderr,"Multiply two compressed matrices stored in infile1 infile2\n\n");
     exit(1);
 }
