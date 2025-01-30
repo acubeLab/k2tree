@@ -77,13 +77,13 @@ static void k2_free(k2mat_t *m)
   m->b=NULL;
   m->pos = m->lenb = m->offset = 0;
   if(m->subtinfo!=NULL) {
-    free(m->subtinfo); m->subtinfo_size=0;
+    free(m->subtinfo); m->subtinfo=NULL; m->subtinfo_size=0;
   }
 }
 
 // nodes are added at the end of a matrix:
-// since when a node is added we still don't all its children
-// once the corrsposnding subtree is completed nodes are read back 
+// since when a node is added we still don't know all its children
+// once the corresponding subtree is completed nodes are read back 
 // and sometimes re-written after a modification 
 // (this is why we keep track where the node was written)
 

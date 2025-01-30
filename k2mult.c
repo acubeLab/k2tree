@@ -52,7 +52,8 @@ int main (int argc, char **argv) {
   bool check = false, write = true;
   char *outfile = NULL;
   Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "i:j:o:hcnv1")) != -1) {
+  bool optimize_squaring = false;    // use a single copy of M to compute M^2
+  while ((c=getopt(argc, argv, "i:j:o:qhcnv1")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -69,6 +70,8 @@ int main (int argc, char **argv) {
         check = true; break;      
       case 'n':
         write = false; break;       
+      case 'q':
+        optimize_squaring = true; break;       
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -90,6 +93,18 @@ int main (int argc, char **argv) {
   if (argc-optind != 3) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
+  // check command line options
+  if(optimize_squaring && strcmp(argv[1],argv[2])!=0) {
+    fprintf(stderr,"Option -q is allowed only when the input matrices are equal\n");
+    exit(2);
+  }
+  #ifndef B128MAT
+  if(optimize_squaring && infofile2!=NULL) {
+    fprintf(stderr,"Options -q and -j are incompatible (second matrix uses the same info as first)\n");
+    exit(3);
+  }
+  #endif
+  
   // create file names
   sprintf(iname1,"%s",argv[1]);
   sprintf(iname2,"%s",argv[2]);
@@ -100,30 +115,38 @@ int main (int argc, char **argv) {
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
   size_t size, asize;
 
-  // load matrices
+  // load first matrix
   size = mload_from_file(&asize, &a, iname1); // also init k2 library
+  #ifndef B128MAT
+  // possibly load subtree info
+  if(infofile1) k2add_subtinfo(&a,infofile1);
+  #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
-  if(false && strcmp(iname1,iname2)==0) // optimization momentarily disabled 
-    mmake_pointer(&a,&b);
+
+  // copy or load second matrix
+  if(optimize_squaring) {
+    assert(strcmp(iname1,iname2)==0); 
+    mmake_pointer(&a,&b); // if b==a, use a pointer and save space
+  }
   else {
     size_t bsize, size1 = mload_from_file(&bsize, &b, iname2);
+    // possibly load subtree info
+    #ifndef B128MAT
+    if(infofile2) k2add_subtinfo(&b,infofile2);
+    #endif
+    // check sizes correpondds
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
   }
-  // possibly load subtree info
-  #ifndef B128MAT
-  if(infofile1) k2add_subtinfo(&a,infofile1);
-  if(infofile2) k2add_subtinfo(&b,infofile2);
-  #endif
-
   if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
+
+  // do the multiplication shos/save the result
   mmult(asize,&a,&b,&ab);
   if (verbose || !write) 
     mshow_stats(size, asize,&ab,oname,stdout);
-
   if(write) msave_to_file(size,asize,&ab,oname);
 
-  // check product if requested: use bbm matrix (n^2 bytes) 
+  // check product if requested: use bbm matrix (n^2 bytes n^3 time) 
   if(check) {
     uint8_t *m2, *m1 = bbm_alloc(size), *m3 = bbm_alloc(size);
     // read m1 
@@ -155,7 +178,8 @@ int main (int argc, char **argv) {
 
   // free and terminate
   matrix_free(&a);
-  if(strcmp(iname1,iname2)) matrix_free(&b);
+  if(!optimize_squaring) 
+    matrix_free(&b); // b is distinct from a, deallocate it
   matrix_free(&ab);    
   minimat_reset(); // reset the minimat library and free minimat product table
   // report running time
@@ -176,6 +200,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-i info   infile1 subtree info file\n");
     fprintf(stderr,"\t-j info   infile2 subtree info file\n");
     #endif  
+    fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
     fprintf(stderr,"\t-h        show this help message\n");    
     fprintf(stderr,"\t-v        verbose\n\n");
