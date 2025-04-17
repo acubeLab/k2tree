@@ -4,7 +4,7 @@ LDFLAGS=-fsanitize=undefined
 CC=gcc
 
 # main executables 
-K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x k2pagerank.x k2bpagerank.x k2subtinfo.x
+K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x k2pagerank.x k2bpagerank.x k2subtinfo.x k2cpdf.x
 B128EXECS=b128bbm.x b128sparse.x b128mult.x
 EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x 
 
@@ -27,11 +27,17 @@ k2%.x: k2%.o k2ops.o bbm.o vu64.o
 k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+k2cpdf.o: k2cpdf.c k2.h bbm.h extra/xerrors.h libsais/liblibsais.a
+	$(CC) $(CFLAGS) -c -o $@ $< 
+
 k2pagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
 	$(CC) $(CFLAGS) -c -o $@ $< 
 
 k2bpagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
 	$(CC) $(CFLAGS) -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
+
+k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o libsais/liblibsais.a
+	$(CC) $(CFLAGS) -o $@ $^ 
 
 k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o vu64.o
 	$(CC) $(CFLAGS) -o $@ $^ 

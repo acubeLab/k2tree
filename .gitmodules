@@ -1,0 +1,3 @@
+[submodule "libsais"]
+	path = libsais
+	url = git@github.com:IlyaGrebnov/libsais.git
