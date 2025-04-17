@@ -294,7 +294,7 @@ int main(int argc, char* argv[]) {
   size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
   totnz += mshow_stats(size, asize, &a, basename(argv[1]), stdout);
 
-  uint32_t rank_block = 4;
+  uint32_t rank_block = 64;
 
   uint32_t P_size;
   uint32_t* P = NULL;
