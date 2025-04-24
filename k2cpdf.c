@@ -268,11 +268,11 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   dsu_free(&u);
 
   *rank_size = (ca.pos + 1) / rank_block;
-  *rank_p = (uint32_t*) malloc(sizeof(uint32_t) * (ca.pos + 1) / rank_block);
+  *rank_p = (uint32_t*) malloc(sizeof(uint32_t) * ((ca.pos + 1) / rank_block + 1));
   uint32_t sum = 0;
-  for(size_t i = 1; i < ca.pos; i++) {
+  for(size_t i = 0; i < ca.pos; i++) {
     if(i % rank_block == 0) {// finish block
-      (*rank_p)[i / rank_block - 1] = sum;
+      (*rank_p)[i / rank_block] = sum;
     }
 
     if(i % 2) {
@@ -282,7 +282,7 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     }
   }
 
-  (*rank_p)[(ca.pos + 1) / rank_block - 1] = sum;
+  (*rank_p)[(ca.pos + 1) / rank_block] = sum;
 
   return ca;
 }
