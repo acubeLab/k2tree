@@ -245,6 +245,11 @@ Running this will generate three new files in the same directory as `m.k2`:
   * Second, a `uint32_t` integer `b` indicating how many nodes are in each block.
   * Then, `r` `uint32_t` integers follow, each one tells you how many times `0000` appears before block `i`.
 
+If you want another size fo the blocks, you can do it in the following way
+```
+./k2cpdf.x -f m.k2 -b 64
+```
+
 ## Additional tools 
 
 
