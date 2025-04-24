@@ -208,7 +208,7 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   uint64_t amount_idem_subtree = 0;
   uint64_t amount_of_groups = 0;
 
-  for(size_t i = 0; i < a->pos; i++) {
+  for(size_t i = 1; i < a->pos; i++) {
     uint64_t curr_start_pos = csa[i];
     uint64_t curr_end_pos = csa[i] + get_size(text, a->pos, &z, csa[i]) - 1;
 
@@ -267,7 +267,6 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   free(text);
   dsu_free(&u);
 
-  fprintf(stderr, "?\n");
   *rank_size = (ca.pos + 1) / rank_block + 1;
   *rank_p = (uint32_t*) malloc(sizeof(uint32_t) * (*rank_size));
   uint32_t sum = 0;
@@ -284,7 +283,6 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   }
 
   (*rank_p)[(ca.pos + 1) / rank_block] = sum;
-  fprintf(stderr, "?\n");
 
   return ca;
 }
@@ -359,6 +357,7 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
     uint32_t aux = *pos;
     *pos = P[rp];
     k2dfs_visit__(size, m, pos, nodes, minimats, nz, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
+    *pos = aux;
     return; // all 1's matrix consists of root only
   }
   for(int i=0;i<4;i++) 
