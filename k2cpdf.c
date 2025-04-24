@@ -288,21 +288,41 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
 }
 
 int main(int argc, char* argv[]) {
+  extern char *optarg;
+  extern int optind, opterr, optopt;
+
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize, totnz=0;
-  
-  size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
-  totnz += mshow_stats(size, asize, &a, basename(argv[1]), stdout);
-
   uint32_t rank_block = 64;
-
   uint32_t P_size;
   uint32_t* P = NULL;
   uint32_t rank_size;
-  uint32_t* rank_p = NULL;
-  k2mat_t ca = compress_k2mat_t(size, asize, &a, &P_size, &P, &rank_size, &rank_p, rank_block);
+  uint32_t* rank_p = NULL; 
 
-  printf("COMPRESSED SPACE\n");
+  char* k2name_file = NULL;
+  int c;
+  while((c = getopt(argc, argv, "b:f:")) != -1) {
+    switch (c) {
+      case 'b':
+        rank_block = atoi(optarg); break;
+      case 'f':
+        k2name_file = optarg; break;
+      case '?':
+        fprintf(stderr, "Unknown option %c\n", optopt);
+        exit(1);
+    }
+  }
+
+  if(k2name_file == NULL) {
+    fprintf(stderr, "Missing file argument: -f <name file>\n");
+    exit(1);
+  }
+
+  size = mload_from_file(&asize, &a, k2name_file); // also init k2 library
+  totnz += mshow_stats(size, asize, &a, basename(k2name_file), stdout);
+
+
+  k2mat_t ca = compress_k2mat_t(size, asize, &a, &P_size, &P, &rank_size, &rank_p, rank_block);
 
   uint64_t bits_ca = sizeof(ca) + sizeof(ca.lenb) + sizeof(ca.offset)
                  + sizeof(ca.pos) + sizeof(ca.read_only) + sizeof(int8_t) * ca.pos;
@@ -310,15 +330,17 @@ int main(int argc, char* argv[]) {
   uint64_t bits_extra = sizeof(uint32_t) * 2 + sizeof(uint32_t) * P_size + sizeof(uint32_t) * rank_size;
   bits_extra *= 8;
 
-  printf("Bits compressed k2pdf: %" PRIu64 "\nBits extra info: %" PRIu64 
-         "\nTotal bits: %" PRIu64 " Total bytes: %" PRIu64 "\n", bits_ca, bits_extra, bits_ca + bits_extra, (bits_ca + bits_extra) / 8);
+  fprintf(stdout, "COMPRESSED SPACE\n");
+  fprintf(stdout, "Bits compressed k2pdf: %" PRIu64 "\nBits extra info: %" PRIu64 
+                  "\nTotal bits: %" PRIu64 " Total bytes: %" PRIu64 "\n",
+                  bits_ca, bits_extra, bits_ca + bits_extra, (bits_ca + bits_extra) / 8);
 
-  char file_ck2[strlen(argv[1]) + 5];
-  strcpy(file_ck2, argv[1]);
-  file_ck2[strlen(argv[1]) - 2] = 'c';
-  file_ck2[strlen(argv[1]) - 1] = 'k';
-  file_ck2[strlen(argv[1])] = '2';
-  file_ck2[strlen(argv[1]) + 1] = '\0';
+  char file_ck2[strlen(k2name_file) + 5];
+  strcpy(file_ck2, k2name_file);
+  file_ck2[strlen(k2name_file) - 2] = 'c';
+  file_ck2[strlen(k2name_file) - 1] = 'k';
+  file_ck2[strlen(k2name_file)] = '2';
+  file_ck2[strlen(k2name_file) + 1] = '\0';
   msave_to_file(size, asize, &ca, file_ck2);
 
   char file_p[strlen(file_ck2) + 4];
@@ -338,6 +360,7 @@ int main(int argc, char* argv[]) {
   file_r[strlen(file_ck2) + 2] = '\0';
   FILE *fr = fopen(file_r, "w");  
   fwrite(&rank_size, sizeof(uint32_t), 1, fr);
+  fwrite(&rank_block, sizeof(uint32_t), 1, fr);
   fwrite(rank_p, sizeof(uint32_t), P_size, fr);
   fclose(fr);
 
