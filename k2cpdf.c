@@ -261,6 +261,9 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
 
   *P = (uint32_t*) malloc(sizeof(uint32_t) * P_h.n);
   *P_size = P_h.n;
+  for(size_t i = 0; i < P_h.n; i++) {
+    (*P)[i] = (uint32_t) P_h.v[i];
+  }
 
   vu64_free(&P_h);
   vu64_free(&z);
@@ -330,7 +333,7 @@ static minimat_t k2read_minimat__(const k2mat_t *b, size_t *p) {
 uint32_t rank_p(const k2mat_t *m, size_t pos, uint32_t R_size, uint32_t block_size, uint32_t *rank_h) {
   uint32_t block = pos / block_size;
 
-  assert(block >= R_size);
+  assert(block < R_size);
   uint32_t ret = rank_h[block];
 
   for(uint32_t to_read = block * block_size; to_read < pos; to_read++) {
@@ -352,12 +355,21 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
   assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node__(m,*pos); (*pos)++;
   (*nodes)++;
-  if(root==ALL_ONES) {
-    uint32_t rp = rank_p(m, *pos, R_size, block_size, rank_h);
-    uint32_t aux = *pos;
+  if(root==0) {
+    uint32_t aux = *pos - 1; // remember where to comback
+    uint32_t aux_nodes = *nodes; // to not overcount nodes
+    uint32_t aux_minimats = *minimats; // to not overcount minimats
+
+    uint32_t rp = rank_p(m, *pos - 1, R_size, block_size, rank_h);
     *pos = P[rp];
     k2dfs_visit__(size, m, pos, nodes, minimats, nz, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
+    
+    *nodes = aux_nodes; // get back correct stats
+    *minimats = aux_minimats; // get back correct stats
+    
+    // moving back to pointer
     *pos = aux;
+    (*pos)++;
     return; // all 1's matrix consists of root only
   }
   for(int i=0;i<4;i++) 
@@ -453,7 +465,7 @@ int main(int argc, char* argv[]) {
                   "\nTotal bits: %" PRIu64 " Total bytes: %" PRIu64 "\n",
                   bits_ca, bits_extra, bits_ca + bits_extra, (bits_ca + bits_extra) / 8);
 
-  size_t xd = mshow_stats__(size, asize, &a, basename(k2name_file), stdout, P_size, P, rank_size, rank_block, rank_p);
+  size_t xd = mshow_stats__(size, asize, &ca, basename(k2name_file), stdout, P_size, P, rank_size, rank_block, rank_p);
 
   char file_ck2[strlen(k2name_file) + 5];
   strcpy(file_ck2, k2name_file);
