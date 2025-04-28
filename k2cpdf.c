@@ -333,6 +333,7 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   *P = (uint32_t*) malloc(sizeof(uint32_t) * P_h.n);
   *P_size = P_h.n;
   for(size_t i = 0; i < P_h.n; i++) {
+    assert(0 <= P_h.v[i] && ca.pos > P_h.v[i]);
     (*P)[i] = (uint32_t) P_h.v[i];
   }
 
