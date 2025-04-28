@@ -187,6 +187,16 @@ static uint64_t get_size(uint8_t *tree, uint64_t t_size, vu64_t *z, uint64_t b_t
   return get_size_rec(tree, z, t_pos, t_size, z_pos, b_tree);
 }
 
+node_t k2read_node__(const k2mat_t *m, size_t p)
+{
+  p+=m->offset;
+  assert(p<m->pos && p<m->lenb);
+  if(p%2==0)
+    return m->b[p/2] & 0xF;
+  else 
+    return  (m->b[p/2] >> 4) & 0xF;
+}
+
 size_t k2add_node__(k2mat_t *m, node_t n)
 {
   assert(!m->read_only);
@@ -272,6 +282,12 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     if(st_query(&st, pos + 1, i) < curr_end_pos - curr_start_pos + 1) {
       amount_of_groups++;
     } else {
+      for(int i = 0; i < curr_end_pos - curr_start_pos + 1; i++) {
+        node_t node = k2read_node__(a, curr_start_pos + i);
+        node_t node2 = k2read_node__(a, prev_start_pos + i);
+        assert(node == node2);
+      }
+
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
     prev[curr_end_pos - curr_start_pos + 1] = i;
@@ -340,15 +356,6 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   return ca;
 }
 
-node_t k2read_node__(const k2mat_t *m, size_t p)
-{
-  p+=m->offset;
-  assert(p<m->pos && p<m->lenb);
-  if(p%2==0)
-    return m->b[p/2] & 0xF;
-  else 
-    return  (m->b[p/2] >> 4) & 0xF;
-}
 
 typedef uint64_t minimat_t; // explict matrix aka minimat (currently 2x2)
 
@@ -356,7 +363,6 @@ static uint32_t MMsize = 0;  // a certainly incorrect value
 static uint32_t Minimat_node_ratio = 0;  // certainly incorrect value
 static minimat_t MINIMAT0s=0;  // minimat containing all 0's, correctly initialized 
 static minimat_t MINIMAT1s=0;  // minimat containing all 1's, incorrect value, initialzed in minimats_init  
-
 
 // multiplication functions for minimats of different sizes
 
@@ -406,7 +412,7 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
   node_t root = k2read_node__(m,*pos); (*pos)++;
   (*nodes)++;
   (*onodes)++;
-  if(root==0) {
+  if(root==ALL_ONES) { // just coincidence that ALL_ONES == POINTER
     (*onodes)--;
     uint32_t aux = *pos; // remember where to comback
     uint32_t aux_nodes = *nodes; // to not overcount nodes
@@ -445,7 +451,7 @@ bool k2is_empty__(const k2mat_t *m)
 static int mstats__(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *onodes, size_t *ominimats,
                     uint32_t P_size, uint32_t *P, uint32_t R_size, uint32_t block_size, uint32_t *rank_h)
 {
-  *pos=*nodes=*minimats=*nz=0;
+  *pos=*nodes=*minimats=*nz=*onodes=*ominimats=0;
   if(!k2is_empty__(a)) k2dfs_visit__(asize,a,pos,nodes,minimats,nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h);
   int eq = mequals(asize,a,a);
   assert(eq<0);
@@ -459,7 +465,7 @@ size_t mshow_stats__(size_t size, size_t asize, const k2mat_t *a, const char *mn
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats__(asize,a,&pos,&nodes,&minimats,&nz, &onodes, &ominimats, P_size, P, R_size, block_size, rank_h);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, Nonzeros: %zu, Original Nodes: %zu, Original Minimals: %zu\n",
+  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, Nonzeros: %zu, Original Nodes: %zu, Original Minimats: %zu\n",
           levels,nodes,minimats, nz, onodes, ominimats);
   // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
   fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
