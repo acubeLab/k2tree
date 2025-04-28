@@ -347,7 +347,7 @@ uint32_t rank_p(const k2mat_t *m, size_t pos, uint32_t R_size, uint32_t block_si
   return ret;
 }
 
-void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz,
+void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *onodes, size_t *ominimats,
                    uint32_t P_size, uint32_t *P, uint32_t R_size, uint32_t block_size, uint32_t *rank_h)
 {
   assert(size>MMsize);
@@ -355,14 +355,16 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
   assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node__(m,*pos); (*pos)++;
   (*nodes)++;
+  (*onodes)++;
   if(root==0) {
+    (*onodes)--;
     uint32_t aux = *pos - 1; // remember where to comback
     uint32_t aux_nodes = *nodes; // to not overcount nodes
     uint32_t aux_minimats = *minimats; // to not overcount minimats
 
     uint32_t rp = rank_p(m, *pos - 1, R_size, block_size, rank_h);
     *pos = P[rp];
-    k2dfs_visit__(size, m, pos, nodes, minimats, nz, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
+    k2dfs_visit__(size, m, pos, nodes, minimats, nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
     
     *nodes = aux_nodes; // get back correct stats
     *minimats = aux_minimats; // get back correct stats
@@ -376,11 +378,12 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion
         (*minimats)++;
+        (*ominimats)++;
         minimat_t mm = k2read_minimat__(m,pos); // read minimat and advance pos
         *nz += (size_t) __builtin_popcountll(mm);
       }
       else { // recurse on submatrix
-        k2dfs_visit__(size/2, m, pos, nodes, minimats, nz, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
+        k2dfs_visit__(size/2, m, pos, nodes, minimats, nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
       }
     }
 }
@@ -390,11 +393,11 @@ bool k2is_empty__(const k2mat_t *m)
   return m->pos == 0;
 }
 
-static int mstats__(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz,
+static int mstats__(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *onodes, size_t *ominimats,
                     uint32_t P_size, uint32_t *P, uint32_t R_size, uint32_t block_size, uint32_t *rank_h)
 {
   *pos=*nodes=*minimats=*nz=0;
-  if(!k2is_empty__(a)) k2dfs_visit__(asize,a,pos,nodes,minimats,nz, P_size, P, R_size, block_size, rank_h);
+  if(!k2is_empty__(a)) k2dfs_visit__(asize,a,pos,nodes,minimats,nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h);
   int eq = mequals(asize,a,a);
   assert(eq<0);
   return -eq;
@@ -403,12 +406,12 @@ static int mstats__(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 size_t mshow_stats__(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file,
                      uint32_t P_size, uint32_t *P, uint32_t R_size, uint32_t block_size, uint32_t *rank_h) {
-  size_t pos, nodes, minimats, nz;
+  size_t pos, nodes, minimats, nz, onodes, ominimats;
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
-  int levels = mstats__(asize,a,&pos,&nodes,&minimats,&nz, P_size, P, R_size, block_size, rank_h);
+  int levels = mstats__(asize,a,&pos,&nodes,&minimats,&nz, &onodes, &ominimats, P_size, P, R_size, block_size, rank_h);
   assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, Nonzeros: %zu\n",
-          levels,nodes,minimats, nz);
+  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, Nonzeros: %zu, Original Nodes: %zu, Original Minimals: %zu\n",
+          levels,nodes,minimats, nz, onodes, ominimats);
   // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
   fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
