@@ -285,9 +285,9 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     if(st_query(&st, pos + 1, i) < curr_end_pos - curr_start_pos + 1) {
       amount_of_groups++;
     } else {
-      for(int i = 0; i < curr_end_pos - curr_start_pos + 1; i++) {
-        node_t node = k2read_node__(a, curr_start_pos + i);
-        node_t node2 = k2read_node__(a, prev_start_pos + i);
+      for(int j = 0; j < curr_end_pos - curr_start_pos + 1; j++) {
+        node_t node = k2read_node__(a, curr_start_pos + j);
+        node_t node2 = k2read_node__(a, prev_start_pos + j);
         assert(node == node2);
       }
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
@@ -425,7 +425,9 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
     uint32_t aux_minimats = *minimats; // to not overcount minimats
 
     uint32_t rp = rank_p(m, *pos - 1, R_size, block_size, rank_h);
+    assert(rp < P_size);
     *pos = P[rp];
+    assert(0 <= *pos && *pos < m->pos);
     k2dfs_visit__(size, m, pos, nodes, minimats, nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
     
     *nodes = aux_nodes; // get back correct stats
