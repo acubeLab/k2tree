@@ -276,7 +276,10 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     uint64_t prev_end_pos = prev_start_pos + curr_end_pos - curr_start_pos;
 
     // ignoring leaves
-    if(curr_end_pos - curr_start_pos + 1 <= 1) continue;
+    if(curr_end_pos - curr_start_pos + 1 <= 1) {
+      prev[curr_end_pos - curr_start_pos + 1] = i;
+      continue;
+    }
 
     // check that the tree are same length
     if(st_query(&st, pos + 1, i) < curr_end_pos - curr_start_pos + 1) {
@@ -287,7 +290,6 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
         node_t node2 = k2read_node__(a, prev_start_pos + i);
         assert(node == node2);
       }
-
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
     prev[curr_end_pos - curr_start_pos + 1] = i;
@@ -297,6 +299,7 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   free(plcp);
   free(lcp);
   free(prev);
+  st_free(&st);
 
   k2mat_t ca = K2MAT_INITIALIZER;
 
@@ -324,6 +327,8 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
       k2add_node__(&ca, text[i]);
     }
   }
+  
+  free(prefix_help);
 
   *P = (uint32_t*) malloc(sizeof(uint32_t) * P_h.n);
   *P_size = P_h.n;
