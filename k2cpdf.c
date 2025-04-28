@@ -2,7 +2,6 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <errno.h>
 #include <string.h>
 #include <assert.h>
 #include <time.h>
@@ -64,6 +63,46 @@ uint64_t ceil_log2(uint64_t x) {
 
 uint64_t floor_log2(uint64_t x) {
   return (x > 1) ? msb(x) : 0;
+}
+
+typedef struct {
+  size_t k, maxn;
+  uint32_t **st;
+} st_t;
+
+int64_t min(int64_t a, int64_t b) {
+  return a < b ? a : b;
+}
+
+void st_init(st_t *st, size_t n, int64_t *arr) {
+  st->k = floor_log2(n) + 1;
+  st->maxn = n + 1;
+  st->st = malloc(sizeof(uint32_t*) * (st->k + 1));
+  for(size_t i = 0; i < st->k; i++) {
+    st->st[i] = calloc(st->maxn, sizeof(uint32_t));
+  }
+
+  for(size_t i = 0; i < st->maxn; i++) {
+    st->st[0][i] = arr[i];
+  }
+
+  for(size_t j = 1; j < st->k; j++) {
+    for(size_t i = 0; i + (1 << j) <= n; i++) {
+      st->st[j][i] = min(st->st[j - 1][i], st->st[j - 1][i + (1 << (j - 1))]);
+    }
+  }
+}
+
+int64_t st_query(st_t *st, size_t l, size_t r) {
+  size_t k = floor_log2(r - l + 1);
+  return min(st->st[k][l], st->st[k][r - (1 << k) + 1]);
+}
+
+void st_free(st_t *st) {
+  for(size_t i = 0; i < st->k; i++) {
+    free(st->st[i]);
+  }
+  free(st->st);
 }
 
 typedef struct {
@@ -204,33 +243,44 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   dsu u;
   dsu_init(&u, a->pos);
 
+  st_t st;
+  st_init(&st, a->pos, lcp);
+
+  size_t* prev = malloc(sizeof(size_t) * (a->pos + 1));
+  for(size_t i = 0; i < (a->pos + 1); i++) prev[i] = -1;
+
   // information variables
   uint64_t amount_idem_subtree = 0;
   uint64_t amount_of_groups = 0;
 
-  for(size_t i = 1; i < a->pos; i++) {
+  for(size_t i = 0; i < a->pos; i++) {
     uint64_t curr_start_pos = csa[i];
     uint64_t curr_end_pos = csa[i] + get_size(text, a->pos, &z, csa[i]) - 1;
+    if(prev[curr_end_pos - curr_start_pos + 1] == -1) {
+      prev[curr_end_pos - curr_start_pos + 1] = i;
+      continue;
+    }
 
-    uint64_t prev_start_pos = csa[i - 1];
-    uint64_t prev_end_pos = csa[i - 1] + get_size(text, a->pos, &z, csa[i - 1]) - 1;
+    int64_t pos = prev[curr_end_pos - curr_start_pos + 1];
+    uint64_t prev_start_pos = csa[pos];
+    uint64_t prev_end_pos = prev_start_pos + curr_end_pos - curr_start_pos;
 
     // ignoring leaves
     if(curr_end_pos - curr_start_pos + 1 <= 1) continue;
 
     // check that the tree are same length
-    if(curr_start_pos - curr_end_pos == prev_start_pos - prev_end_pos) {
-      if(lcp[i] <  curr_end_pos - curr_start_pos + 1) {
-        amount_of_groups++;
-      } else {
-        dsu_union_set(&u, curr_start_pos, prev_start_pos);
-      }
+    if(st_query(&st, pos + 1, i) < curr_end_pos - curr_start_pos + 1) {
+      amount_of_groups++;
+    } else {
+      dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
+    prev[curr_end_pos - curr_start_pos + 1] = i;
   }
 
   free(csa);
   free(plcp);
   free(lcp);
+  free(prev);
 
   k2mat_t ca = K2MAT_INITIALIZER;
 
@@ -285,7 +335,7 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     }
   }
 
-  (*rank_p)[(ca.pos + 1) / rank_block] = sum;
+  (*rank_p)[(ca.pos + rank_block - 1) / rank_block] = sum;
 
   return ca;
 }
@@ -358,7 +408,7 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
   (*onodes)++;
   if(root==0) {
     (*onodes)--;
-    uint32_t aux = *pos - 1; // remember where to comback
+    uint32_t aux = *pos; // remember where to comback
     uint32_t aux_nodes = *nodes; // to not overcount nodes
     uint32_t aux_minimats = *minimats; // to not overcount minimats
 
@@ -371,7 +421,6 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
     
     // moving back to pointer
     *pos = aux;
-    (*pos)++;
     return; // all 1's matrix consists of root only
   }
   for(int i=0;i<4;i++) 
@@ -416,6 +465,27 @@ size_t mshow_stats__(size_t size, size_t asize, const k2mat_t *a, const char *mn
   fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
   return nz;
+}
+
+void print_ck2(k2mat_t *a, uint32_t P_size, uint32_t *P, uint32_t R_size, uint32_t *rank_h) {
+  for(size_t i = 0; i < a->pos; i++) {
+    for(size_t bit = 0; bit < 4; bit++) {
+      if(i % 2)
+        printf("%d", (((a->b[i / 2] >> 4) & (1 << bit)) > 0));
+      else
+        printf("%d", (((a->b[i / 2] & 15) & (1 << bit)) > 0));
+    }
+    printf(" ");
+  }
+  printf("\n");
+  for(size_t i = 0; i < P_size; i++) {
+    printf("%" PRIu32 " ", P[i]);
+  }
+  printf("\n");
+  for(size_t i = 0; i < R_size; i++) {
+    printf("%" PRIu32 " ", rank_h[i]);
+  }
+  printf("\n");
 }
 
 int main(int argc, char* argv[]) {
@@ -468,6 +538,8 @@ int main(int argc, char* argv[]) {
                   "\nTotal bits: %" PRIu64 " Total bytes: %" PRIu64 "\n",
                   bits_ca, bits_extra, bits_ca + bits_extra, (bits_ca + bits_extra) / 8);
 
+  //print_ck2(&a, 0, NULL, 0, NULL);
+  //print_ck2(&ca, P_size, P, rank_size, rank_p);
   size_t xd = mshow_stats__(size, asize, &ca, basename(k2name_file), stdout, P_size, P, rank_size, rank_block, rank_p);
 
   char file_ck2[strlen(k2name_file) + 5];
