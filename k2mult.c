@@ -183,8 +183,8 @@ int main (int argc, char **argv) {
   matrix_free(&ab);    
   minimat_reset(); // reset the minimat library and free minimat product table
   // report running time
-  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  //fprintf(stderr,"Elapsed time: %.8lf secs\n", ((double) (time(NULL)-start_wc)));
+  //fprintf(stderr,"==== Done\n");
   return EXIT_SUCCESS;
 }
 
