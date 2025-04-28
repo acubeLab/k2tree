@@ -488,6 +488,15 @@ void print_ck2(k2mat_t *a, uint32_t P_size, uint32_t *P, uint32_t R_size, uint32
   printf("\n");
 }
 
+void check_rank_info(k2mat_t *ca, uint32_t R_size, uint32_t block_size, uint32_t *rank_h) {
+  int prefix_sum = 0;
+  for(size_t i = 0; i < R_size; i++) {
+    uint8_t node = k2read_node__(ca, i);
+    assert(rank_p(ca, i, R_size, block_size, rank_h) == prefix_sum);
+    prefix_sum += node == 0;
+  }
+}
+
 int main(int argc, char* argv[]) {
   extern char *optarg;
   extern int optind, opterr, optopt;
@@ -526,6 +535,8 @@ int main(int argc, char* argv[]) {
 
 
   k2mat_t ca = compress_k2mat_t(size, asize, &a, &P_size, &P, &rank_size, &rank_p, rank_block);
+  check_rank_info(&ca, rank_size, rank_block, rank_p);
+  assert(P_size == rank_p[(ca.pos + rank_block - 1) / rank_block]);
 
   uint64_t bits_ca = sizeof(ca) + sizeof(ca.lenb) + sizeof(ca.offset)
                  + sizeof(ca.pos) + sizeof(ca.read_only) + sizeof(int8_t) * ca.pos;
