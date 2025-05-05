@@ -67,7 +67,7 @@ uint64_t floor_log2(uint64_t x) {
 
 typedef struct {
   size_t k, maxn;
-  uint32_t **st;
+  uint64_t **st;
 } st_t;
 
 int64_t min(int64_t a, int64_t b) {
@@ -77,9 +77,9 @@ int64_t min(int64_t a, int64_t b) {
 void st_init(st_t *st, size_t n, int64_t *arr) {
   st->k = floor_log2(n) + 1;
   st->maxn = n + 1;
-  st->st = malloc(sizeof(uint32_t*) * (st->k + 1));
+  st->st = malloc(sizeof(uint64_t*) * (st->k + 1));
   for(size_t i = 0; i < st->k; i++) {
-    st->st[i] = calloc(st->maxn, sizeof(uint32_t));
+    st->st[i] = calloc(st->maxn, sizeof(uint64_t));
   }
 
   for(size_t i = 0; i < st->maxn; i++) {
@@ -93,7 +93,7 @@ void st_init(st_t *st, size_t n, int64_t *arr) {
   }
 }
 
-int64_t st_query(st_t *st, size_t l, size_t r) {
+uint64_t st_query(st_t *st, size_t l, size_t r) {
   size_t k = floor_log2(r - l + 1);
   return min(st->st[k][l], st->st[k][r - (1 << k) + 1]);
 }
@@ -227,19 +227,14 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
 
   vu64_t z;
   vu64_init(&z);
-  uint64_t p;
   size_t pos = 0;
 
-  p = k2dfs_sizes(asize, a, &pos, &z, lvs);
+  k2dfs_sizes(asize, a, &pos, &z, (uint32_t) lvs);
 
   uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
 
   for(size_t i = 0; i < a->pos; i++) {
-    if(i % 2) {
-      text[i] = a->b[i / 2] >> 4;
-    } else {
-      text[i] = a->b[i / 2] & 15;
-    }
+    text[i] = (uint8_t) k2read_node__(a, i);
   }
 
   int64_t *csa = malloc(sizeof(uint64_t) * a->pos);
@@ -260,7 +255,6 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   for(size_t i = 0; i < (a->pos + 1); i++) prev[i] = -1;
 
   // information variables
-  uint64_t amount_idem_subtree = 0;
   uint64_t amount_of_groups = 0;
 
   for(size_t i = 0; i < a->pos; i++) {
@@ -273,10 +267,9 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
 
     int64_t pos = prev[curr_end_pos - curr_start_pos + 1];
     uint64_t prev_start_pos = csa[pos];
-    uint64_t prev_end_pos = prev_start_pos + curr_end_pos - curr_start_pos;
 
     // ignoring leaves
-    if(curr_end_pos - curr_start_pos + 1 <= 1) {
+    if(curr_end_pos - curr_start_pos + 1 <= 32 / 4) {
       prev[curr_end_pos - curr_start_pos + 1] = i;
       continue;
     }
@@ -285,11 +278,6 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     if(st_query(&st, pos + 1, i) < curr_end_pos - curr_start_pos + 1) {
       amount_of_groups++;
     } else {
-      for(int j = 0; j < curr_end_pos - curr_start_pos + 1; j++) {
-        node_t node = k2read_node__(a, curr_start_pos + j);
-        node_t node2 = k2read_node__(a, prev_start_pos + j);
-        assert(node == node2);
-      }
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
     prev[curr_end_pos - curr_start_pos + 1] = i;
@@ -303,7 +291,7 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
 
   k2mat_t ca = K2MAT_INITIALIZER;
 
-  uint32_t* prefix_help = (uint32_t*) malloc(sizeof(uint32_t) * a->pos);
+  uint64_t* prefix_help = (uint64_t*) malloc(sizeof(uint64_t) * a->pos);
   for(size_t i = 0; i < a->pos; i++) prefix_help[i] = 0;
 
 
@@ -331,9 +319,9 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   free(prefix_help);
 
   *P = (uint32_t*) malloc(sizeof(uint32_t) * P_h.n);
-  *P_size = P_h.n;
+  *P_size = (uint32_t) P_h.n;
   for(size_t i = 0; i < P_h.n; i++) {
-    assert(0 <= P_h.v[i] && ca.pos > P_h.v[i]);
+    assert(ca.pos > P_h.v[i]);
     (*P)[i] = (uint32_t) P_h.v[i];
   }
 
@@ -342,19 +330,14 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   free(text);
   dsu_free(&u);
 
-  *rank_size = (ca.pos + rank_block - 1) / rank_block + 1;
+  *rank_size = (uint32_t) (ca.pos + rank_block - 1) / rank_block + 1;
   *rank_p = (uint32_t*) malloc(sizeof(uint32_t) * (*rank_size));
   uint32_t sum = 0;
   for(size_t i = 0; i < ca.pos; i++) {
     if(i % rank_block == 0) {// finish block
       (*rank_p)[(i + rank_block - 1) / rank_block] = sum;
     }
-
-    if(i % 2) {
-      sum += (ca.b[i / 2] >> 4) == 0;
-    } else {
-      sum += (ca.b[i / 2] & 15) == 0;
-    }
+    sum += k2read_node__(&ca, i) == 0;
   }
 
   (*rank_p)[(ca.pos + rank_block - 1) / rank_block] = sum;
@@ -367,14 +350,11 @@ typedef uint64_t minimat_t; // explict matrix aka minimat (currently 2x2)
 
 static uint32_t MMsize = 0;  // a certainly incorrect value 
 static uint32_t Minimat_node_ratio = 0;  // certainly incorrect value
-static minimat_t MINIMAT0s=0;  // minimat containing all 0's, correctly initialized 
-static minimat_t MINIMAT1s=0;  // minimat containing all 1's, incorrect value, initialzed in minimats_init  
 
 // multiplication functions for minimats of different sizes
 
 // global variable containing the product of every pair of possible minimatrices
 // to be initialized in minimats_init();
-static minimat_t *mprods2x2 = NULL; // will contain 256 entries
 static minimat_t k2read_minimat__(const k2mat_t *b, size_t *p) {
   if(MMsize==2) {
     assert(Minimat_node_ratio==1);
@@ -393,18 +373,13 @@ static minimat_t k2read_minimat__(const k2mat_t *b, size_t *p) {
 }
 
 uint32_t rank_p(const k2mat_t *m, size_t pos, uint32_t R_size, uint32_t block_size, uint32_t *rank_h) {
-  uint32_t block = pos / block_size;
+  uint32_t block = (uint32_t) pos / block_size;
 
   assert(block < R_size);
   uint32_t ret = rank_h[block];
 
   for(uint32_t to_read = block * block_size; to_read < pos; to_read++) {
- 
-    if(to_read % 2) {
-      ret += (m->b[to_read / 2] >> 4) == 0;
-    } else {
-      ret += (m->b[to_read / 2] & 15) == 0;
-    } 
+    ret += k2read_node__(m, to_read) == 0;
   }
   return ret;
 }
@@ -420,14 +395,14 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
   (*onodes)++;
   if(root==ALL_ONES) { // just coincidence that ALL_ONES == POINTER
     (*onodes)--;
-    uint32_t aux = *pos; // remember where to comback
-    uint32_t aux_nodes = *nodes; // to not overcount nodes
-    uint32_t aux_minimats = *minimats; // to not overcount minimats
+    uint32_t aux = (uint32_t) *pos; // remember where to comback
+    size_t aux_nodes = *nodes; // to not overcount nodes
+    size_t aux_minimats = *minimats; // to not overcount minimats
 
     uint32_t rp = rank_p(m, *pos - 1, R_size, block_size, rank_h);
     assert(rp < P_size);
     *pos = P[rp];
-    assert(0 <= *pos && *pos < m->pos);
+    assert(*pos < m->pos);
     k2dfs_visit__(size, m, pos, nodes, minimats, nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
     
     *nodes = aux_nodes; // get back correct stats
@@ -504,8 +479,8 @@ void print_ck2(k2mat_t *a, uint32_t P_size, uint32_t *P, uint32_t R_size, uint32
 
 void check_rank_info(k2mat_t *ca, uint32_t R_size, uint32_t block_size, uint32_t *rank_h) {
   int prefix_sum = 0;
-  for(size_t i = 0; i < R_size; i++) {
-    uint8_t node = k2read_node__(ca, i);
+  for(size_t i = 0; i < ca->pos; i++) {
+    uint8_t node = (uint8_t) k2read_node__(ca, i);
     assert(rank_p(ca, i, R_size, block_size, rank_h) == prefix_sum);
     prefix_sum += node == 0;
   }
@@ -553,19 +528,24 @@ int main(int argc, char* argv[]) {
   assert(P_size == rank_p[(ca.pos + rank_block - 1) / rank_block]);
 
   uint64_t bits_ca = sizeof(ca) + sizeof(ca.lenb) + sizeof(ca.offset)
-                 + sizeof(ca.pos) + sizeof(ca.read_only) + sizeof(int8_t) * ca.pos;
+                 + sizeof(ca.pos) + sizeof(ca.read_only) + sizeof(int8_t) * ((ca.pos + 1) / 2);
   bits_ca *= 8;
-  uint64_t bits_extra = sizeof(uint32_t) * 2 + sizeof(uint32_t) * P_size + sizeof(uint32_t) * rank_size;
-  bits_extra *= 8;
+  uint64_t bits_rank = sizeof(uint32_t) * rank_size + 1;
+  bits_rank *= 8;
+  uint64_t bits_P = sizeof(uint64_t) * P_size + 1;
+  bits_P *= 8;
+  uint64_t bits_extra = bits_rank + bits_P;
 
+  fprintf(stdout, "COMPRESSED TREE\n");
+  fprintf(stdout, "Nodes: %ld\n", ca.pos);
   fprintf(stdout, "COMPRESSED SPACE\n");
-  fprintf(stdout, "Bits compressed k2pdf: %" PRIu64 "\nBits extra info: %" PRIu64 
+  fprintf(stdout, "Bits compressed k2pdf: %" PRIu64 " Removed Trees: %" PRIu32 "\nBits extra info: %" PRIu64 " bits rank: %" PRIu64 " bits P: %" PRIu64
                   "\nTotal bits: %" PRIu64 " Total bytes: %" PRIu64 "\n",
-                  bits_ca, bits_extra, bits_ca + bits_extra, (bits_ca + bits_extra) / 8);
+                  bits_ca, P_size, bits_extra, bits_rank, bits_P, bits_ca + bits_extra, (bits_ca + bits_extra) / 8);
 
   //print_ck2(&a, 0, NULL, 0, NULL);
   //print_ck2(&ca, P_size, P, rank_size, rank_p);
-  size_t xd = mshow_stats__(size, asize, &ca, basename(k2name_file), stdout, P_size, P, rank_size, rank_block, rank_p);
+  mshow_stats__(size, asize, &ca, basename(k2name_file), stdout, P_size, P, rank_size, rank_block, rank_p);
 
   char file_ck2[strlen(k2name_file) + 5];
   strcpy(file_ck2, k2name_file);
@@ -582,7 +562,7 @@ int main(int argc, char* argv[]) {
   file_p[strlen(file_ck2) + 2] = '\0';
   FILE *fp = fopen(file_p, "w");  
   fwrite(&P_size, sizeof(uint32_t), 1, fp);
-  fwrite(P, sizeof(uint32_t), P_size, fp);
+  fwrite(P, sizeof(uint64_t), P_size, fp);
   fclose(fp);
 
   char file_r[strlen(file_ck2) + 4];
