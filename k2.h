@@ -15,6 +15,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
+// this will have an struct to use auxiliary datastructures for pointers
+#include "rank_0000.h"
+#include "pointers.h" 
 #include "vu64.h"
 
 
@@ -26,6 +29,7 @@
                             // after normalization that code is available 
 #define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
                             // with all the 4 submatrices non-empty
+#define POINTER       0x0   // node representing a pointer
 #define ILLEGAL_NODE  0x10  // illegal node (more than 4 bits)
 
 // an internal node must have a number of bits at least equal to the arity
@@ -52,6 +56,7 @@ typedef struct k2mat {
   size_t subtinfo_size; // size of the subtinfo array (currently not used!)
   bool read_only;   // if true write and add operations are not allowed
                     // all matrices created by splitting are read only            
+  pointers_t p; // pointers information
 } k2mat_t;
 // initialize to an empty writable matrix 
 #define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0,false}
@@ -79,6 +84,8 @@ void minimat_reset();
 // from k2aux.c
 void k2add_subtinfo(k2mat_t *a, const char *infofile);
 size_t k2treesize(const k2mat_t *m);
+// compress k2tree
+void k2compress(k2mat_t *a, const char *filename);
 
 
 // from k2ops.c
