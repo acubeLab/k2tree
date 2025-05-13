@@ -251,11 +251,8 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
   st_t st;
   st_init(&st, a->pos, lcp);
 
-  size_t* prev = malloc(sizeof(size_t) * (a->pos + 1));
+  int64_t* prev = malloc(sizeof(int64_t) * (a->pos + 1));
   for(size_t i = 0; i < (a->pos + 1); i++) prev[i] = -1;
-
-  // information variables
-  uint64_t amount_of_groups = 0;
 
   for(size_t i = 0; i < a->pos; i++) {
     uint64_t curr_start_pos = csa[i];
@@ -269,15 +266,14 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     uint64_t prev_start_pos = csa[pos];
 
     // ignoring leaves
+    // ignoring trees using 32 bits, 8 nodes
     if(curr_end_pos - curr_start_pos + 1 <= 32 / 4) {
       prev[curr_end_pos - curr_start_pos + 1] = i;
       continue;
     }
 
     // check that the tree are same length
-    if(st_query(&st, pos + 1, i) < curr_end_pos - curr_start_pos + 1) {
-      amount_of_groups++;
-    } else {
+    if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
     prev[curr_end_pos - curr_start_pos + 1] = i;
