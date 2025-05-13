@@ -269,7 +269,9 @@ k2mat_t compress_k2mat_t(size_t size, size_t asize, k2mat_t* a,
     uint64_t prev_start_pos = csa[pos];
 
     // ignoring leaves
-    if(curr_end_pos - curr_start_pos + 1 <= 32 / 4) {
+    //if(curr_end_pos - curr_start_pos + 1 <= 32 / 4) {
+    if(curr_end_pos - curr_start_pos + 1 <= 1) {
+    //if(curr_end_pos - curr_start_pos + 1 <= (23 + 4 - 1) / 4) {
       prev[curr_end_pos - curr_start_pos + 1] = i;
       continue;
     }
@@ -520,6 +522,11 @@ int main(int argc, char* argv[]) {
   }
 
   size = mload_from_file(&asize, &a, k2name_file); // also init k2 library
+  char file_ones[strlen(k2name_file) + 4];
+  strcpy(file_ones, k2name_file);
+  strcat(file_ones, ".pos");
+  mwrite_to_textfile(size, asize, &a, file_ones);
+
   totnz += mshow_stats(size, asize, &a, basename(k2name_file), stdout);
 
 
@@ -528,11 +535,12 @@ int main(int argc, char* argv[]) {
   assert(P_size == rank_p[(ca.pos + rank_block - 1) / rank_block]);
 
   uint64_t bits_ca = sizeof(ca) + sizeof(ca.lenb) + sizeof(ca.offset)
-                 + sizeof(ca.pos) + sizeof(ca.read_only) + sizeof(int8_t) * ((ca.pos + 1) / 2);
+                 + sizeof(ca.pos) + sizeof(ca.read_only)
+                 + sizeof(uint8_t) * ((ca.pos + 1) / 2);
   bits_ca *= 8;
   uint64_t bits_rank = sizeof(uint32_t) * rank_size + 1;
   bits_rank *= 8;
-  uint64_t bits_P = sizeof(uint64_t) * P_size + 1;
+  uint64_t bits_P = sizeof(uint32_t) * P_size + 1;
   bits_P *= 8;
   uint64_t bits_extra = bits_rank + bits_P;
 
@@ -562,7 +570,7 @@ int main(int argc, char* argv[]) {
   file_p[strlen(file_ck2) + 2] = '\0';
   FILE *fp = fopen(file_p, "w");  
   fwrite(&P_size, sizeof(uint32_t), 1, fp);
-  fwrite(P, sizeof(uint64_t), P_size, fp);
+  fwrite(P, sizeof(uint32_t), P_size, fp);
   fclose(fp);
 
   char file_r[strlen(file_ck2) + 4];
