@@ -402,7 +402,6 @@ void k2dfs_visit__(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, si
     size_t aux_minimats = *minimats; // to not overcount minimats
 
     uint32_t rp = rank_p(m, *pos - 1, R_size, block_size, rank_h);
-    assert(rp < P_size);
     *pos = P[rp];
     assert(*pos < m->pos);
     k2dfs_visit__(size, m, pos, nodes, minimats, nz, onodes, ominimats, P_size, P, R_size, block_size, rank_h); // read submatrix and advance pos
