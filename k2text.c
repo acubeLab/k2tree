@@ -1003,6 +1003,11 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   for(size_t i = 0; i < a->pos; i++) {
     uint64_t curr_start_pos = csa[i];
     uint64_t curr_end_pos = csa[i] + get_size(text, a->pos, &z, csa[i]) - 1;
+    // ignoring small trees
+    if(curr_end_pos - curr_start_pos + 1 <= threshold / 4) {
+      continue;
+    }
+
     if(prev[curr_end_pos - curr_start_pos + 1] == -1) {
       prev[curr_end_pos - curr_start_pos + 1] = i;
       continue;
@@ -1010,12 +1015,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
 
     int64_t pos = prev[curr_end_pos - curr_start_pos + 1];
     uint64_t prev_start_pos = csa[pos];
-
-    // ignoring leaves
-    if(curr_end_pos - curr_start_pos + 1 <= threshold / 4) {
-      prev[curr_end_pos - curr_start_pos + 1] = i;
-      continue;
-    }
+    assert(curr_end_pos - curr_start_pos + 1 == get_size(text, a->pos, &z, csa[pos]));
 
     // check that the tree are same length
     if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
