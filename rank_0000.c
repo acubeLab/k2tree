@@ -25,7 +25,7 @@ void rank_init(rank_0000_t **r, uint32_t block_size, void *a) {
     if(i % block_size == 0) {// finish block
       (*r)->r[(i + block_size - 1) / block_size] = sum;
     }
-    sum += k2read_node__(a_, i) == 0;
+    sum += k2read_node__(a_, i) == POINTER;
   }
 
   (*r)->r[(a_->pos + block_size - 1) / block_size] = sum;

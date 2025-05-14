@@ -38,6 +38,7 @@
 typedef uint64_t node_t;   // non leaf node 
 
 
+
 // struct representing a k2-tree: nodes and minimats are stored in a single
 // buffer of bytes. offset is used to create a "pointer" to a submatrix
 // without copying the buffer during the splitting phase. 

@@ -839,7 +839,7 @@ uint64_t floor_log2(uint64_t x) {
 
 typedef struct {
   size_t k, maxn;
-  uint64_t **st;
+  int64_t **st;
 } st_t;
 
 int64_t min(int64_t a, int64_t b) {
@@ -852,9 +852,9 @@ void st_init(st_t *st, size_t n, int64_t *arr) {
 
   st->k = floor_log2(n) + 1;
   st->maxn = n;
-  st->st = malloc(sizeof(uint64_t*) * (st->k));
+  st->st = malloc(sizeof(int64_t*) * (st->k));
   for(size_t i = 0; i < st->k; i++) {
-    st->st[i] = calloc(st->maxn, sizeof(uint64_t));
+    st->st[i] = calloc(st->maxn, sizeof(int64_t));
   }
 
   for(size_t i = 0; i < st->maxn; i++) {
@@ -862,13 +862,13 @@ void st_init(st_t *st, size_t n, int64_t *arr) {
   }
 
   for(size_t j = 1; j < st->k; j++) {
-    for(size_t i = 0; i + (1 << j) < n; i++) {
+    for(size_t i = 0; i + (1 << j) <= n; i++) {
       st->st[j][i] = min(st->st[j - 1][i], st->st[j - 1][i + (1 << (j - 1))]);
     }
   }
 }
 
-uint64_t st_query(st_t *st, size_t l, size_t r) {
+int64_t st_query(st_t *st, size_t l, size_t r) {
   size_t k = floor_log2(r - l + 1);
   return min(st->st[k][l], st->st[k][r - (1 << k) + 1]);
 }
@@ -980,9 +980,9 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
     text[i] = (uint8_t) k2read_node(a, i);
   }
 
-  int64_t *csa = malloc(sizeof(uint64_t) * a->pos);
-  int64_t *plcp = malloc(sizeof(uint64_t) * a->pos);
-  int64_t *lcp = malloc(sizeof(uint64_t) * a->pos);
+  int64_t *csa = malloc(sizeof(int64_t) * a->pos);
+  int64_t *plcp = malloc(sizeof(int64_t) * a->pos);
+  int64_t *lcp = malloc(sizeof(int64_t) * a->pos);
 
   if(libsais64(text, csa, a->pos, 0, NULL) != 0)
     quit("error creating csa", __LINE__, __FILE__);
@@ -1019,7 +1019,6 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
 
     // check that the tree are same length
     if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
-
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
     prev[curr_end_pos - curr_start_pos + 1] = i;
