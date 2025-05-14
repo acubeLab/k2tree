@@ -20,7 +20,7 @@ all: $(EXECS)
 
 
 # rule for generic k2xxx executable
-k2%.x: k2%.o k2ops.o bbm.o vu64.o
+k2%.x: k2%.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
 # rule for k2mult.o k2sparse.o
@@ -36,10 +36,10 @@ k2pagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h
 k2bpagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
 	$(CC) $(CFLAGS) -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
 
-k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o libsais/liblibsais.a
+k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o  pointers.o rank_0000.o libsais/liblibsais.a
 	$(CC) $(CFLAGS) -o $@ $^ 
 
-k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o vu64.o
+k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
 	$(CC) $(CFLAGS) -o $@ $^ 
 
 k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h

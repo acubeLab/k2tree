@@ -45,6 +45,10 @@
 #include <inttypes.h>
 #include "k2.h"
 
+#include "libsais/include/libsais64.h"
+#include "pointers.h"
+#include "rank_0000.h"
+
 // prototypes of static functions
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
@@ -782,4 +786,291 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   }
 }
 
+// COMPRESSED K2TREE
+// later i will do it a more pulished way
+// from succint repository
+const uint8_t debruijn64_mapping[64] = {
+  63,  0, 58,  1, 59, 47, 53,  2,
+  60, 39, 48, 27, 54, 33, 42,  3,
+  61, 51, 37, 40, 49, 18, 28, 20,
+  55, 30, 34, 11, 43, 14, 22,  4,
+  62, 57, 46, 52, 38, 26, 32, 41,
+  50, 36, 17, 19, 29, 10, 13, 21,
+  56, 45, 25, 31, 35, 16,  9, 12,
+  44, 24, 15,  8, 23,  7,  6,  5
+};
 
+const uint64_t debruijn64 = 0x07EDD5E59A4E28C2ULL;
+
+uint8_t bit_position(uint64_t x){
+    return debruijn64_mapping[(x * debruijn64) >> 58];
+}
+
+uint8_t _msb(uint64_t x, unsigned long* ret){
+  if (!x)
+    return false;
+
+  x |= x >> 1;
+  x |= x >> 2;
+  x |= x >> 4;
+  x |= x >> 8;
+  x |= x >> 16;
+  x |= x >> 32;
+
+  x ^= x >> 1;
+  *ret = bit_position(x);
+
+  return true;
+}
+
+uint8_t msb(uint64_t x){
+  unsigned long ret = -1U;
+  _msb(x, &ret);
+  return (uint8_t)ret;
+}
+
+uint64_t ceil_log2(uint64_t x) {
+  return (x > 1) ? msb(x - 1) + 1 : 0;
+}
+
+uint64_t floor_log2(uint64_t x) {
+  return (x > 1) ? msb(x) : 0;
+}
+
+typedef struct {
+  size_t k, maxn;
+  uint64_t **st;
+} st_t;
+
+int64_t min(int64_t a, int64_t b) {
+  return a < b ? a : b;
+}
+
+void st_init(st_t *st, size_t n, int64_t *arr) {
+  assert(st != NULL);
+  assert(arr != NULL);
+
+  st->k = floor_log2(n) + 1;
+  st->maxn = n;
+  st->st = malloc(sizeof(uint64_t*) * (st->k));
+  for(size_t i = 0; i < st->k; i++) {
+    st->st[i] = calloc(st->maxn, sizeof(uint64_t));
+  }
+
+  for(size_t i = 0; i < st->maxn; i++) {
+    st->st[0][i] = arr[i];
+  }
+
+  for(size_t j = 1; j < st->k; j++) {
+    for(size_t i = 0; i + (1 << j) < n; i++) {
+      st->st[j][i] = min(st->st[j - 1][i], st->st[j - 1][i + (1 << (j - 1))]);
+    }
+  }
+}
+
+uint64_t st_query(st_t *st, size_t l, size_t r) {
+  size_t k = floor_log2(r - l + 1);
+  return min(st->st[k][l], st->st[k][r - (1 << k) + 1]);
+}
+
+void st_free(st_t *st) {
+  for(size_t i = 0; i < st->k; i++) {
+    free(st->st[i]);
+  }
+  free(st->st);
+}
+
+typedef struct {
+  uint64_t n;
+  int64_t* e;
+} dsu;
+
+void dsu_init(dsu* u, uint64_t n) {
+  u->e = (int64_t*) malloc(sizeof(int64_t) * n);
+  u->n = n;
+  for(size_t i = 0; i < n; i++) u->e[i] = -1;
+}
+
+int64_t dsu_find_set(dsu* u, int64_t x) {
+  if(u->e[x] < 0) return x;
+  u->e[x] = dsu_find_set(u, u->e[x]);
+  return u->e[x];
+}
+
+int8_t dsu_union_set(dsu* u , int64_t x, int64_t y) {
+  x = dsu_find_set(u, x);
+  y = dsu_find_set(u, y);
+  if(x == y) return 0;
+  if(x > y) {
+    int64_t aux = x;
+    x = y;
+    y = aux;
+  }
+  u->e[x] += u->e[y];
+  u->e[y] = x;
+  return 1;
+}
+
+void dsu_free(dsu* u) {
+  free(u->e);
+}
+
+uint64_t get_size_rec(uint8_t *tree, vu64_t *z, uint64_t t_pos, uint64_t t_size,
+                      uint64_t z_pos, uint64_t b_tree) {
+  uint64_t c_root = __builtin_popcountll(tree[t_pos - 1]);
+  if(t_pos == b_tree) {
+    if(c_root > 1)
+      return z->v[z_pos] & TSIZEMASK;
+    else
+      return t_size - 1;
+  }
+
+  // search for wich tree you are
+  uint64_t z_m = c_root - 1;
+  uint64_t t_m = 0;
+  for(uint64_t i = z_pos; i < z_pos + c_root - 1; i++) {
+    uint64_t st_size = z->v[i] & TSIZEMASK;
+    uint64_t z_skip = z->v[i] >> BITSxTSIZE;
+
+    // found the tree
+    if(t_pos + t_m + st_size > b_tree) {
+      // move to the first child of this subtree
+      return get_size_rec(tree, z, t_pos + t_m + 1, st_size, z_pos + z_m, b_tree);
+    }
+
+    // is the brother but not the last
+    if(t_pos + t_m + st_size == b_tree && i < z_pos + c_root - 2) {
+      return z->v[i + 1] & TSIZEMASK;
+    // is the last
+    } else if(t_pos + t_m + st_size == b_tree) {
+      return t_size - t_m - st_size - 1;
+    }
+    // moving to next tree
+    t_m += st_size;
+    z_m += z_skip;
+  }
+  // is in the last child of a node
+  return get_size_rec(tree, z, t_pos + t_m + 1, t_size - t_m - 1, z_pos + z_m, b_tree);
+}
+
+static uint64_t get_size(uint8_t *tree, uint64_t t_size, vu64_t *z, uint64_t b_tree) {
+  if(b_tree == 0) return t_size;
+
+  uint64_t t_pos = 1;
+  uint64_t z_pos = 0;
+
+  return get_size_rec(tree, z, t_pos, t_size, z_pos, b_tree);
+}
+
+// threshold is the minimum amount of nodes to considering erasing a subtree
+// block_size block size of rank 0000 datastructure
+void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size) {
+  
+  uint64_t lvs = ceil_log2((uint64_t)asize);
+
+  vu64_t z;
+  vu64_init(&z);
+  size_t pos = 0;
+
+  printf("%ld\n", a->pos);
+  k2dfs_sizes(asize, a, &pos, &z, (uint32_t) lvs);
+
+  uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
+
+  for(size_t i = 0; i < a->pos; i++) {
+    text[i] = (uint8_t) k2read_node(a, i);
+  }
+  for(size_t i = 0; i < a->pos; i++) {
+    printf("%lu ", get_size(text, a->pos, &z, i));
+  }
+  printf("\n");
+
+  int64_t *csa = malloc(sizeof(uint64_t) * a->pos);
+  int64_t *plcp = malloc(sizeof(uint64_t) * a->pos);
+  int64_t *lcp = malloc(sizeof(uint64_t) * a->pos);
+
+  if(libsais64(text, csa, a->pos, 0, NULL) != 0)
+    quit("error creating csa", __LINE__, __FILE__);
+  if(libsais64_plcp(text, csa, plcp, a->pos) != 0)
+    quit("error creating plcp", __LINE__, __FILE__);
+  if(libsais64_lcp(plcp, csa, lcp, a->pos) != 0)
+    quit("error creating lcp", __LINE__, __FILE__);
+
+  dsu u;
+  dsu_init(&u, a->pos);
+
+  st_t st;
+  st_init(&st, a->pos, lcp);
+
+  int64_t* prev = malloc(sizeof(int64_t) * (a->pos + 1));
+  for(size_t i = 0; i < (a->pos + 1); i++) prev[i] = -1;
+
+  for(size_t i = 0; i < a->pos; i++) {
+    uint64_t curr_start_pos = csa[i];
+    uint64_t curr_end_pos = csa[i] + get_size(text, a->pos, &z, csa[i]) - 1;
+    if(prev[curr_end_pos - curr_start_pos + 1] == -1) {
+      prev[curr_end_pos - curr_start_pos + 1] = i;
+      continue;
+    }
+
+    int64_t pos = prev[curr_end_pos - curr_start_pos + 1];
+    uint64_t prev_start_pos = csa[pos];
+
+    // ignoring leaves
+    if(curr_end_pos - curr_start_pos + 1 <= threshold / 4) {
+      prev[curr_end_pos - curr_start_pos + 1] = i;
+      continue;
+    }
+
+    // check that the tree are same length
+    if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
+
+      printf("%lu %lu\n", curr_start_pos + 1, prev_start_pos + 1);
+      dsu_union_set(&u, curr_start_pos, prev_start_pos);
+    }
+    prev[curr_end_pos - curr_start_pos + 1] = i;
+  }
+
+  free(csa);
+  free(plcp);
+  free(lcp);
+  free(prev);
+  st_free(&st);
+
+  uint64_t* prefix_help = (uint64_t*) malloc(sizeof(uint64_t) * a->pos);
+  for(size_t i = 0; i < a->pos; i++) prefix_help[i] = 0;
+
+  vu64_t P_h;
+  vu64_init(&P_h);
+
+  for(size_t i = 0; i < a->pos; i++) {
+    uint64_t repre = dsu_find_set(&u, i);
+    if(repre != i) { // cancel identical subtree
+      vu64_grow(&P_h, 1);
+      P_h.v[P_h.n - 1] = (uint32_t) repre - prefix_help[repre - 1];
+      k2add_node(ca, 0);
+      size_t next_i = i + get_size(text, a->pos, &z, i) - 1;
+      for(size_t fill = i; fill <= next_i; fill++) {
+        prefix_help[fill] = prefix_help[fill - 1] + 1;
+      }
+      prefix_help[next_i]--;
+      i = next_i;
+    } else {
+      if(i > 0) prefix_help[i] = prefix_help[i - 1];
+      k2add_node(ca, text[i]);
+    }
+  }
+  
+  free(prefix_help);
+
+  pointers_init(&(ca->p));
+  pointers_copyinfo(ca->p, &P_h);
+
+  vu64_free(&P_h);
+  vu64_free(&z);
+  free(text);
+  dsu_free(&u);
+
+  rank_init(&(ca->r), block_size, ca);
+
+}

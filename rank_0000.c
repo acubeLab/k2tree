@@ -31,7 +31,7 @@ void rank_init(rank_0000_t **r, uint32_t block_size, void *a) {
   (*r)->r[(a_->pos + block_size - 1) / block_size] = sum;
 }
 
-uint32_t rank_rank(rank_0000_t* r, void* a, uint32_t i) {
+uint32_t rank_rank(rank_0000_t* r, const void* a, uint32_t i) {
   k2mat_t* a_ = (k2mat_t*) a;
   assert(i <= a_->pos);
   uint32_t block = (uint32_t) i / r->block_size;
@@ -50,11 +50,12 @@ void rank_write_to_file(rank_0000_t *r, const char* filename) {
   if(file == NULL) quit("error opening file", __LINE__, __FILE__);
 
   size_t check = fwrite(&(r->r_size), sizeof(uint32_t), 1, file);
-  if(check != sizeof(uint32_t)) quit("error writing the rank size", __LINE__, __FILE__);
+  if(check != 1) quit("error writing the rank size", __LINE__, __FILE__);
   check = fwrite(&(r->block_size), sizeof(uint32_t), 1, file);
-  if(check != sizeof(uint32_t)) quit("error writing the block size", __LINE__, __FILE__);
+  if(check != 1) quit("error writing the block size", __LINE__, __FILE__);
   check = fwrite(r->r, sizeof(uint32_t), r->r_size, file);
   if(check != r->r_size) quit("error writing the prefix sum", __LINE__, __FILE__);
+  fclose(file);
 }
 
 void rank_load_from_file(rank_0000_t *r, const char* filename) {
@@ -62,11 +63,12 @@ void rank_load_from_file(rank_0000_t *r, const char* filename) {
   if(file == NULL) quit("error opening file", __LINE__, __FILE__);
 
   size_t check = fread(&(r->r_size), sizeof(uint32_t), 1, file);
-  if(check != sizeof(uint32_t)) quit("error reading the rank size", __LINE__, __FILE__);
+  if(check != 1) quit("error reading the rank size", __LINE__, __FILE__);
   check = fread(&(r->block_size), sizeof(uint32_t), 1, file);
-  if(check != sizeof(uint32_t)) quit("error reading the block size", __LINE__, __FILE__);
+  if(check != 1) quit("error reading the block size", __LINE__, __FILE__);
   check = fwrite(r->r, sizeof(uint32_t), r->r_size, file);
   if(check != r->r_size) quit("error reading the pointers", __LINE__, __FILE__);
+  fclose(file);
 }
 
 void rank_free(rank_0000_t* r) {
@@ -77,6 +79,7 @@ void rank_free(rank_0000_t* r) {
 }
 
 uint64_t rank_size_in_bits(rank_0000_t* r) {
+  if(r == NULL) return 0;
   return sizeof(r->r_size) + 
          sizeof(r->block_size) + 
          sizeof(r->r) + sizeof(r->r[0]) * r->r_size;

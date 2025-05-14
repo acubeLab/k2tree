@@ -11,6 +11,7 @@
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#include "rank_0000.h"
 #endif
 #pragma GCC target ("sse4.2")  // ensure sse4.2 compiler switch it is used 
 #include "k2aux.c"    // includes minimats.c k2.h bbm.h
@@ -72,12 +73,18 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   size_t pos, nodes, minimats, nz, all1;
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
-  assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
+  if(a->p == NULL)
+    assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
   fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
           levels,nodes,minimats, all1, nz);
+  uint64_t bits_p = pointers_size_in_bits(a->p);
+  uint64_t bits_r = rank_size_in_bits(a->r);
+  fprintf(file, " Pointers: %" PRIu64 " Rank DS: %" PRIu64 "\n", bits_p, bits_r);
   // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
   fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
+  fprintf(file, " Totat space\n  bits: %" PRIu64 " bits x nonzero: %lf\n", 
+      pos * 4 + bits_r + bits_p, (double) (pos * 4 + bits_r + bits_p) / (double) nz);
   return nz;
 }
 

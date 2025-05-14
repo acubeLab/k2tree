@@ -16,10 +16,12 @@
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#include "k2.h"
 #endif
 #include "minimats.c" // includes k2.h bbm.h
 
-
+#include "pointers.h"
+#include "rank_0000.h"
 
 // ------------------------------------------------------------------- 
 // elementary operations on k2mat structures, operating on single fields
@@ -79,6 +81,10 @@ static void k2_free(k2mat_t *m)
   if(m->subtinfo!=NULL) {
     free(m->subtinfo); m->subtinfo=NULL; m->subtinfo_size=0;
   }
+  if(m->p != NULL)
+    pointers_free(m->p);
+  if(m->r != NULL)
+    rank_free(m->r);
 }
 
 // nodes are added at the end of a matrix:
@@ -218,12 +224,31 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
   assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node(m,*pos); (*pos)++;
   (*nodes)++;
-  if(root==ALL_ONES) {
-    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
-    else *nz += size*size; 
-    *all1 +=1;   // found an all 1's matrix 
+  if(root == POINTER) { // is a pointer
+    uint32_t aux = (uint32_t) *pos; // remember where to comback
+    size_t aux_nodes = *nodes; // to not overcount nodes
+    size_t aux_minimats = *minimats; // to not overcount minimats
+
+    uint32_t rp = rank_rank(m->r, m, (uint32_t) (*pos) - 1);
+    assert(rp < m->p->p_size);
+    *pos = m->p->p[rp];
+    assert(*pos < m->pos);
+    k2dfs_visit(size, m, pos, nodes, minimats, nz, all1); // read submatrix and advance pos
+    
+    *nodes = aux_nodes; // get back correct stats
+    *minimats = aux_minimats; // get back correct stats
+    
+    // moving back to pointer
+    *pos = aux;
     return; // all 1's matrix consists of root only
   }
+  // add a macro later
+//  if(root==ALL_ONES) {
+//    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
+//    else *nz += size*size; 
+//    *all1 +=1;   // found an all 1's matrix 
+//    return; // all 1's matrix consists of root only
+//  }
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion

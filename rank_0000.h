@@ -14,7 +14,7 @@ typedef struct rank_0000_t {
 
 // the void is a k2mat_t, is just to avoid compilation conflicts
 void rank_init(rank_0000_t **r, uint32_t block_size, void *a);
-uint32_t rank_rank(rank_0000_t* r, void* a, uint32_t i);
+uint32_t rank_rank(rank_0000_t* r, const void* a, uint32_t i);
 
 void rank_write_to_file(rank_0000_t *r, const char* filename);
 void rank_load_from_file(rank_0000_t *r, const char* filename);

@@ -56,10 +56,11 @@ typedef struct k2mat {
   size_t subtinfo_size; // size of the subtinfo array (currently not used!)
   bool read_only;   // if true write and add operations are not allowed
                     // all matrices created by splitting are read only            
-  pointers_t p; // pointers information
+  pointers_t *p; // pointers information
+  rank_0000_t *r; // rank 0000 auxiliary
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0,false}
+#define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0,false, NULL, NULL}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)
@@ -84,8 +85,6 @@ void minimat_reset();
 // from k2aux.c
 void k2add_subtinfo(k2mat_t *a, const char *infofile);
 size_t k2treesize(const k2mat_t *m);
-// compress k2tree
-void k2compress(k2mat_t *a, const char *filename);
 
 
 // from k2ops.c
@@ -126,5 +125,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
 uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit);
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size);
+// compress k2tree
+void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size);
 
 #endif /* _K2TYPDEFS_H */
