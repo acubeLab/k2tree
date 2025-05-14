@@ -972,7 +972,6 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   vu64_init(&z);
   size_t pos = 0;
 
-  printf("%ld\n", a->pos);
   k2dfs_sizes(asize, a, &pos, &z, (uint32_t) lvs);
 
   uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
@@ -980,10 +979,6 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   for(size_t i = 0; i < a->pos; i++) {
     text[i] = (uint8_t) k2read_node(a, i);
   }
-  for(size_t i = 0; i < a->pos; i++) {
-    printf("%lu ", get_size(text, a->pos, &z, i));
-  }
-  printf("\n");
 
   int64_t *csa = malloc(sizeof(uint64_t) * a->pos);
   int64_t *plcp = malloc(sizeof(uint64_t) * a->pos);
@@ -1025,7 +1020,6 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
     // check that the tree are same length
     if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
 
-      printf("%lu %lu\n", curr_start_pos + 1, prev_start_pos + 1);
       dsu_union_set(&u, curr_start_pos, prev_start_pos);
     }
     prev[curr_end_pos - curr_start_pos + 1] = i;

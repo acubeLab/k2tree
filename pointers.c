@@ -59,7 +59,7 @@ uint64_t pointers_size_in_bits(pointers_t* ps) {
   if(ps == NULL) return 0;
   // there are no pointers
   if(ps->p == NULL) return sizeof(ps->p_size);
-  return sizeof(ps->p_size) + sizeof(ps->p[0]) * ps->p_size;
+  return (sizeof(ps->p_size) + sizeof(ps->p[0]) * ps->p_size) * 8;
 }
 
 // write error message and exit

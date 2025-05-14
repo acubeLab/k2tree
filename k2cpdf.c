@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
 
   char* k2name_file = NULL;
   int c;
-  while((c = getopt(argc, argv, "b:f:")) != -1) {
+  while((c = getopt(argc, argv, "b:t:f:")) != -1) {
     switch (c) {
       case 'b':
         rank_block = atoi(optarg); break;
@@ -87,9 +87,6 @@ int main(int argc, char* argv[]) {
   k2mat_t ca = K2MAT_INITIALIZER;
 
   k2compress(asize, &a, &ca, threshold, rank_block); 
-
-  print_ck2(&a);
-  print_ck2(&ca);
 
   fprintf(stdout, "COMPRESSED TREE\n");
   fprintf(stdout, "Nodes: %ld\n", ca.pos);
