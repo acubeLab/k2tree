@@ -122,9 +122,10 @@ int main (int argc, char **argv) {
   else       sprintf(oname,"%s%s",argv[1],ext); 
 
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize;
+  size_t size, asize; // size is teh acutal matrix size 
   if(decompress) {
     size = mload_from_file(&asize, &a, iname); // also init k2 library
+    assert(asize==k2get_k2size(size));         // asize is the internal size 
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) mwrite_to_textfile(size,asize, &a, oname);
@@ -133,6 +134,7 @@ int main (int argc, char **argv) {
     minimat_init(mmsize);     // init k2 library
     size_t asize = mread_from_textfile(&size,&a,iname,xsize);
     assert(xsize==0 || (size==xsize));
+    assert(asize==k2get_k2size(size));  // asize is the internal size 
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file

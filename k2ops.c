@@ -457,10 +457,10 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   size_t e = fwrite(&size,sizeof(size),1,f);
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
-  e = fwrite(&MMsize, sizeof(int),1,f);
+  e = fwrite(&MMsize, sizeof(MMsize),1,f);
   if(e!=1) quit("msave_to_file: cannot write MMsize",__LINE__,__FILE__);
   e = fwrite(&asize, sizeof(asize),1,f);
-  if(e!=1) quit("msave: cannot write asize",__LINE__,__FILE__);
+  if(e!=1) quit("msave_to_file: cannot write asize",__LINE__,__FILE__);
   e = fwrite(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("msave_to_file: cannot write number of positions",__LINE__,__FILE__);
   if(a->pos>0) {
