@@ -54,9 +54,9 @@ typedef struct k2mat {
   size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
                 // only read only matrices can have a positive offset
   uint64_t *subtinfo;   // subtrees size encoding if present, or NULL
-  size_t subtinfo_size; // size of the subtinfo array (currently not used!)
-  pointers_t *p;        // pointers to subtree information
-  rank_0000_t *r;       // rank 0000 auxiliary
+  size_t subtinfo_size; // size (# elements) of the subtinfo array
+  pointers_t *p;        // pointers to repeated subtree information
+  rank_0000_t *r;       // rank 0000 auxiliary structure
   bool read_only;   // if true write and add operations are not allowed
                     // all matrices created by splitting are read only            
 } k2mat_t;

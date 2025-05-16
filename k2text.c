@@ -230,7 +230,7 @@ void vu64_grow(vu64_t *z, size_t i)
 // maintain the correct m->subtinfo_size (which has no other uses).
 
 // Note that in this function we are not actually encoding the values 
-// but only computing the values that could be later encoded. Such values are stored 
+// but only computing the values (we can always encode later). Such values are stored 
 // to z using the above 40+24 scheme, the values then have to be stored (on disk)
 // using the appropriate scheme. In a first attempt we can avoid the encoding
 // and just use the array z as above. In that case we can measure everything
@@ -333,7 +333,8 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
   return subtree_size;
 }
 
-// as above but subtree information is stored only for large trees
+// compute subtree information as above, but information is stored only 
+// for large trees, ie when the number of nodes is larger than :limit
 uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit)
 {
   assert(size>MMsize);
@@ -390,7 +391,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
 }
 
 
-// do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in z
+// do a dfs visit of the k2 matrix :m and make sure subtree sizes match the ones in :z
 // the checking is done recursively, but as soon as the encoding of a subtree
 // has length 0, that subtree is explored with a fast dfs visit that only reports 
 // the subtree size.
@@ -407,13 +408,13 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
 //  <Sub3> = tot_encode_size - <<T1> <Sub1> <T2><Sub2>> - <Sub1> - <Sub2>
 // and is compared with the amount of data scanned during the visit of T3
 // Parameters:
-//  size of the current submatrix
+//  size  internal size of the current submatrix
 //  m,*pos the current submatrix starts at position *pos within *m 
 //  z  dynamic vector where the subtree information to be checked is stored
-//  tot_encode_size total size of the encoding for tree (and subtrees)
+//  tot_encode_size total size of the encoding (info in z) for tree (and subtrees)
 //                  as obtained at the previous level (T's parent)
 // Return:
-// size of the encoding of tree T in m (hence not including the info in z) 
+// size (number of nodes) of T (hence not including the info in z) 
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size)
 {
@@ -433,7 +434,7 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
   // read subtree information if available 
   uint64_t *subtree_info = &(z->v[z->n]); // array with subtree_info information
   z->n += nchildren-1;                    // advance z->n to the subtree encoding area
-  size_t encode_seen = nchildren-1;       // consume one item x non-last children 
+  size_t encode_seen = nchildren-1;       // consume one item for each non-last children 
   // visit children 
   size_t cnum = 0;             // current child 
   size_t tree_size = 1;        // account for root node
@@ -963,7 +964,7 @@ static uint64_t get_size(uint8_t *tree, uint64_t t_size, vu64_t *z, uint64_t b_t
 }
 
 // threshold is the minimum amount of nodes to considering erasing a subtree
-// block_size block size of rank 0000 datastructure
+// block_size is the block size of rank 0000 datastructure
 void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size) {
   
   uint64_t lvs = ceil_log2((uint64_t)asize);
@@ -972,6 +973,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   vu64_init(&z);
   size_t pos = 0;
 
+  // compute all the subtree information 
   k2dfs_sizes(asize, a, &pos, &z, (uint32_t) lvs);
 
   uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
