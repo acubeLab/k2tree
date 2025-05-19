@@ -67,7 +67,7 @@ typedef struct k2mat {
 #define MaxMatrixSize (1UL<<40)
 
 // Constants to store size and esizes in a single entry of the subtse array
-#define BITSxTSIZE 34
+#define BITSxTSIZE 40
 #define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
 
