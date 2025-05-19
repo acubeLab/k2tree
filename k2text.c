@@ -968,7 +968,7 @@ void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* te
   node_t root = k2read_node(m,*pos); (*pos)++;
   text[*pos_t] = lvl;
   (*pos_t)++;
-  text[*pos_t] = root;
+  text[*pos_t] = (uint8_t) root;
   (*pos_t)++;
 
   if(root == POINTER) {
@@ -987,7 +987,7 @@ void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* te
         minimat_t mm = k2read_minimat(m,pos); // read minimat and advance pos
         text[*pos_t] = lvl + 1;
         (*pos_t)++;
-        text[*pos_t] = mm;
+        text[*pos_t] = (uint8_t) mm;
         (*pos_t)++;
       }
       else { // recurse on submatrix
@@ -1022,18 +1022,15 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   int64_t *plcp = malloc(sizeof(int64_t) * a->pos * 2);
   int64_t *lcp = malloc(sizeof(int64_t) * a->pos * 2);
 
-  if(libsais64(text, csa, a->pos, 0, NULL) != 0)
+  if(libsais64(text, csa, a->pos * 2, 0, NULL) != 0)
     quit("error creating csa", __LINE__, __FILE__);
-  if(libsais64_plcp(text, csa, plcp, a->pos) != 0)
+  if(libsais64_plcp(text, csa, plcp, a->pos * 2) != 0)
     quit("error creating plcp", __LINE__, __FILE__);
-  if(libsais64_lcp(plcp, csa, lcp, a->pos) != 0)
+  if(libsais64_lcp(plcp, csa, lcp, a->pos * 2) != 0)
     quit("error creating lcp", __LINE__, __FILE__);
 
   dsu u;
   dsu_init(&u, a->pos);
-
-  st_t st;
-  st_init(&st, a->pos, lcp);
 
   for(size_t i = 1; i < a->pos * 2; i++) {
     uint64_t curr_start_pos = csa[i];
@@ -1042,14 +1039,13 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
     }
 
     uint64_t size_subtree = get_size(text2, a->pos, &z, csa[i] / 2);
-    uint64_t curr_end_pos = csa[i] + size_subtree * 2 - 1;
     // ignoring |trees| <= threshold / 4
     if(size_subtree <= threshold / 4) {
       continue;
     }
 
     // check that the tree are same length
-    if(lcp[i] >= size_subtree) {
+    if(lcp[i] >= size_subtree * 2) {
       dsu_union_set(&u, curr_start_pos / 2, csa[i - 1] / 2);
     }
   }
@@ -1057,7 +1053,6 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   free(csa);
   free(plcp);
   free(lcp);
-  st_free(&st);
 
   uint64_t* prefix_help = (uint64_t*) malloc(sizeof(uint64_t) * a->pos);
   for(size_t i = 0; i < a->pos; i++) prefix_help[i] = 0;

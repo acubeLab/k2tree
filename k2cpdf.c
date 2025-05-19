@@ -88,7 +88,6 @@ int main(int argc, char* argv[]) {
 
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
-  print_ck2(&ca);
   fprintf(stdout, "COMPRESSED TREE\n");
   fprintf(stdout, "Nodes: %ld\n", ca.pos);
 
