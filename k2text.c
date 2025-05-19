@@ -966,7 +966,6 @@ void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* te
   assert(size % 2==0);
   assert(*pos < m->pos); // implies m is non-empty
   node_t root = k2read_node(m,*pos); (*pos)++;
-  (*nodes)++;
   text[*pos_t] = lvl;
   (*pos_t)++;
   text[*pos_t] = root;
@@ -985,12 +984,14 @@ void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* te
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion
-        (*minimats)++;
         minimat_t mm = k2read_minimat(m,pos); // read minimat and advance pos
-        *nz += (size_t) __builtin_popcountll(mm);
+        text[*pos_t] = lvl + 1;
+        (*pos_t)++;
+        text[*pos_t] = mm;
+        (*pos_t)++;
       }
       else { // recurse on submatrix
-        k2dfs_visit(size/2,m,pos,nodes,minimats,nz,all1); // read submatrix and advance pos
+        k2dfs_write_in_text(size/2,m,pos, text, pos_t, lvl + 1); // read submatrix and advance pos
       }
     }
 }
@@ -1007,14 +1008,19 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   k2dfs_sizes(asize, a, &pos, &z, (uint32_t) lvs);
 
   uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos * 2);
-
+  uint8_t *text2 = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
   for(size_t i = 0; i < a->pos; i++) {
-    text[i] = (uint8_t) k2read_node(a, i);
+    text2[i] = k2read_node(a, i);
   }
 
-  int64_t *csa = malloc(sizeof(int64_t) * a->pos);
-  int64_t *plcp = malloc(sizeof(int64_t) * a->pos);
-  int64_t *lcp = malloc(sizeof(int64_t) * a->pos);
+  pos = 0;
+  size_t pos_t = 0;
+  k2dfs_write_in_text(asize, a, &pos, text, &pos_t, 16);
+  assert(pos == a->pos);
+
+  int64_t *csa = malloc(sizeof(int64_t) * a->pos * 2);
+  int64_t *plcp = malloc(sizeof(int64_t) * a->pos * 2);
+  int64_t *lcp = malloc(sizeof(int64_t) * a->pos * 2);
 
   if(libsais64(text, csa, a->pos, 0, NULL) != 0)
     quit("error creating csa", __LINE__, __FILE__);
@@ -1029,37 +1035,28 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   st_t st;
   st_init(&st, a->pos, lcp);
 
-  uint64_t* prev = malloc(sizeof(uint64_t) * (a->pos + 1));
-  uint64_t inf = ~((uint64_t)0);
-  for(size_t i = 0; i < (a->pos + 1); i++) prev[i] = inf;
-
-  for(size_t i = 0; i < a->pos; i++) {
+  for(size_t i = 1; i < a->pos * 2; i++) {
     uint64_t curr_start_pos = csa[i];
+    if(text[curr_start_pos] < 16) {
+      continue; // invalid begin
+    }
 
-    uint64_t size_subtree = get_size(text, a->pos, &z, csa[i]);
-    assert(size_subtree <= a->pos);
-    uint64_t curr_end_pos = csa[i] + size_subtree - 1;
+    uint64_t size_subtree = get_size(text2, a->pos, &z, csa[i] / 2);
+    uint64_t curr_end_pos = csa[i] + size_subtree * 2 - 1;
     // ignoring |trees| <= threshold / 4
     if(size_subtree <= threshold / 4) {
       continue;
     }
 
-    uint64_t pos = prev[size_subtree];
-    uint64_t prev_start_pos = csa[pos];
-
-
     // check that the tree are same length
-    assert(pos + 1 <= i);
-    if(st_query(&st, pos + 1, i) >= size_subtree) {
-      dsu_union_set(&u, curr_start_pos, prev_start_pos);
+    if(lcp[i] >= size_subtree) {
+      dsu_union_set(&u, curr_start_pos / 2, csa[i - 1] / 2);
     }
-    prev[size_subtree] = i;
   }
 
   free(csa);
   free(plcp);
   free(lcp);
-  free(prev);
   st_free(&st);
 
   uint64_t* prefix_help = (uint64_t*) malloc(sizeof(uint64_t) * a->pos);
@@ -1074,7 +1071,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
       vu64_grow(&P_h, 1);
       P_h.v[P_h.n - 1] = (uint32_t) repre - prefix_help[repre - 1];
       k2add_node(ca, 0);
-      size_t next_i = i + get_size(text, a->pos, &z, i) - 1;
+      size_t next_i = i + get_size(text2, a->pos, &z, i) - 1;
       for(size_t fill = i; fill <= next_i; fill++) {
         prefix_help[fill] = prefix_help[fill - 1] + 1;
       }
@@ -1082,7 +1079,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
       i = next_i;
     } else {
       if(i > 0) prefix_help[i] = prefix_help[i - 1];
-      k2add_node(ca, text[i]);
+      k2add_node(ca, text2[i]);
     }
   }
   
