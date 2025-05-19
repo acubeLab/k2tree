@@ -75,15 +75,18 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
   if(a->p == NULL)
     assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
-          levels,nodes,minimats, all1, nz);
-  uint64_t bits_p = pointers_size_in_bits(a->p);
-  uint64_t bits_r = rank_size_in_bits(a->r);
-  fprintf(file, " Pointers: %" PRIu64 " Rank DS: %" PRIu64 "\n", bits_p, bits_r);
-  // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
+  fprintf(file," # Nonzeros: %zu, Nonzero x row: %lf\n", nz, (double) nz/(double)size);
+  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu\n",
+          levels,nodes,minimats, all1);
+  size_t bits_sub = sizeof(*(a->subtinfo)) * a->subtinfo_size;
+  fprintf(file, " Subtree info size (bits): %zu\n", bits_sub);
+  size_t bits_p = pointers_size_in_bits(a->p);
+  size_t bits_r = rank_size_in_bits(a->r);
+  fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits): %zu\n", bits_p, bits_r);
+  // each pos takes 4 bits, so tree size in bytes is (pos+1)/2         
   fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
-  fprintf(file, " Totat space\n  bits: %" PRIu64 " bits x nonzero: %lf\n", 
+  fprintf(file, " Total space (bits): %zu, Bits x nonzero: %lf\n", 
       pos * 4 + bits_r + bits_p, (double) (pos * 4 + bits_r + bits_p) / (double) nz);
   return nz;
 }
@@ -457,10 +460,10 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   size_t e = fwrite(&size,sizeof(size),1,f);
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
-  e = fwrite(&MMsize, sizeof(int),1,f);
+  e = fwrite(&MMsize, sizeof(MMsize),1,f);
   if(e!=1) quit("msave_to_file: cannot write MMsize",__LINE__,__FILE__);
   e = fwrite(&asize, sizeof(asize),1,f);
-  if(e!=1) quit("msave: cannot write asize",__LINE__,__FILE__);
+  if(e!=1) quit("msave_to_file: cannot write asize",__LINE__,__FILE__);
   e = fwrite(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("msave_to_file: cannot write number of positions",__LINE__,__FILE__);
   if(a->pos>0) {

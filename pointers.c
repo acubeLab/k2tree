@@ -37,12 +37,13 @@ void pointers_write_to_file(pointers_t *ps, const char* filename) {
   fclose(file);
 }
 
-void poitners_load_from_file(pointers_t *ps, const char* filename) {  
+//\\!!!! this function should allocate the pointer array
+void pointers_load_from_file(pointers_t *ps, const char* filename) {  
   FILE* file = fopen(filename, "w");
-  if(file == NULL) quit("error opening file", __LINE__, __FILE__);
+  if(file == NULL) quit("error opening pointers file", __LINE__, __FILE__);
 
   size_t check = fread(&(ps->p_size), sizeof(uint32_t), 1, file);
-  if(check != 1) quit("error reading the amount of pointers", __LINE__, __FILE__);
+  if(check != 1) quit("error reading the number of pointers", __LINE__, __FILE__);
   check = fwrite(ps->p, sizeof(uint32_t), ps->p_size, file);
   if(check != ps->p_size) quit("error reading the pointers", __LINE__, __FILE__);
   fclose(file);

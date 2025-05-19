@@ -451,7 +451,7 @@ size_t k2get_k2size(size_t msize)
   return s;
 }
 
-// add the subtree info to a k2 matrix if available
+// add the subtree info to a k2 matrix
 void k2add_subtinfo(k2mat_t *a, const char *infofile)
 {
   assert(infofile!=NULL);
@@ -470,3 +470,27 @@ void k2add_subtinfo(k2mat_t *a, const char *infofile)
   if(s!=a->subtinfo_size) quit("k2add_subtinfo: error reading info file", __LINE__,__FILE__);
   fclose(f);
 }
+
+// add the backpointers to repeated subtrees in a  k2 matrix
+// To be completed
+void k2add_backpointers(k2mat_t *a, const char *backfile)
+{
+  assert(backfile!=NULL);
+  // change from here
+  size_t elsize = sizeof(*(a->subtinfo));  // size of an element in the subtinfo array
+  FILE *f = fopen(infofile,"rb");
+  if(f==NULL) quit("k2add_subtinfo: cannot open info file", __LINE__,__FILE__);
+  if(fseek(f,0,SEEK_END)!=0) quit("k2add_subtinfo: seek error on info file", __LINE__,__FILE__);
+  long fsize = ftell(f);
+  if(fsize<0) quit("k2add_subtinfo: ftell error on info file", __LINE__,__FILE__);
+  if(fsize%elsize!=0) quit("k2add_subtinfo: invalid info file", __LINE__,__FILE__);;
+  a->subtinfo_size = fsize/elsize;
+  rewind(f);
+  a->subtinfo = malloc(fsize);
+  if(a->subtinfo==NULL) quit("k2add_subtinfo: cannot allocate memory", __LINE__,__FILE__);
+  size_t s = fread(a->subtinfo,elsize,a->subtinfo_size,f);
+  if(s!=a->subtinfo_size) quit("k2add_subtinfo: error reading info file", __LINE__,__FILE__);
+  fclose(f);
+}
+
+

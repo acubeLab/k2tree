@@ -54,11 +54,11 @@ typedef struct k2mat {
   size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
                 // only read only matrices can have a positive offset
   uint64_t *subtinfo;   // subtrees size encoding if present, or NULL
-  size_t subtinfo_size; // size of the subtinfo array (currently not used!)
+  size_t subtinfo_size; // size (# elements) of the subtinfo array
+  pointers_t *p;        // pointers to repeated subtree information
+  rank_0000_t *r;       // rank 0000 auxiliary structure
   bool read_only;   // if true write and add operations are not allowed
                     // all matrices created by splitting are read only            
-  pointers_t *p; // pointers information
-  rank_0000_t *r; // rank 0000 auxiliary
 } k2mat_t;
 // initialize to an empty writable matrix 
 #define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0,false, NULL, NULL}
@@ -67,7 +67,7 @@ typedef struct k2mat {
 #define MaxMatrixSize (1UL<<40)
 
 // Constants to store size and esizes in a single entry of the subtse array
-#define BITSxTSIZE 34
+#define BITSxTSIZE 40
 #define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
 
@@ -86,7 +86,6 @@ void minimat_reset();
 // from k2aux.c
 void k2add_subtinfo(k2mat_t *a, const char *infofile);
 size_t k2treesize(const k2mat_t *m);
-
 
 // from k2ops.c
 // save a k2-matrix to file
