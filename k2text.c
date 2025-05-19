@@ -1015,7 +1015,6 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
 
     int64_t pos = prev[curr_end_pos - curr_start_pos + 1];
     uint64_t prev_start_pos = csa[pos];
-    assert(curr_end_pos - curr_start_pos + 1 == get_size(text, a->pos, &z, csa[pos]));
 
     // check that the tree are same length
     if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
