@@ -883,22 +883,22 @@ void st_free(st_t *st) {
 
 typedef struct {
   uint64_t n;
-  int64_t* e;
+  uint64_t* e;
 } dsu;
 
 void dsu_init(dsu* u, uint64_t n) {
-  u->e = (int64_t*) malloc(sizeof(int64_t) * n);
+  u->e = (uint64_t*) malloc(sizeof(int64_t) * n);
   u->n = n;
-  for(size_t i = 0; i < n; i++) u->e[i] = -1;
+  for(size_t i = 0; i < n; i++) u->e[i] = i;
 }
 
-int64_t dsu_find_set(dsu* u, int64_t x) {
-  if(u->e[x] < 0) return x;
+uint64_t dsu_find_set(dsu* u, uint64_t x) {
+  if(u->e[x] == x) return x;
   u->e[x] = dsu_find_set(u, u->e[x]);
   return u->e[x];
 }
 
-int8_t dsu_union_set(dsu* u , int64_t x, int64_t y) {
+int8_t dsu_union_set(dsu* u , uint64_t x, uint64_t y) {
   x = dsu_find_set(u, x);
   y = dsu_find_set(u, y);
   if(x == y) return 0;
@@ -907,7 +907,6 @@ int8_t dsu_union_set(dsu* u , int64_t x, int64_t y) {
     x = y;
     y = aux;
   }
-  u->e[x] += u->e[y];
   u->e[y] = x;
   return 1;
 }
@@ -963,10 +962,44 @@ static uint64_t get_size(uint8_t *tree, uint64_t t_size, vu64_t *z, uint64_t b_t
   return get_size_rec(tree, z, t_pos, t_size, z_pos, b_tree);
 }
 
+void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* text, size_t *pos_t, uint8_t lvl) {
+  assert(size > MMsize);
+  assert(size % 2==0);
+  assert(*pos < m->pos); // implies m is non-empty
+  node_t root = k2read_node(m,*pos); (*pos)++;
+  text[*pos_t] = lvl;
+  (*pos_t)++;
+  text[*pos_t] = (uint8_t) root;
+  (*pos_t)++;
+
+  if(root == POINTER) {
+    return; // all 1's matrix consists of root only
+  }
+  // add a macro later
+//  if(root==ALL_ONES) {
+//    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
+//    else *nz += size*size; 
+//    *all1 +=1;   // found an all 1's matrix 
+//    return; // all 1's matrix consists of root only
+//  }
+  for(int i=0;i<4;i++) 
+    if(root & (1<<i)) {
+      if(size==2*MMsize) { // end of recursion
+        minimat_t mm = k2read_minimat(m,pos); // read minimat and advance pos
+        text[*pos_t] = lvl + 1;
+        (*pos_t)++;
+        text[*pos_t] = (uint8_t) mm;
+        (*pos_t)++;
+      }
+      else { // recurse on submatrix
+        k2dfs_write_in_text(size/2,m,pos, text, pos_t, lvl + 1); // read submatrix and advance pos
+      }
+    }
+}
+
 // threshold is the minimum amount of nodes to considering erasing a subtree
 // block_size is the block size of rank 0000 datastructure
 void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size) {
-  
   uint64_t lvs = ceil_log2((uint64_t)asize);
 
   vu64_t z;
@@ -976,61 +1009,52 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   // compute all the subtree information 
   k2dfs_sizes(asize, a, &pos, &z, (uint32_t) lvs);
 
-  uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
-
+  uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos * 2);
+  uint8_t *text2 = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
   for(size_t i = 0; i < a->pos; i++) {
-    text[i] = (uint8_t) k2read_node(a, i);
+    text2[i] = k2read_node(a, i);
   }
 
-  int64_t *csa = malloc(sizeof(int64_t) * a->pos);
-  int64_t *plcp = malloc(sizeof(int64_t) * a->pos);
-  int64_t *lcp = malloc(sizeof(int64_t) * a->pos);
+  pos = 0;
+  size_t pos_t = 0;
+  k2dfs_write_in_text(asize, a, &pos, text, &pos_t, 16);
+  assert(pos == a->pos);
 
-  if(libsais64(text, csa, a->pos, 0, NULL) != 0)
+  int64_t *csa = malloc(sizeof(int64_t) * a->pos * 2);
+  int64_t *plcp = malloc(sizeof(int64_t) * a->pos * 2);
+  int64_t *lcp = malloc(sizeof(int64_t) * a->pos * 2);
+
+  if(libsais64(text, csa, a->pos * 2, 0, NULL) != 0)
     quit("error creating csa", __LINE__, __FILE__);
-  if(libsais64_plcp(text, csa, plcp, a->pos) != 0)
+  if(libsais64_plcp(text, csa, plcp, a->pos * 2) != 0)
     quit("error creating plcp", __LINE__, __FILE__);
-  if(libsais64_lcp(plcp, csa, lcp, a->pos) != 0)
+  if(libsais64_lcp(plcp, csa, lcp, a->pos * 2) != 0)
     quit("error creating lcp", __LINE__, __FILE__);
 
   dsu u;
   dsu_init(&u, a->pos);
 
-  st_t st;
-  st_init(&st, a->pos, lcp);
-
-  int64_t* prev = malloc(sizeof(int64_t) * (a->pos + 1));
-  for(size_t i = 0; i < (a->pos + 1); i++) prev[i] = -1;
-
-  for(size_t i = 0; i < a->pos; i++) {
+  for(size_t i = 1; i < a->pos * 2; i++) {
     uint64_t curr_start_pos = csa[i];
-    uint64_t curr_end_pos = csa[i] + get_size(text, a->pos, &z, csa[i]) - 1;
-    // ignoring small trees
-    if(curr_end_pos - curr_start_pos + 1 <= threshold / 4) {
-      continue;
+    if(text[curr_start_pos] < 16) {
+      continue; // invalid begin
     }
 
-    if(prev[curr_end_pos - curr_start_pos + 1] == -1) {
-      prev[curr_end_pos - curr_start_pos + 1] = i;
+    uint64_t size_subtree = get_size(text2, a->pos, &z, csa[i] / 2);
+    // ignoring |trees| <= threshold / 4
+    if(size_subtree <= threshold / 4) {
       continue;
     }
-
-    int64_t pos = prev[curr_end_pos - curr_start_pos + 1];
-    uint64_t prev_start_pos = csa[pos];
-    assert(curr_end_pos - curr_start_pos + 1 == get_size(text, a->pos, &z, csa[pos]));
 
     // check that the tree are same length
-    if(st_query(&st, pos + 1, i) >= curr_end_pos - curr_start_pos + 1) {
-      dsu_union_set(&u, curr_start_pos, prev_start_pos);
+    if(lcp[i] >= size_subtree * 2) {
+      dsu_union_set(&u, curr_start_pos / 2, csa[i - 1] / 2);
     }
-    prev[curr_end_pos - curr_start_pos + 1] = i;
   }
 
   free(csa);
   free(plcp);
   free(lcp);
-  free(prev);
-  st_free(&st);
 
   uint64_t* prefix_help = (uint64_t*) malloc(sizeof(uint64_t) * a->pos);
   for(size_t i = 0; i < a->pos; i++) prefix_help[i] = 0;
@@ -1040,11 +1064,11 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
 
   for(size_t i = 0; i < a->pos; i++) {
     uint64_t repre = dsu_find_set(&u, i);
-    if(repre != i) { // cancel identical subtree
+    if(repre != i) {
       vu64_grow(&P_h, 1);
       P_h.v[P_h.n - 1] = (uint32_t) repre - prefix_help[repre - 1];
       k2add_node(ca, 0);
-      size_t next_i = i + get_size(text, a->pos, &z, i) - 1;
+      size_t next_i = i + get_size(text2, a->pos, &z, i) - 1;
       for(size_t fill = i; fill <= next_i; fill++) {
         prefix_help[fill] = prefix_help[fill - 1] + 1;
       }
@@ -1052,7 +1076,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
       i = next_i;
     } else {
       if(i > 0) prefix_help[i] = prefix_help[i - 1];
-      k2add_node(ca, text[i]);
+      k2add_node(ca, text2[i]);
     }
   }
   
