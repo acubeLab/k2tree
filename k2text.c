@@ -839,49 +839,6 @@ uint64_t floor_log2(uint64_t x) {
 }
 
 typedef struct {
-  size_t k, maxn;
-  int64_t **st;
-} st_t;
-
-int64_t min(int64_t a, int64_t b) {
-  return a < b ? a : b;
-}
-
-void st_init(st_t *st, size_t n, int64_t *arr) {
-  assert(st != NULL);
-  assert(arr != NULL);
-
-  st->k = floor_log2(n) + 1;
-  st->maxn = n;
-  st->st = malloc(sizeof(int64_t*) * (st->k));
-  for(size_t i = 0; i < st->k; i++) {
-    st->st[i] = calloc(st->maxn, sizeof(int64_t));
-  }
-
-  for(size_t i = 0; i < st->maxn; i++) {
-    st->st[0][i] = arr[i];
-  }
-
-  for(size_t j = 1; j < st->k; j++) {
-    for(size_t i = 0; i + (1 << j) <= n; i++) {
-      st->st[j][i] = min(st->st[j - 1][i], st->st[j - 1][i + (1 << (j - 1))]);
-    }
-  }
-}
-
-int64_t st_query(st_t *st, size_t l, size_t r) {
-  size_t k = floor_log2(r - l + 1);
-  return min(st->st[k][l], st->st[k][r - (1 << k) + 1]);
-}
-
-void st_free(st_t *st) {
-  for(size_t i = 0; i < st->k; i++) {
-    free(st->st[i]);
-  }
-  free(st->st);
-}
-
-typedef struct {
   uint64_t n;
   uint64_t* e;
 } dsu;
@@ -975,13 +932,6 @@ void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* te
   if(root == POINTER) {
     return; // all 1's matrix consists of root only
   }
-  // add a macro later
-//  if(root==ALL_ONES) {
-//    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
-//    else *nz += size*size; 
-//    *all1 +=1;   // found an all 1's matrix 
-//    return; // all 1's matrix consists of root only
-//  }
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion

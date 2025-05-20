@@ -15,30 +15,7 @@
 // local includes
 #include "k2.h"
 
-void print_ck2(k2mat_t *a) {
-  for(size_t i = 0; i < a->pos; i++) {
-    for(size_t bit = 0; bit < 4; bit++) {
-      if(i % 2)
-        printf("%d", (((a->b[i / 2] >> 4) & (1 << bit)) > 0));
-      else
-        printf("%d", (((a->b[i / 2] & 15) & (1 << bit)) > 0));
-    }
-    printf(" ");
-  }
-  printf("\n");
-  if(a->p != NULL) {
-    for(size_t i = 0; i < a->p->p_size; i++) {
-      printf("%" PRIu32 " ", a->p->p[i]);
-    }
-    printf("\n");
-  }
-  if(a->r != NULL) {
-    for(size_t i = 0; i < a->r->r_size; i++) {
-      printf("%" PRIu32 " ", a->r->r[i]);
-    }
-  }
-  printf("\n");
-}
+static void usage_and_exit(char *name);
 
 int main(int argc, char* argv[]) {
   extern char *optarg;
@@ -47,18 +24,25 @@ int main(int argc, char* argv[]) {
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize, totnz=0;
   uint32_t rank_block = 64;
-  uint32_t threshold = 4;
+  uint32_t threshold = 32;
+  int verbose = 0, check = 0, write = 1;
 
   char* k2name_file = NULL;
   int c;
-  while((c = getopt(argc, argv, "b:t:f:")) != -1) {
+  while((c = getopt(argc, argv, "b:t:hvcn")) != -1) {
     switch (c) {
       case 'b':
         rank_block = atoi(optarg); break;
       case 't':
         threshold = atoi(optarg); break;
-      case 'f':
-        k2name_file = optarg; break;
+      case 'h':
+        usage_and_exit(argv[0]); break;
+      case 'v':
+        verbose = 1; break;
+      case 'c':
+        check = 1; break;
+      case 'n':
+        write = 0; break;
       case '?':
         fprintf(stderr, "Unknown option %c\n", optopt);
         exit(1);
@@ -66,13 +50,23 @@ int main(int argc, char* argv[]) {
   }
 
   if(threshold % 4) {
-    fprintf(stderr, "Threshold has to be divisible by 4\n");
+    threshold = (threshold + 4 - 1) / 4;
+  }
+
+  optind -=1;
+  if (argc-optind != 2) usage_and_exit(argv[0]); 
+  argv += optind; argc -= optind;
+  k2name_file = argv[1];
+  if(k2name_file == NULL) {
+    usage_and_exit(argv[0]); 
     exit(1);
   }
 
-  if(k2name_file == NULL) {
-    fprintf(stderr, "Missing file argument: -f <name file>\n");
-    exit(1);
+  if(verbose > 0) {
+    fputs("==== Command line:\n",stdout);
+    for(int i=0;i<argc;i++)
+      fprintf(stdout," %s",argv[i]);
+    fputs("\n",stdout);  
   }
 
   size = mload_from_file(&asize, &a, k2name_file); // also init k2 library
@@ -88,31 +82,55 @@ int main(int argc, char* argv[]) {
 
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
-  fprintf(stdout, "COMPRESSED TREE\n");
-  fprintf(stdout, "Nodes: %ld\n", ca.pos);
+  if(check || verbose || !write) {
+    size_t totnz_ca = 0;
+    totnz_ca = mshow_stats(size, asize, &ca, basename(k2name_file), stdout);
+    if(check) {
+      if(totnz_ca == totnz) {
+        if(verbose) printf("Amount of non zero matches!\n");
+      } else {
+        printf("Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+      }
+    }
+  }
 
-  mshow_stats(size, asize, &ca, basename(k2name_file), stdout);
+  if(write) {
+    char file_ck2[strlen(k2name_file) + 5];
+    strcpy(file_ck2, k2name_file);
+    file_ck2[strlen(k2name_file) - 2] = 'c';
+    file_ck2[strlen(k2name_file) - 1] = 'k';
+    file_ck2[strlen(k2name_file)] = '2';
+    file_ck2[strlen(k2name_file) + 1] = '\0';
+    msave_to_file(size, asize, &ca, file_ck2);
 
-  char file_ck2[strlen(k2name_file) + 5];
-  strcpy(file_ck2, k2name_file);
-  file_ck2[strlen(k2name_file) - 2] = 'c';
-  file_ck2[strlen(k2name_file) - 1] = 'k';
-  file_ck2[strlen(k2name_file)] = '2';
-  file_ck2[strlen(k2name_file) + 1] = '\0';
-  msave_to_file(size, asize, &ca, file_ck2);
+    char file_p[strlen(file_ck2) + 4];
+    strcpy(file_p, file_ck2);
+    strcat(file_p, ".p");
+    pointers_write_to_file(ca.p, file_p);
 
-  char file_p[strlen(file_ck2) + 4];
-  strcpy(file_p, file_ck2);
-  strcat(file_p, ".p");
-  pointers_write_to_file(ca.p, file_p);
-
-  char file_r[strlen(file_ck2) + 4];
-  strcpy(file_r, file_ck2);
-  strcat(file_p, ".r");
-  rank_write_to_file(ca.r, file_p);
+    char file_r[strlen(file_ck2) + 4];
+    strcpy(file_r, file_ck2);
+    strcat(file_p, ".r");
+    rank_write_to_file(ca.r, file_p);
+  }
 
   matrix_free(&a);
   matrix_free(&ca);
   minimat_reset();
   return 0;
+}
+
+static void usage_and_exit(char *name)
+{
+    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+    fputs("Options:\n",stderr);
+    fprintf(stderr,"\t-b      amount of nodes per block for rank 0000 (def. 64)\n");
+    fprintf(stderr,"\t-t      minimum amount of bits to remove a subtree (def. 32)\n");
+    fprintf(stderr,"\t-c      check amount of ones of the compressed tree\n");
+    fprintf(stderr,"\t-h      show this help message\n");    
+    fprintf(stderr,"\t-v      verbose\n\n");
+    fprintf(stderr,"Compute and store in separates files the compressed tree and\n"
+                   "its auxiliary information of the input compressed matrix\n"
+                   ", based on subtree compression.\n\n");
+    exit(1);
 }

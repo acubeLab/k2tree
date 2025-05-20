@@ -478,7 +478,7 @@ void k2add_backpointers(k2mat_t *a, const char *backfile)
   assert(backfile!=NULL);
   // change from here
   size_t elsize = sizeof(*(a->subtinfo));  // size of an element in the subtinfo array
-  FILE *f = fopen(infofile,"rb");
+  FILE *f = fopen(backfile,"rb");
   if(f==NULL) quit("k2add_subtinfo: cannot open info file", __LINE__,__FILE__);
   if(fseek(f,0,SEEK_END)!=0) quit("k2add_subtinfo: seek error on info file", __LINE__,__FILE__);
   long fsize = ftell(f);
