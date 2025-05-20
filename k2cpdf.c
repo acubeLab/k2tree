@@ -107,13 +107,18 @@ int main(int argc, char* argv[]) {
     totnz_ca = mshow_stats(size, asize, &ca, basename(file_ck2), stdout);
     if(check) {
       if(totnz_ca == totnz) {
-        if(verbose) printf("Amount of non zero matches!\n");
         k2mat_t check_a = K2MAT_INITIALIZER;
         size_t pos = 0;
+        if(verbose) printf("Decompressing the k2tree and comparing it with the original\n");
         k2decompress(asize, &ca, &pos, &check_a);
         size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "check decompressed tree", stdout);
         if(totnz_ca_a == totnz) {
-          if(verbose) printf("Amount of non zero matches!\n");
+          int d = mequals(asize, &a, &check_a);
+          if(d < 0) {
+            if(verbose) printf("Correct decompression!\n");
+          } else {
+            printf("Error at decompression: generated a different k2tree\n");
+          }
         } else {
           printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
         }
