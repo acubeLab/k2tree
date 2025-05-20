@@ -238,7 +238,7 @@ Usage:
 Options:
         -b      amount of nodes per block for rank 0000 (def. 64)
         -t      minimum amount of bits to remove a subtree (def. 32)
-        -c      check amount of ones of the compressed tree
+        -c      check compression by decompressing and checking the amount of ones
 	-n      do not write the output file, only show stats
         -h      show this help message
         -v      verbose
