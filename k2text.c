@@ -962,7 +962,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   uint8_t *text = (uint8_t*) malloc(sizeof(uint8_t) * a->pos * 2);
   uint8_t *text2 = (uint8_t*) malloc(sizeof(uint8_t) * a->pos);
   for(size_t i = 0; i < a->pos; i++) {
-    text2[i] = k2read_node(a, i);
+    text2[i] = (uint8_t) k2read_node(a, i);
   }
 
   pos = 0;
