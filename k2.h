@@ -61,7 +61,7 @@ typedef struct k2mat {
                     // all matrices created by splitting are read only            
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0,false, NULL, NULL}
+#define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0, NULL, NULL,false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)

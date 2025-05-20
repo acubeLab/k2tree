@@ -102,7 +102,7 @@ size_t k2add_node(k2mat_t *m, node_t n)
 {
   assert(!m->read_only);
   assert(n<ILLEGAL_NODE);
-  assert(m->lenb%2==0);            // #positions must be even
+  assert(m->lenb%16==0);            // #positions must be ==0(16) so tha conversion to uint64 is safe  
   // make sure there is space
   if(m->pos >= m->lenb) {
     assert(m->pos ==m->lenb);
@@ -231,7 +231,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
 
     uint32_t rp = rank_rank(m->r, m, (uint32_t) (*pos) - 1);
     assert(rp < m->p->p_size);
-    *pos = m->p->p[rp];
+    *pos = m->p->nodep[rp];
     assert(*pos < m->pos);
     k2dfs_visit(size, m, pos, nodes, minimats, nz, all1); // read submatrix and advance pos
     

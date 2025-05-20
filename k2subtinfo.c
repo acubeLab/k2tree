@@ -26,8 +26,10 @@
 #include <libgen.h>
 #include "k2.h"
 #define default_ext ".sinfo"
-#define BITSxTSIZE 40
-#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
+#define default_pext ".pinfo"
+// already dfined in k2.h
+//#define BITSxTSIZE 40
+//#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
 
 // static functions at the end of the file
@@ -42,20 +44,24 @@ int main (int argc, char **argv) {
   extern int optind, opterr, optopt;
   int verbose=0;
   int c;
-  char iname[PATH_MAX], oname[PATH_MAX];
+  char iname[PATH_MAX], oname[PATH_MAX], poname[PATH_MAX];
   time_t start_wc = time(NULL);
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
   bool check = false, write = true;
-  char *outfile = NULL;
+  char *outfile=NULL, *poutfile=NULL, *pinfile = NULL;
   int32_t depth_subtree = 0;
   long node_limit = 0;
-  while ((c=getopt(argc, argv, "o:D:N:cnhv")) != -1) {
+  while ((c=getopt(argc, argv, "o:p:P:D:N:cnhv")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
+      case 'p':
+        poutfile = optarg; break;
+      case 'P':
+        pinfile = optarg; break;
       case 'c':
         check = true; break;
       case 'n':
@@ -77,6 +83,9 @@ int main (int argc, char **argv) {
     quit("Options -D and -N are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
+  if(poutfile!=NULL && pinfile==NULL) 
+    quit("Option -P requires -p",__LINE__,__FILE__);
+  
     
   if(verbose>0) {
     fputs("==== Command line:\n",stdout);
@@ -92,8 +101,10 @@ int main (int argc, char **argv) {
 
   // assign default extension and create file names
   sprintf(iname,"%s",argv[1]);
-  if(outfile!=NULL)sprintf(oname,"%s",outfile);
+  if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
+  if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
+  else       sprintf(poname,"%s%s",argv[1],default_pext); 
 
   // read input compressed matrix
   k2mat_t a = K2MAT_INITIALIZER;
@@ -157,9 +168,11 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
-    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
     fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
+    fprintf(stderr,"\t-P pin file containing pointer information (def. infile%s)\n", default_ext);
+    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
+    fprintf(stderr,"\t-p pout outfile for pointer-subtree information (def. infile%s)\n", default_pext);
     fprintf(stderr,"\t-c      check subtree information\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");

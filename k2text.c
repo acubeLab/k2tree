@@ -1054,7 +1054,7 @@ void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
 
     uint32_t rp = rank_rank(ca->r, ca, (uint32_t) (*pos) - 1);
     assert(rp < ca->p->p_size);
-    *pos = ca->p->p[rp];
+    *pos = ca->p->nodep[rp];
     assert(*pos < ca->pos);
     k2decompress(size, ca, pos, a); // read submatrix and advance pos
     
