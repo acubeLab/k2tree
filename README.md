@@ -248,7 +248,7 @@ its auxiliary information of the input compressed matrix
 , based on subtree compression.
 ```
 
-Invoked will generate three new files in the same directory as `m.k2`:
+Invoked will generate three new files in the same directory as `infile`:
 
 * `m.ck2`: contains the compressed k2-tree. You can load it using the `mload_from_file` function.
 * `m.ck2.p`: a binary file holding a `uint32_t` array. Each value points to the destination of a pointer node `0000`.  
@@ -263,7 +263,7 @@ Invoked will generate three new files in the same directory as `m.k2`:
 
 The options `-b` and `-t` can be use to change the default values of those parameters.
 
-When invoked with `-c` will check that the compressed representation can get the same amount of non-zero elements as the original k2tree represenation.
+When invoked with `-c` will check that the compressed representation can get the same amount of non-zero elements as the original k2tree represenation, then decompressed it to check again the non-zero elements.
 
 When invoked with `-n` will not write any file, only compress and show statistic.
 
