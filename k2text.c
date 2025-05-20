@@ -1043,3 +1043,34 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   rank_init(&(ca->r), block_size, ca);
 
 }
+
+void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
+  assert(size>MMsize);
+  assert(size%2==0);
+  assert(*pos<ca->pos); // implies m is non-empty
+  node_t root = k2read_node(ca,*pos); (*pos)++;
+  if(root == POINTER) { // is a pointer
+    uint32_t aux = (uint32_t) *pos; // remember where to comback
+
+    uint32_t rp = rank_rank(ca->r, ca, (uint32_t) (*pos) - 1);
+    assert(rp < ca->p->p_size);
+    *pos = ca->p->p[rp];
+    assert(*pos < ca->pos);
+    k2decompress(size, ca, pos, a); // read submatrix and advance pos
+    
+    // moving back to pointer
+    *pos = aux;
+    return;
+  }
+  k2add_node(a, root);
+  for(int i=0;i<4;i++) 
+    if(root & (1<<i)) {
+      if(size==2*MMsize) { // end of recursion
+        minimat_t mm = k2read_minimat(ca,pos); // read minimat and advance pos
+        k2add_minimat(a, mm);
+      }
+      else { // recurse on submatrix
+        k2decompress(size/2, ca, pos, a); // read submatrix and advance pos
+      }
+    }
+}

@@ -82,25 +82,14 @@ int main(int argc, char* argv[]) {
 
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
-  if(check || verbose || !write) {
-    size_t totnz_ca = 0;
-    totnz_ca = mshow_stats(size, asize, &ca, basename(k2name_file), stdout);
-    if(check) {
-      if(totnz_ca == totnz) {
-        if(verbose) printf("Amount of non zero matches!\n");
-      } else {
-        printf("Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
-      }
-    }
-  }
+  char file_ck2[strlen(k2name_file) + 5];
+  strcpy(file_ck2, k2name_file);
+  file_ck2[strlen(k2name_file) - 2] = 'c';
+  file_ck2[strlen(k2name_file) - 1] = 'k';
+  file_ck2[strlen(k2name_file)] = '2';
+  file_ck2[strlen(k2name_file) + 1] = '\0';
 
   if(write) {
-    char file_ck2[strlen(k2name_file) + 5];
-    strcpy(file_ck2, k2name_file);
-    file_ck2[strlen(k2name_file) - 2] = 'c';
-    file_ck2[strlen(k2name_file) - 1] = 'k';
-    file_ck2[strlen(k2name_file)] = '2';
-    file_ck2[strlen(k2name_file) + 1] = '\0';
     msave_to_file(size, asize, &ca, file_ck2);
 
     char file_p[strlen(file_ck2) + 4];
@@ -112,6 +101,26 @@ int main(int argc, char* argv[]) {
     strcpy(file_r, file_ck2);
     strcat(file_p, ".r");
     rank_write_to_file(ca.r, file_p);
+  }
+  if(check || verbose || !write) {
+    size_t totnz_ca = 0;
+    totnz_ca = mshow_stats(size, asize, &ca, basename(file_ck2), stdout);
+    if(check) {
+      if(totnz_ca == totnz) {
+        if(verbose) printf("Amount of non zero matches!\n");
+        k2mat_t check_a = K2MAT_INITIALIZER;
+        size_t pos = 0;
+        k2decompress(asize, &ca, &pos, &check_a);
+        size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "check decompressed tree", stdout);
+        if(totnz_ca_a == totnz) {
+          if(verbose) printf("Amount of non zero matches!\n");
+        } else {
+          printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+        }
+      } else {
+        printf("Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+      }
+    }
   }
 
   matrix_free(&a);
@@ -127,6 +136,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-b      amount of nodes per block for rank 0000 (def. 64)\n");
     fprintf(stderr,"\t-t      minimum amount of bits to remove a subtree (def. 32)\n");
     fprintf(stderr,"\t-c      check amount of ones of the compressed tree\n");
+    fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     fprintf(stderr,"Compute and store in separates files the compressed tree and\n"
