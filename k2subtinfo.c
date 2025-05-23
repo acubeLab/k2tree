@@ -10,6 +10,14 @@
  * For the details of the enconding, see the long comment before the 
  * function k2dfs_sizes() in k2text.c 
  * 
+ * If the option -p is used, we assume that the nibble 0000 (POINTER)
+ * marks a pointer to a subtree. The starting position of the subtree is stored
+ * in the backp structure consisting of an array of uint64_t. The destination of the
+ * i-th (in left to right order) pointer is stores in the lower BITSxTSIZE (40) bits
+ * of backp->node[i]. While we compute the subtree infromation we store in the 
+ * remaining (24) bits the starting position of the subtree information 
+ * for that subtree (if any infomation is available).
+ * 
  * Copyright August 2024-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
@@ -27,7 +35,7 @@
 #include "k2.h"
 #define default_ext ".sinfo"
 #define default_pext ".pinfo"
-// already dfined in k2.h
+// already defined in k2.h
 //#define BITSxTSIZE 40
 //#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
@@ -50,18 +58,18 @@ int main (int argc, char **argv) {
   /* ------------- read options from command line ----------- */
   opterr = 0;
   bool check = false, write = true;
-  char *outfile=NULL, *poutfile=NULL, *pinfile = NULL;
+  char *outfile=NULL, *pfile = NULL;
   int32_t depth_subtree = 0;
   long node_limit = 0;
-  while ((c=getopt(argc, argv, "o:p:P:D:N:cnhv")) != -1) {
+  uint32_t *sorted_pointers; // array giving the order of the pointers by destination
+
+  while ((c=getopt(argc, argv, "o:p:D:N:cnhv")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
       case 'p':
-        poutfile = optarg; break;
-      case 'P':
-        pinfile = optarg; break;
+        pfile = optarg; break;
       case 'c':
         check = true; break;
       case 'n':
@@ -83,10 +91,8 @@ int main (int argc, char **argv) {
     quit("Options -D and -N are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
-  if(poutfile!=NULL && pinfile==NULL) 
-    quit("Option -P requires -p",__LINE__,__FILE__);
-  
     
+
   if(verbose>0) {
     fputs("==== Command line:\n",stdout);
     for(int i=0;i<argc;i++)
@@ -103,15 +109,25 @@ int main (int argc, char **argv) {
   sprintf(iname,"%s",argv[1]);
   if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
-  if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
-  else       sprintf(poname,"%s%s",argv[1],default_pext); 
-
+ 
   // read input compressed matrix
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
+  // if pointer information was provided load it
+  if(pfile!=NULL) {
+    a.backp = pointers_load_from_file(pfile);
+    if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
+    // compute stored order of the pointers, and init index to 0
+    pointers_sort(a.backp);
+  }
+  else a.backp = sorted_pointers = NULL;
+  // show information acquired so far from the input files 
   if (verbose)  
       mshow_stats(size, asize,&a,iname,stdout);
+  
+
+
   // compute encoding information
   vu64_t z;      // resizable array to contain the subtree sizes
   vu64_init(&z);
@@ -170,9 +186,9 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
     fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
-    fprintf(stderr,"\t-P pin file containing pointer information (def. infile%s)\n", default_ext);
+    fprintf(stderr,"\t-p pin  file containing pointer information (def. infile%s)\n", default_ext);
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
-    fprintf(stderr,"\t-p pout outfile for pointer-subtree information (def. infile%s)\n", default_pext);
+    // fprintf(stderr,"\t-p pout outfile for pointer-subtree information (def. infile%s)\n", default_pext);
     fprintf(stderr,"\t-c      check subtree information\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");

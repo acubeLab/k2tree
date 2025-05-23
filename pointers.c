@@ -21,6 +21,8 @@ pointers_t *pointers_init(vu64_t* v) {
   ps->nodep = malloc(sizeof(k2pointer_t) * ps->size);
   if(ps->nodep == NULL) quit("malloc failed",__LINE__,__FILE__);
   for(size_t i = 0; i < ps->size; i++) ps->nodep[i] = (k2pointer_t) v->v[i];
+  ps->sorted = NULL; // no sorted order yet
+  ps->sidx = 0; // no sorted order yet
   return ps;
 }
 
@@ -42,12 +44,10 @@ pointers_t *pointers_load_from_file(const char* filename) {
   // read the size of the file
   fseek(file, 0, SEEK_END);
   long size = ftell(file);
-  if(size < 0) quit("error getting file size", __LINE__, __FILE__);
+  if(size < 0) quit("error getting pointers file size", __LINE__, __FILE__);
   // check if the file is empty
-  if(size == 0) {
-    fclose(file);
-    return NULL;
-  }
+  if(size == 0) quit("error: pointers file is empty", __LINE__, __FILE__);
+
   // check if the file size is a multiple of the size of a pointer
   if(size % sizeof(k2pointer_t) != 0) 
     quit("error: file size is not a multiple of pointer size", __LINE__, __FILE__);
@@ -66,23 +66,66 @@ pointers_t *pointers_load_from_file(const char* filename) {
   return ps;
 }
 
-// free structure reprsenting pointer 
+// free structure representing pointer 
 void pointers_free(pointers_t* ps) {
   assert(ps != NULL);
-  if(ps->nodep != NULL) {
-    free(ps->nodep);
-    ps->nodep = NULL;
-    ps->size = 0;
-  }
+  if(ps->nodep != NULL)  free(ps->nodep);
+  if(ps->sorted != NULL) free(ps->sorted);
+  ps->nodep = NULL;
+  ps->size = 0;
+  ps->sorted = NULL;
   free(ps);
 }
 
+// return space usage of pointers structure in bits
+// do not include the size of sorted which is used only for construction
 uint64_t pointers_size_in_bits(pointers_t* ps) {
   if(ps == NULL) return 0;
   // there are no pointers
   if(ps->nodep == NULL) return sizeof(*ps)*8;
   return (sizeof(*ps) + sizeof(k2pointer_t) * ps->size) * 8;
 }
+
+// compare function for qsort_r
+static int pointers_cmp(const void *a, const void *b, void *arg) {
+  k2pointer_t *p = (k2pointer_t *) arg;
+  uint32_t i = *(uint32_t *) a;
+  uint32_t j = *(uint32_t *) b;
+  if(p[i] < p[j]) return -1;
+  else if(p[i] > p[j]) return 1;
+  return 0;
+}
+
+// initialze the field sorted containing the order of the pointers
+// when sorted according to their destination
+void pointers_sort(pointers_t* ps) {
+  assert(ps != NULL);
+  assert(ps->nodep != NULL && ps->size > 0);
+  if(ps->size >= UINT32_MAX) 
+    quit("error: too many pointers", __LINE__, __FILE__);
+  // create array giving the order of the pointers  
+  ps->sorted = malloc(sizeof(uint32_t) * ps->size);
+  if(ps->sorted == NULL) quit("malloc failed", __LINE__, __FILE__);
+  for(uint32_t i = 0; i < ps->size; i++) {
+    ps->sorted[i] = i;
+  }
+  qsort_r(ps->sorted, ps->size, sizeof(uint32_t), pointers_cmp, ps->nodep);
+  #ifndef NDEBUG
+  // check if the pointers are sorted
+  for(uint32_t i = 1; i < ps->size; i++) {
+    if(ps->nodep[ps->sorted[i]] < ps->nodep[ps->sorted[i-1]]) {
+      fprintf(stderr, "error: pointers are not sorted\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+  ps->sidx = 0; // reset index
+  #endif
+}
+
+
+
+
+
 
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {

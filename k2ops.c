@@ -84,8 +84,8 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   size_t bits_r = rank_size_in_bits(a->r);
   fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits): %zu\n", bits_p, bits_r);
   // each pos takes 4 bits, so tree size in bytes is (pos+1)/2         
-  fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
-          (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
+  fprintf(file," Tree size: %zu bytes, %zu bits, Bits x nonzero: %lf\n",
+          (pos+1)/2 , 4*pos, 4.0*(double)(pos)/(double) nz);
   fprintf(file, " Total space (bits): %zu, Bits x nonzero: %lf\n", 
       pos * 4 + bits_r + bits_p, (double) (pos * 4 + bits_r + bits_p) / (double) nz);
   return nz;
