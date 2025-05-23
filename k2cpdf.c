@@ -79,9 +79,9 @@ int main(int argc, char* argv[]) {
 
 
   k2mat_t ca = K2MAT_INITIALIZER;
-
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
+  //!!! fix this
   char file_ck2[strlen(k2name_file) + 5];
   strcpy(file_ck2, k2name_file);
   file_ck2[strlen(k2name_file) - 2] = 'c';
@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
     char file_p[strlen(file_ck2) + 4];
     strcpy(file_p, file_ck2);
     strcat(file_p, ".p");
-    pointers_write_to_file(ca.p, file_p);
+    pointers_write_to_file(ca.backp, file_p);
 
     char file_r[strlen(file_ck2) + 4];
     strcpy(file_r, file_ck2);
@@ -144,8 +144,8 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
-    fprintf(stderr,"Compute and store in separates files the compressed tree and\n"
-                   "its auxiliary information of the input compressed matrix\n"
-                   ", based on subtree compression.\n\n");
+    fprintf(stderr,"Compress a k2 tree explotig the rpesence of identical subtrees.\n" 
+                   "Compute and store in separates files the compressed tree and\n"
+                   "its auxiliary information (pointers and rank information)\n\n");
     exit(1);
 }

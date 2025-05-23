@@ -73,14 +73,14 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   size_t pos, nodes, minimats, nz, all1;
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
-  if(a->p == NULL)
+  if(a->backp == NULL)
     assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
   fprintf(file," # Nonzeros: %zu, Nonzero x row: %lf\n", nz, (double) nz/(double)size);
   fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu\n",
           levels,nodes,minimats, all1);
   size_t bits_sub = sizeof(*(a->subtinfo)) * a->subtinfo_size;
   fprintf(file, " Subtree info size (bits): %zu\n", bits_sub);
-  size_t bits_p = pointers_size_in_bits(a->p);
+  size_t bits_p = pointers_size_in_bits(a->backp);
   size_t bits_r = rank_size_in_bits(a->r);
   fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits): %zu\n", bits_p, bits_r);
   // each pos takes 4 bits, so tree size in bytes is (pos+1)/2         

@@ -1032,9 +1032,7 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   
   free(prefix_help);
 
-  pointers_init(&(ca->p));
-  pointers_copyinfo(ca->p, &P_h);
-
+  ca->backp = pointers_init(&P_h);
   vu64_free(&P_h);
   vu64_free(&z);
   free(text);
@@ -1053,8 +1051,8 @@ void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
     uint32_t aux = (uint32_t) *pos; // remember where to comback
 
     uint32_t rp = rank_rank(ca->r, ca, (uint32_t) (*pos) - 1);
-    assert(rp < ca->p->p_size);
-    *pos = ca->p->nodep[rp];
+    assert(rp < ca->backp->size);
+    *pos = ca->backp->nodep[rp];
     assert(*pos < ca->pos);
     k2decompress(size, ca, pos, a); // read submatrix and advance pos
     

@@ -81,8 +81,8 @@ static void k2_free(k2mat_t *m)
   if(m->subtinfo!=NULL) {
     free(m->subtinfo); m->subtinfo=NULL; m->subtinfo_size=0;
   }
-  if(m->p != NULL)
-    pointers_free(m->p);
+  if(m->backp != NULL)
+    pointers_free(m->backp);
   if(m->r != NULL)
     rank_free(m->r);
 }
@@ -230,8 +230,8 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     size_t aux_minimats = *minimats; // to not overcount minimats
 
     uint32_t rp = rank_rank(m->r, m, (uint32_t) (*pos) - 1);
-    assert(rp < m->p->p_size);
-    *pos = m->p->nodep[rp];
+    assert(rp < m->backp->size);
+    *pos = m->backp->nodep[rp];
     assert(*pos < m->pos);
     k2dfs_visit(size, m, pos, nodes, minimats, nz, all1); // read submatrix and advance pos
     

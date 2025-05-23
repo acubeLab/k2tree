@@ -16,10 +16,7 @@ Clone/download the repostory then:
 
 ```
 git submodule update --init --recursive
-cd libsais
-cmake .
-make
-cd ..
+cd libsais; cmake .; make; cd ..
 make release
 ```
 
@@ -205,29 +202,6 @@ and `m2.k2.info` for the compressed matrix `m2.k2` (the information can be used 
 NOTE: to see a real speed improvement at the moment it is necessary to use the release version (`make release`). 
 
 
-
-## Pagerank computation 
-
-The Pagerank computation is ideal for testing the speed of the matrix-vector product in a real-world scenario.
-Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
-it using the `mtx2rowm` tool that after the conversion provides some minimal instructions to
-compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank
-vector (using `k2pagerank.x`) possibly using multiple threads. (The program `k2bpagerank.x` is an experiment
-where thread syncronization is done using pthread barriers, but the performances are very similar). 
-
-
-
-## Matrices represented as bitarrays
-
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
-
-The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
-
-
-## Product of bbm matrices with openmp
-
-The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
-
 ## Compressed k2-tree
 
 The executable `k2cpdf.x` is used to compress k2tree representation based on subtree compression; run it without arguments to get basic usage instructions
@@ -251,11 +225,8 @@ its auxiliary information of the input compressed matrix
 Invoked will generate three new files in the same directory as `infile`:
 
 * `m.ck2`: contains the compressed k2-tree. You can load it using the `mload_from_file` function.
-* `m.ck2.p`: a binary file holding a `uint32_t` array. Each value points to the destination of a pointer node `0000`.  
-  Format:
-  * First, a `uint32_t` integer `x` indicating the array's size.
-  * Then, `x` `uint32_t` integers follow-each one gives the destination of the i-th `0000` pointer node, ordered left to right in the bitarray.
-* `m.ck2.r`: another binary file with a `uint32_t` array used to compute the rank of `0000` in the compressed bitarray. This is a prefix sum array tracking how many times the `0000` pattern shows up in blocks of `b` nodes.  
+* `m.ck2.p`: a binary file holding a `uint64_t` array. Each value points to the destination of a pointer node `0000`.  
+* `m.ck2.r`: another binary file with a `uint32_t` array used to compute the rank of `0000` in the node array. This is a prefix sum array tracking how many times the `0000` pattern shows up in blocks of `b` nodes.  
   Format:
   * First, a `uint32_t` integer `r` for the array size.
   * Second, a `uint32_t` integer `b` indicating how many nodes are in each block.
@@ -266,6 +237,32 @@ The options `-b` and `-t` can be use to change the default values of those param
 When invoked with `-c` will check that the compressed representation can get the same amount of non-zero elements as the original k2tree represenation, then decompressed it to check again the non-zero elements.
 
 When invoked with `-n` will not write any file, only compress and show statistic.
+
+
+
+
+
+## Pagerank computation 
+
+The Pagerank computation is ideal for testing the speed of the matrix-vector product in a real-world scenario.
+Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
+it using the `mtx2rowm` tool that after the conversion provides some minimal instructions to
+compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank
+vector (using `k2pagerank.x`) possibly using multiple threads. (The program `k2bpagerank.x` is an experiment
+where thread syncronization is done using pthread barriers, but the performances are very similar). 
+
+
+
+## Matrices represented as bitarrays
+
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
+
+The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
+
+
+## Product of bbm matrices with openmp
+
+The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
 
 ## Additional tools 
 
