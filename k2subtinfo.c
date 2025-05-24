@@ -58,18 +58,19 @@ int main (int argc, char **argv) {
   /* ------------- read options from command line ----------- */
   opterr = 0;
   bool check = false, write = true;
-  char *outfile=NULL, *pfile = NULL;
+  char *outfile=NULL, *pinfile = NULL, *poutfile=NULL;
   int32_t depth_subtree = 0;
   long node_limit = 0;
-  uint32_t *sorted_pointers; // array giving the order of the pointers by destination
 
-  while ((c=getopt(argc, argv, "o:p:D:N:cnhv")) != -1) {
+  while ((c=getopt(argc, argv, "o:p:P:D:N:cnhv")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
       case 'p':
-        pfile = optarg; break;
+        poutfile = optarg; break;        
+      case 'P':
+        pinfile = optarg; break;
       case 'c':
         check = true; break;
       case 'n':
@@ -91,7 +92,8 @@ int main (int argc, char **argv) {
     quit("Options -D and -N are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
-    
+  if(poutfile!=NULL && pinfile==NULL) 
+    quit("Option -p requires option -P",__LINE__,__FILE__);
 
   if(verbose>0) {
     fputs("==== Command line:\n",stdout);
@@ -115,13 +117,13 @@ int main (int argc, char **argv) {
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
   // if pointer information was provided load it
-  if(pfile!=NULL) {
-    a.backp = pointers_load_from_file(pfile);
+  if(pinfile!=NULL) {
+    a.backp = pointers_load_from_file(pinfile);
     if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
     // compute stored order of the pointers, and init index to 0
     pointers_sort(a.backp);
   }
-  else a.backp = sorted_pointers = NULL;
+  else a.backp = NULL;
   // show information acquired so far from the input files 
   if (verbose)  
       mshow_stats(size, asize,&a,iname,stdout);

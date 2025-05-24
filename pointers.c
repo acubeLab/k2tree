@@ -1,3 +1,6 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,7 +9,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
-#include "pointers.h" 
+#include "k2.h" 
 
 static void quit(const char *msg, int line, char *file);
 
@@ -98,11 +101,16 @@ static int pointers_cmp(const void *a, const void *b, void *arg) {
 
 // initialze the field sorted containing the order of the pointers
 // when sorted according to their destination
+// before the sorting clear the 24 higher bits of the pointers
 void pointers_sort(pointers_t* ps) {
   assert(ps != NULL);
   assert(ps->nodep != NULL && ps->size > 0);
   if(ps->size >= UINT32_MAX) 
     quit("error: too many pointers", __LINE__, __FILE__);
+  // clear the 24 higher bits of the pointers
+  for(size_t i = 0; i < ps->size; i++) {
+    ps->nodep[i] &= ((k2pointer_t) 1 << BITSxTSIZE) - 1; // clear higher bits
+  }
   // create array giving the order of the pointers  
   ps->sorted = malloc(sizeof(uint32_t) * ps->size);
   if(ps->sorted == NULL) quit("malloc failed", __LINE__, __FILE__);

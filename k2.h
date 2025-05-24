@@ -29,7 +29,8 @@
                             // after normalization that code is available 
 #define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
                             // with all the 4 submatrices non-empty
-#define POINTER       0x0   // node representing a pointer
+#define POINTER       0x0   // node representing a pointer, is is the same as ALL_ONES
+                            // since pointers cannot be used with ALL_ONES option
 #define ILLEGAL_NODE  0x10  // illegal node (more than 4 bits)
 
 // an internal node must have a number of bits at least equal to the arity

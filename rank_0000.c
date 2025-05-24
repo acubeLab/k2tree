@@ -80,9 +80,7 @@ void rank_free(rank_0000_t* r) {
 
 uint64_t rank_size_in_bits(rank_0000_t* r) {
   if(r == NULL) return 0;
-  return (sizeof(r->r_size) + 
-          sizeof(r->block_size) + 
-          sizeof(r->r) + sizeof(r->r[0]) * r->r_size) * 8;
+  return (sizeof(r) + sizeof(*(r->r)) * r->r_size) * 8;
 }
 
 // write error message and exit
