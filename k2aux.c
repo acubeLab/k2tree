@@ -215,8 +215,14 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 // count the number of nodes and minimatrices visited incrementing *nodes and *minimats
 // count the number of nonzero entries incrementing *nz
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
-// used to split a matrix into 4 submatrices, but also for debugging/info
+// used to gather statistics on a k2 matrix and for debugging
+// Since it finds the end of a submatrix, it can be used to split a matrix into 4 submatrices
+// but for that purpose k2dfs_visit_fast should be used instead since it does no update counters
+// and does not visit repeated subtrees to count nonzeros.
 // Note: the number of nonzeros can be incorrect because of overflows 
+// Note: subtinfo is not used even if available
+// Note: if this is a compressed matrix m->r and m->backp are used to follow the pointers 
+// (to count the overall number of nonzeros) 
 void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *all1)
 {
   assert(size>MMsize);
@@ -224,31 +230,32 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
   assert(*pos<m->pos); // implies m is non-empty
   node_t root = k2read_node(m,*pos); (*pos)++;
   (*nodes)++;
-  if(root == POINTER) { // is a pointer
-    uint32_t aux = (uint32_t) *pos; // remember where to comback
+  // if this is a compressed tree visit the subtree pointed by m->backp
+  // the counts for pos/nodes/minimtas are not updated here
+  // but the visit is used to count the number of nonzeros 
+  if(m->r !=NULL && root == POINTER) { // pointer in  k2 compressed tree
+    size_t aux_pos = *pos; // remember where to comback
     size_t aux_nodes = *nodes; // to not overcount nodes
     size_t aux_minimats = *minimats; // to not overcount minimats
 
-    uint32_t rp = rank_rank(m->r, m, (uint32_t) (*pos) - 1);
+    uint32_t rp = rank_rank(m->r, m, (uint32_t) (*pos) - 1); //\\ check this!!!
     assert(rp < m->backp->size);
     *pos = m->backp->nodep[rp];
     assert(*pos < m->pos);
     k2dfs_visit(size, m, pos, nodes, minimats, nz, all1); // read submatrix and advance pos
-    
+    // restore values
     *nodes = aux_nodes; // get back correct stats
     *minimats = aux_minimats; // get back correct stats
-    
-    // moving back to pointer
-    *pos = aux;
+    *pos = aux_pos;
+    return; 
+  }
+  // this is not a compressd tree: 0000 node stands for an ALL_ONES submatrix
+  if(root==ALL_ONES) {
+    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
+    else *nz += size*size; // possible overflow here
+    *all1 +=1;   // found an all 1's matrix 
     return; // all 1's matrix consists of root only
   }
-  // add a macro later
-//  if(root==ALL_ONES) {
-//    if(size>UINT32_MAX) fprintf(stderr,"Overflow in # of nonzeros: all 1's submatrix of size %zu\n",size);
-//    else *nz += size*size; 
-//    *all1 +=1;   // found an all 1's matrix 
-//    return; // all 1's matrix consists of root only
-//  }
   for(int i=0;i<4;i++) 
     if(root & (1<<i)) {
       if(size==2*MMsize) { // end of recursion
@@ -264,6 +271,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
 
 // as above but does not track nodes, minimates and nonzero
 // used to split a matrix into 4 submatrices
+// subtree info is not used, and pointers are not followed
 void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 {
   assert(size>MMsize);
@@ -416,6 +424,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       if(a->subtinfo) next = pos + subt_size[child]; // jump to end of submatrix
       else k2dfs_visit_fast(size/2,a,&next);   // move to end of submatrix
       #else
+      // for debugging purposes do a visit counting nodes and minimats
       k2dfs_visit(size/2,a,&next,&nodes,&minimats,&nz, &all1); // move to end of submatrix
       if(a->subtinfo) assert(next == pos + subt_size[child]);  // check subtree size is as expected
       assert(next==pos+nodes+minimats*Minimat_node_ratio);

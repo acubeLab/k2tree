@@ -99,7 +99,7 @@ static int pointers_cmp(const void *a, const void *b, void *arg) {
   return 0;
 }
 
-// initialze the field sorted containing the order of the pointers
+// initialze the field ps->sorted containing the order of the pointers
 // when sorted according to their destination
 // before the sorting clear the 24 higher bits of the pointers
 void pointers_sort(pointers_t* ps) {
@@ -119,7 +119,7 @@ void pointers_sort(pointers_t* ps) {
   }
   qsort_r(ps->sorted, ps->size, sizeof(uint32_t), pointers_cmp, ps->nodep);
   #ifndef NDEBUG
-  // check if the pointers are sorted
+  // check that the pointers are sorted
   for(uint32_t i = 1; i < ps->size; i++) {
     if(ps->nodep[ps->sorted[i]] < ps->nodep[ps->sorted[i-1]]) {
       fprintf(stderr, "error: pointers are not sorted\n");

@@ -63,7 +63,7 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
 {
   *pos=*nodes=*minimats=*nz=*all1=0;
   if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats,nz,all1);
-  int eq = mequals(asize,a,a);
+  int eq = mequals(asize,a,a); // strange way to compute the number of levels, maybe testing mequals? 
   assert(eq<0);
   return -eq;
 }
