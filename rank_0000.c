@@ -31,15 +31,16 @@ void rank_init(rank_0000_t **r, uint32_t block_size, void *a) {
   (*r)->r[(a_->pos + block_size - 1) / block_size] = sum;
 }
 
-uint32_t rank_rank(rank_0000_t* r, const void* a, uint32_t i) {
+// count # 0000 in the positions from 0 to i-1 
+size_t rank_rank(rank_0000_t* r, const void* a, size_t i) {
   k2mat_t* a_ = (k2mat_t*) a;
   assert(i <= a_->pos);
-  uint32_t block = (uint32_t) i / r->block_size;
+  size_t block =  i / r->block_size;
 
   assert(block < r->r_size);
-  uint32_t ret = r->r[block];
+  size_t ret = r->r[block];
 
-  for(uint32_t to_read = block * r->block_size; to_read < i; to_read++) {
+  for(size_t to_read = block * r->block_size; to_read < i; to_read++) {
     ret += k2read_node__(a_, to_read) == 0;
   }
   return ret;
@@ -94,7 +95,7 @@ static void quit(const char *msg, int line, char *file) {
 
 node_t k2read_node__(const k2mat_t *m, size_t p)
 {
-  p+=m->offset;
+  //p+=m->offset;
   assert(p<m->pos && p<m->lenb);
   if(p%2==0)
     return m->b[p/2] & 0xF;

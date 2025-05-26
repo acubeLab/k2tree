@@ -161,12 +161,14 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
+//??? Instead of using recursion, can we just copy the content of a (from offset to pos) to b?
 static void mcopy(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a));
   assert(!b->read_only);
+  assert(!a->read_only);
   size_t pos = 0;
   k2copy_rec(size,a,&pos,b);
  }
@@ -190,19 +192,16 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
-  // size_t tmp1=0,tmp2=0, tmp3=0; // not used, defined to pass to k2dfs_visit
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
-    k2dfs_visit_fast(size,b,posb); //scan but ignore a content
-    // k2dfs_visit(size,b,posb,&tmp1,&tmp2,&tmp3); //reach end of b but ignore its content
+    k2dfs_visit_fast(size,b,posb); //scan but ignore b content
     return;
   }
   else if(rootb==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posb+=1; // same as above with a and b swapped
     k2dfs_visit_fast(size,a,posa); //scan but ignore a content
-    // k2dfs_visit(size,a,posa,&tmp1,&tmp2,&tmp3); //scan but ignore a content
     return;
   }
   assert(roota!=ALL_ONES && rootb!=ALL_ONES);
@@ -330,7 +329,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     if(b->backp!=NULL)
       quit("Illegal right operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
     #endif
-    if(Use_all_ones_node)  k2add_node(c,ALL_ONES);
+    if(Use_all_ones_node) k2add_node(c,ALL_ONES);
     else {
       // if Use_all_ones_node is false we write a 2x2 matrix of all 1s
       k2add_node(c,ALL_CHILDREN); // write root node
@@ -382,7 +381,6 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   else {
     //root is not all_one or Use_all_ones_node is false, just write correct root node
     k2write_node(c,rootpos,rootc);
-    assert(k2pos(c)==rootpos+1+4*Minimat_node_ratio); // we wrote root + 4 minimats
   }
 }
 
@@ -416,17 +414,18 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(size> 2*MMsize);
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
-  // the product of two all 1's is all 1's 
-  if(roota==ALL_ONES &&  rootb==ALL_ONES) {
-    assert(a->backp==NULL && b->backp==NULL); // at the top level we cannot have pointers 
-    k2add_node(c,ALL_ONES);
+  // the product of two all 1's is all 1's, but  now ALL_NODES could be a pointer 
+  if( (roota==ALL_ONES && a->backp==NULL) &&  (rootb==ALL_ONES && b->backp==NULL) ) {
+    if(!Use_all_ones_node) 
+      quit("Problem here: both matrices are ALL_ONES but Use_all_ones_node is false", __LINE__,__FILE__);
+    k2add_node(c,ALL_ONES); // in the output matrix there are no pointers, so we can write ALL_ONES
   }
   // further all 1s matrix optimization to be written
   /*
-  else if(na==ALL_ONES) {
+  else if(roota==ALL_ONES) {
     left1_mmult(size,b,c);
   }
-  else if(nb==ALL_ONES) {
+  else if(rootb==ALL_ONES) {
     right1_mmult(size,a,c);
   }*/
   else 

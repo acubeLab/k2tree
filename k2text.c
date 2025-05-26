@@ -1048,9 +1048,9 @@ void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
   assert(*pos<ca->pos); // implies m is non-empty
   node_t root = k2read_node(ca,*pos); (*pos)++;
   if(root == POINTER) { // is a pointer
-    uint32_t aux = (uint32_t) *pos; // remember where to comback
+    size_t aux = *pos; // remember where to comback
 
-    uint32_t rp = rank_rank(ca->r, ca, (uint32_t) (*pos) - 1);
+    size_t rp = rank_rank(ca->r, ca, (uint32_t) (*pos) - 1);
     assert(rp < ca->backp->size);
     *pos = ca->backp->nodep[rp];
     assert(*pos < ca->pos);

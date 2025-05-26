@@ -42,7 +42,7 @@ void pointers_write_to_file(pointers_t *ps, const char* filename) {
 
 
 pointers_t *pointers_load_from_file(const char* filename) {  
-  FILE* file = fopen(filename, "w");
+  FILE* file = fopen(filename, "rb");
   if(file == NULL) quit("error opening pointers file", __LINE__, __FILE__);
   // read the size of the file
   fseek(file, 0, SEEK_END);

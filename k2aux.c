@@ -240,7 +240,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     size_t aux_nodes = *nodes; // to not overcount nodes
     size_t aux_minimats = *minimats; // to not overcount minimats
 
-    uint32_t rp = rank_rank(m->r, m, (uint32_t) (*pos) - 1); //\\ check this!!!
+    uint64_t rp = rank_rank(m->r, m, (*pos) - 1); //\\ check this!!!
     assert(rp < m->backp->size);
     *pos = m->backp->nodep[rp];
     assert(*pos < m->pos);
@@ -323,6 +323,7 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 // clone a k2 (sub)matrix of :a starting at position :start and ending at :end-1
 // creating a read only copy :c which is a pointer inside :a
 // used only by k2split_k2 
+// Note: it is important that b, backp, and rank are copied as they are
 static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
@@ -343,9 +344,25 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   k2_free(c);
-  *c = *a; // copy all fields (caution, including subtinfo) 
+  *c = *a; // copy all fields (caution, including subtinfo, rank and backp) 
   c->read_only = true;   // c is read only
 }
+
+k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
+{
+  assert(m!=NULL && m->backp!=NULL && m->r!=NULL);
+  assert(!k2is_empty(m));
+  assert(pos<m->pos);
+  assert(pos >= m->offset); // pos should be >= offset
+  assert(k2read_node(m,pos) == POINTER); // pos should be a pointer node
+  size_t p = pos + m->offset; // position in the k2mat buffer
+  assert(p < m->lenb); // pos should be in the buffer
+  size_t rp = rank_rank(m->r, m, p); // get # 0000 in [0,p-1]
+  assert(rp < m->backp->size); // rank should be in the range of backp
+  // return the pointer at pos
+  return m->backp->nodep[rp]; // return the pointer
+}
+
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside a, so no memory is allocated
@@ -365,11 +382,17 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // if root is all 1's create 4 all 1's submatrices and stop
   // this will disappear if we optimize all operations for all 1's submatrices
   if(root==ALL_ONES) {
-    // if root is all 1's create 4 all 1's submatrices 
-    // pointing to the same root and stop
-    for(int i=0;i<2;i++) for(int j=0;j<2;j++)
-      k2clone(a, pos-1, pos, &b[i][j]); // ????? check this
-    return;
+    if(a->backp==NULL) { // this is a ALL_ONES submatrix 
+      // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
+      for(int i=0;i<2;i++) for(int j=0;j<2;j++)
+        k2clone(a, pos-1, pos, &b[i][j]); // ????? check this
+      return;
+    }
+    else { // ALL_NODES here is a pointer to a different subtree
+      assert(root==POINTER); // just to make the concept clear
+      k2pointer_t dest = k2get_backpointer(a, pos-1); // get pointer to the subtree
+      // ... to be continued
+    }
   }
   // root is not all 1's: we have the standard structure
   // and we need to do a real partition of the input matrix 
@@ -443,6 +466,8 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   assert(next+a->offset==k2pos(a));
 }
 
+
+
 // compute the size of the smallest k2mat containing a matrix of size msize
 // the size depends on the size of the minimat and grows with powers of 2
 // here msize is the actual size of an input matrix that is going to be 
@@ -482,6 +507,7 @@ void k2add_subtinfo(k2mat_t *a, const char *infofile)
   fclose(f);
 }
 
+#if 0
 // add the backpointers to repeated subtrees in a  k2 matrix
 // To be completed
 void k2add_backpointers(k2mat_t *a, const char *backfile)
@@ -490,18 +516,18 @@ void k2add_backpointers(k2mat_t *a, const char *backfile)
   // change from here
   size_t elsize = sizeof(*(a->subtinfo));  // size of an element in the subtinfo array
   FILE *f = fopen(backfile,"rb");
-  if(f==NULL) quit("k2add_subtinfo: cannot open info file", __LINE__,__FILE__);
+  if(f==NULL) quit("k2add_backpointers: cannot open info file", __LINE__,__FILE__);
   if(fseek(f,0,SEEK_END)!=0) quit("k2add_subtinfo: seek error on info file", __LINE__,__FILE__);
   long fsize = ftell(f);
-  if(fsize<0) quit("k2add_subtinfo: ftell error on info file", __LINE__,__FILE__);
-  if(fsize%elsize!=0) quit("k2add_subtinfo: invalid info file", __LINE__,__FILE__);;
+  if(fsize<0) quit("k2add_backpointers: ftell error on info file", __LINE__,__FILE__);
+  if(fsize%elsize!=0) quit("k2add_backpointers: invalid info file", __LINE__,__FILE__);;
   a->subtinfo_size = fsize/elsize;
   rewind(f);
   a->subtinfo = malloc(fsize);
-  if(a->subtinfo==NULL) quit("k2add_subtinfo: cannot allocate memory", __LINE__,__FILE__);
+  if(a->subtinfo==NULL) quit("k2add_backpointers: cannot allocate memory", __LINE__,__FILE__);
   size_t s = fread(a->subtinfo,elsize,a->subtinfo_size,f);
-  if(s!=a->subtinfo_size) quit("k2add_subtinfo: error reading info file", __LINE__,__FILE__);
+  if(s!=a->subtinfo_size) quit("k2add_backpointers: error reading info file", __LINE__,__FILE__);
   fclose(f);
 }
-
+#endif
 

@@ -15,10 +15,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
-// this will have an struct to use auxiliary datastructures for pointers
 #include "rank_0000.h"
 #include "pointers.h" 
-#include "vu64.h"
+// #include "vu64.h"
 
 
 // node constants (depend on node arity, here 4 and not likely to change) 
