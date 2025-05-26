@@ -27,10 +27,10 @@
 #define ALL_ONES      0x0   // node representing a submatrix of all 1's
                             // it is the same as NO_CHILDREN since
                             // after normalization that code is available 
-#define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
-                            // with all the 4 submatrices non-empty
 #define POINTER       0x0   // node representing a pointer, is is the same as ALL_ONES
                             // since pointers cannot be used with ALL_ONES option
+#define ALL_CHILDREN  0xF   // node which has all children (4), ie a matrix
+                            // with all the 4 submatrices non-empty
 #define ILLEGAL_NODE  0x10  // illegal node (more than 4 bits)
 
 // an internal node must have a number of bits at least equal to the arity
@@ -81,6 +81,8 @@ typedef double vfloat;
 // init minimatrices: must be called only once with the size of the minimats
 // no k2-related function can be called before this one
 void minimat_init(int msize);
+// return the current minimat size 
+uint32_t minimat_size();
 // revert the effects of minimat_init and make it possible to call it again
 void minimat_reset();
 

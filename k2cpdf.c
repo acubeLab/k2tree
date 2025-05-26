@@ -49,8 +49,11 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  if(threshold % 4) {
-    threshold = (threshold + 4 - 1) / 4;
+  // threshold >= 4 imples that subtrees of height 1 (root + minimats)
+  // are never compressed (recall minimatsize must be == 2)
+  if(threshold % 4 || threshold < 4) {
+    fprintf(stderr, "Threshold must be a positive multiple of 4 and at least 16, got %d\n", threshold);
+    exit(1);
   }
 
   optind -=1;
@@ -70,6 +73,12 @@ int main(int argc, char* argv[]) {
   }
 
   size = mload_from_file(&asize, &a, k2name_file); // also init k2 library
+  if(minimat_size()!=2) {
+    fprintf(stderr, "Error: to compress k2tree mini-matrix size must be 2, got %d\n", minimat_size());
+    fprintf(stderr, "(otherwise a spurious 0000 may appear in a mini-matrix)\n");
+    matrix_free(&a);
+    exit(1);
+  }
   char file_ones[strlen(k2name_file) + 4];
   strcpy(file_ones, k2name_file);
   strcat(file_ones, ".pos");

@@ -81,10 +81,12 @@ static void k2_free(k2mat_t *m)
   if(m->subtinfo!=NULL) {
     free(m->subtinfo); m->subtinfo=NULL; m->subtinfo_size=0;
   }
-  if(m->backp != NULL)
-    pointers_free(m->backp);
-  if(m->r != NULL)
-    rank_free(m->r);
+  if(m->backp != NULL) {
+    pointers_free(m->backp); m->backp = NULL;
+  }
+  if(m->r != NULL) {
+    rank_free(m->r); m->r = NULL;
+  }
 }
 
 // nodes are added at the end of a matrix:
