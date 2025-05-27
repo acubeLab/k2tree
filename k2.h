@@ -43,25 +43,31 @@ typedef uint64_t node_t;   // non leaf node
 // buffer of bytes. offset is used to create a "pointer" to a submatrix
 // without copying the buffer during the splitting phase. 
 // read_only is currently used only for these pointer matrices. 
-// Note that the size of the k2mat is not stored in the structure:
+// Note: that the size of the k2mat is not stored in the structure:
 // it is maintained externally (why is that?)
-// ??? Question: use read_only also for the input matrices to avoid accidental
-// changes or using the const modifier is enough??? 
+// Note: public fields are pos, offset, subtinfo, subtinfo_size, backp, r
 typedef struct k2mat {
   uint8_t *b;
-  size_t pos;   // position where next node is written
   size_t lenb;  // number of nodes that can be written in b without reallocating
+  // the following two fields are be used to access a submatrix: b[offset,pos-1]
+  size_t pos;   // position where next node is written/ position+1 last node 
   size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
-                // only read only matrices can have a positive offset
-  uint64_t *subtinfo;   // subtrees size encoding if present, or NULL
-  size_t subtinfo_size; // size (# elements) of the subtinfo array
+                // only read only (sub)matrices can have a positive offset
+  // the following three fields are used for the subtree size information  
+  uint64_t *subtinfoarray; // subtree size encoding if present, or NULL            
+  uint64_t *subtinfo;      // start of subtree information for current submatrix 
+                           // only read-only (sub)matrices can have subtinfo!=subtinfoarray
+  size_t subtinfo_size;    // size (# elements) of subtinfo for current submatrix, only for debugging?
+  // the following two fields support pointers to subtrees for compressed matrices  
   pointers_t *backp;    // pointers to repeated subtree information
   rank_0000_t *r;       // rank 0000 auxiliary structure
-  bool read_only;   // if true write and add operations are not allowed
-                    // all matrices created by splitting are read only            
+  // flag to denote if the matrix is read only; if true the matrix is a pointer to another matrix
+  // and usually defines a submatrix the other matrix, using offset,pos, and subtinfo 
+  // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are read only  
+  bool read_only;   // if true write and add operations are not allowed     
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0,0,0,NULL,0, NULL, NULL,false}
+#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)
