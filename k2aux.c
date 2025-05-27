@@ -239,8 +239,8 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     size_t aux_pos = *pos; // remember where to comback
     size_t aux_nodes = *nodes; // to not overcount nodes
     size_t aux_minimats = *minimats; // to not overcount minimats
-
-    uint64_t rp = rank_rank(m->r, m, (*pos) - 1); //\\ check this!!!
+    assert(m->offset==0);
+    uint64_t rp = rank_rank(m->r, m, (*pos) - 1); //\\ apparently ok, m[(*pos)-1]==POINTER, but called with offset==0
     assert(rp < m->backp->size);
     *pos = m->backp->nodep[rp];
     assert(*pos < m->pos);
@@ -271,7 +271,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     }
 }
 
-// as above but does not track nodes, minimates and nonzero
+// as above but does not track nodes, minimats and nonzero
 // used to split a matrix into 4 submatrices
 // subtree info is not used, and pointers are not followed
 void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
@@ -353,7 +353,6 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
   assert(m!=NULL && m->backp!=NULL && m->r!=NULL);
   assert(!k2is_empty(m));
   assert(pos<m->pos);
-  assert(pos >= m->offset); // pos should be >= offset
   assert(k2read_node(m,pos) == POINTER); // pos should be a pointer node
   size_t p = pos + m->offset; // position in the k2mat buffer
   assert(p < m->lenb); // pos should be in the buffer
@@ -364,7 +363,7 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 }
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
-// spacial case in which the root is a pointer to a previous subtree
+// special case in which the root is a pointer to a previous subtree
 // called only by k2split_k2, where the input parameters are tested 
 void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2]) 
 {

@@ -274,9 +274,9 @@ void vu64_grow(vu64_t *z, size_t i)
 //  m,*pos the current submatrix starts at position *pos within *m 
 //  z: dynamic vector where the subtree information will be stored
 //  depth2go: # levels for which we store the subtree information 
+// use only for k2 tree compression
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go)
 {
-  quit("Sorry, changes not made yet",__LINE__,__FILE__);
   assert(size>MMsize);
   assert(size%2==0);
   assert(*pos<m->pos); // implies m is non-empty
@@ -1052,7 +1052,7 @@ void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
   if(root == POINTER) { // is a pointer
     size_t aux = *pos; // remember where to comback
 
-    size_t rp = rank_rank(ca->r, ca, (uint32_t) (*pos) - 1);
+    size_t rp = rank_rank(ca->r, ca, (*pos) - 1);//it is ca[*pos-1]==POINTER
     assert(rp < ca->backp->size);
     *pos = ca->backp->nodep[rp];
     assert(*pos < ca->pos);

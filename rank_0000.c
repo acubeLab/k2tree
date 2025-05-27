@@ -12,6 +12,7 @@
 static void quit(const char *msg, int line, char *file);
 node_t k2read_node__(const k2mat_t *m, size_t p); // maybe later I can find a better way
 
+// init rank data structure for a k2mat_t matrix
 void rank_init(rank_0000_t **r, uint32_t block_size, void *a) {
   k2mat_t* a_ = (k2mat_t*) a;
 

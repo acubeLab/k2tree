@@ -44,6 +44,8 @@ int main (int argc, char **argv) {
   char iname1[PATH_MAX], iname2[PATH_MAX], oname[PATH_MAX];
   #ifndef B128MAT
   char *infofile1=NULL, *infofile2=NULL;
+  char *backpfile=NULL; // file with backpointers
+  uint32_t rank_block_size = 64; // block rank for k2 compression  
   #endif
   time_t start_wc = time(NULL);
 
@@ -53,18 +55,22 @@ int main (int argc, char **argv) {
   char *outfile = NULL;
   Use_all_ones_node = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:o:qhcnv1")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:t:b:o:qhcnv1")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;                 
       #ifndef B128MAT
+      case 'b':
+        backpfile = optarg; break;                 
       case 'i':
         infofile1 = optarg; break;                 
       case 'j':
         infofile2 = optarg; break;                 
       case '1':
         Use_all_ones_node = true; break;
+      case 't':
+        rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif
       case 'c':
         check = true; break;      
@@ -120,6 +126,13 @@ int main (int argc, char **argv) {
   #ifndef B128MAT
   // possibly load subtree info
   if(infofile1) k2add_subtinfo(&a,infofile1);
+  // possibly load backpointers info
+  if(backpfile) {
+    a.backp = pointers_load_from_file(backpfile);
+    if(a.backp==NULL) quit("Error loading backpointers",__LINE__,__FILE__);
+    assert(rank_block_size>0 && rank_block_size%4==0);  
+    rank_init(&(a.r),rank_block_size,&a);
+  } 
   #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
@@ -133,6 +146,12 @@ int main (int argc, char **argv) {
     // possibly load subtree info
     #ifndef B128MAT
     if(infofile2) k2add_subtinfo(&b,infofile2);
+    if(backpfile) {
+      b.backp = pointers_load_from_file(backpfile);
+      if(b.backp==NULL) quit("Error loading backpointers",__LINE__,__FILE__);
+      assert(rank_block_size>0 && rank_block_size%4==0); 
+      rank_init(&(b.r),rank_block_size,&b);
+    }
     #endif
     // check sizes correpondds
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
