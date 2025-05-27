@@ -217,7 +217,7 @@ void vu64_grow(vu64_t *z, size_t i)
 //      tree (and its subtrees!) 
 //   if m->subtinfo!=NULL then it contains the size of its subtree,
 //    in the above example #1 and #2, the size of the last subtree 
-//    is obtained by subtration: #3 = #T -1 (root) - #1 -#2
+//    is obtained by subtraction: #3 = #T -1 (root) - #1 -#2
 //   for each subtree (1,2,3) we need to compute Ei to see if there
 //    is subtree info stored for Ei.
 //    for 1 and 2 we just look at <E1>, <E2> that are saved in subtinfo
@@ -229,8 +229,8 @@ void vu64_grow(vu64_t *z, size_t i)
 // Note that this requires that each time we create a (sub)matrix we 
 // maintain the correct m->subtinfo_size (which has no other uses).
 
-// Note that in this function we are not actually encoding the values 
-// but only computing the values (we can always encode later). Such values are stored 
+// Note that in this function we are not actually encoding (ie compressing) the values 
+// but only computing them (we can always encode later). Such values are stored 
 // to z using the above 40+24 scheme, the values then have to be stored (on disk)
 // using the appropriate scheme. In a first attempt we can avoid the encoding
 // and just use the array z as above. In that case we can measure everything
@@ -276,6 +276,7 @@ void vu64_grow(vu64_t *z, size_t i)
 //  depth2go: # levels for which we store the subtree information 
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go)
 {
+  quit("Sorry, changes not made yet",__LINE__,__FILE__);
   assert(size>MMsize);
   assert(size%2==0);
   assert(*pos<m->pos); // implies m is non-empty
@@ -335,6 +336,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
 
 // compute subtree information as above, but information is stored only 
 // for large trees, ie when the number of nodes is larger than :limit
+// NEW: version storing the info also for the last child  
 uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit)
 {
   assert(size>MMsize);
@@ -351,7 +353,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
   assert(nchildren>0 && nchildren<=4);
 
   size_t zn_save = z->n; // save starting position in size_array[]
-  vu64_grow(z,nchildren-1);
+  vu64_grow(z,nchildren);
   size_t subtree_size = 1;     // account for root node
   size_t child_size = 0;       // size/esize of a child subtrees
   size_t csize[4];             // sizes/esizes of the children subtrees
@@ -370,17 +372,17 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
         quit("Overflow in subtree encoding: make BITSxTSIZE smaller if possible",__LINE__,__FILE__);      
     }
   assert(cpos==nchildren); // we should have visited all children
-  // check subtree size for all children except last one
+  // check subtree size for all children including the last one
   if((subtree_size&TSIZEMASK)>limit) {
-    for(int i=0; i<cpos-1; i++)
+    for(int i=0; i<cpos; i++)
       z->v[zn_save++] = csize[i];
-    // add nchildren-1 to the encoding size, checking for overflow   
-    if(__builtin_add_overflow(subtree_size,(nchildren-1)<<BITSxTSIZE,&subtree_size))
+    // add nchildren to the encoding size, checking for overflow   
+    if(__builtin_add_overflow(subtree_size,(nchildren)<<BITSxTSIZE,&subtree_size))
       quit("Overflow in subtree encoding: make BITSxTSIZE smaller if possible",__LINE__,__FILE__);      
   }
   else {
     assert(subtree_size>>BITSxTSIZE == 0); // there should not be any subtree encodings
-    assert(z->n == zn_save+nchildren-1);   // no subtree information stored
+    assert(z->n == zn_save+nchildren);   // no subtree information stored
     z->n = zn_save;                        // no subtree information
   }
   if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size

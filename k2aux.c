@@ -409,9 +409,9 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // if we have subtree info fill subt_size[] subt_info[] subt_info_size[] 
   if(a->subtinfo!=NULL) { 
     // start of subtree information
-    uint64_t *nextsubtinfo = a->subtinfo + (nchildren-1);
+    uint64_t *nextsubtinfo = a->subtinfo + (nchildren);
     size_t subt_size_tot = 0, subt_info_size_tot =0;
-    for(int i=0;i<nchildren-1;i++) {
+    for(int i=0;i<nchildren;i++) {
       // save subtree size 
       subt_size[i] = a->subtinfo[i] &TSIZEMASK;    // size of subtree i 
       assert(subt_size[i]>0);
@@ -424,7 +424,9 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
         subt_info_size_tot += subt_info_size[i];
       }
     }
+    // ------ removed: last child considered like the others 
     // compute size of last subtree
+    #if 0
     assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
     subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
@@ -436,6 +438,12 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       // no need to update nextsubtinfo and subt_info_size_tot
       assert(subt_info[nchildren-1]+subt_info_size[nchildren-1]== a->subtinfo+a->subtinfo_size);
     }
+    #endif
+    // ---------------------------------------
+    assert(subt_size_tot +1 == k2treesize(a)); // +1 for the root 
+    assert(subt_info_size_tot + nchildren == a->subtinfo_size);
+    // we have consumed all the subinfo for a
+    assert(nextsubtinfo==a->subtinfo+a->subtinfo_size);
   }
   #ifndef NDEBUG
   size_t nodes=0, minimats=0, nz=0, all1=0;
