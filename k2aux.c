@@ -354,9 +354,9 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
   assert(!k2is_empty(m));
   assert(pos<m->pos);
   assert(k2read_node(m,pos) == POINTER); // pos should be a pointer node
-  size_t p = pos + m->offset; // position in the k2mat buffer
-  assert(p < m->lenb); // pos should be in the buffer
-  size_t rp = rank_rank(m->r, m, p); // get # 0000 in [0,p-1]
+  // size_t p = pos + m->offset; // position in the k2mat buffer
+  // assert(p < m->lenb); // pos should be in the buffer
+  size_t rp = rank_rank(m->r, m, pos); // get # 0000 in [0,p-1]
   assert(rp < m->backp->size); // rank should be in the range of backp
   // return the pointer at pos
   return m->backp->nodep[rp]; // return the pointer
@@ -368,29 +368,26 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2]) 
 {
   // read root node
-  size_t pos = 0;
-  node_t root = k2read_node(a,pos); pos++;
+  node_t root = k2read_node(a,0);  // read root of current tree
   assert(root==POINTER); 
-  k2pointer_t destp = k2get_backpointer(a, pos-1); // get pointer to the subtree
+  k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree
   size_t nodep = destp &TSIZEMASK;     // pointer to destination node in pos  
   size_t subtp = destp >> BITSxTSIZE;  // possible pointer to subtree info
   k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
-  k2make_pointer(a, &tmp); // make tmp a pointer to a
+  k2make_pointer(a, &tmp); // make tmp a shallow copy of a
   tmp.offset = nodep; // set pos to the node where the subtree starts
   tmp.subtinfo = subtp==0? NULL : a->subtinfoarray + subtp; // set subtree info if available
-  tmp.subtinfo_size = tmp.pos = 0; // for debug purposes, not used since tmp will be discarded 
+  tmp.subtinfo_size = 0; tmp.pos = tmp.lenb; // for debug purposes, not used since tmp will be discarded 
   // do the actual splitting
-  
-
-
-
-
-  if(tmp.subtinfo==NULL) { // no subtinfo information available, just visit the submatrices
+  size_t pos = 0;
+  root = k2read_node(&tmp,pos); pos++;
+  assert(root!=POINTER);      // the destination of a pointer cannot be a pointer
+  if(tmp.subtinfo==NULL) {    // no subtinfo information available, just visit the submatrices
     size_t next=pos; //now pos==1 since we already read the root
     for(int k=0;k<4;k++) {
       int i=k/2; int j=k%2;
       if(root & (1<<k)) { // k-th child is non empty
-        k2dfs_visit_fast(size/2,a,&next);          // move to end of submatrix
+        k2dfs_visit_fast(size/2,&tmp,&next);          // move to end of submatrix
         k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                                // advance to next submatrix
         // by construction in b[i][j] subtinfo is NULL and subtinfo_size is 0  
@@ -409,7 +406,7 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       int i=k/2; int j=k%2;
       if(root & (1<<k)) { // k-th child is non empty
         next = pos + (tmp.subtinfo[child]&TSIZEMASK);       // jump to end of submatrix
-        k2clone(a, pos, next, &b[i][j]);        // create pointer to submatrix
+        k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                             // advance to next submatrix
         b[i][j].subtinfo_size = tmp.subtinfo[child] >> BITSxTSIZE;
         if(b[i][j].subtinfo_size > 0) { // if subtinfo for child is available

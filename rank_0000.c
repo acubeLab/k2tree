@@ -34,8 +34,11 @@ void rank_init(rank_0000_t **r, uint32_t block_size, void *a) {
 
 // count # 0000 in the positions from 0 to i-1 
 size_t rank_rank(rank_0000_t* r, const void* a, size_t i) {
+  assert(r != NULL);
   k2mat_t* a_ = (k2mat_t*) a;
   assert(i <= a_->pos);
+  i+= a_->offset; // adjust for offset, if any
+  assert(i <= a_->lenb); // i should be in the buffer
   size_t block =  i / r->block_size;
 
   assert(block < r->r_size);
@@ -44,6 +47,8 @@ size_t rank_rank(rank_0000_t* r, const void* a, size_t i) {
   for(size_t to_read = block * r->block_size; to_read < i; to_read++) {
     ret += k2read_node__(a_, to_read) == 0;
   }
+  assert(ret <= a_->backp->size); // rank should be in the range of backp
+  // fprintf(stderr, "rank_rank: %zu 0000 in positions [0,%zu), backp: %zu\n", ret, i,a_->backp->nodep[ret]);
   return ret;
 }
 
