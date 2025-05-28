@@ -7,7 +7,7 @@
  * store the size of such information for any subtree, so that we can 
  * reach in O(1) time such information for any given subtree    
  * 
- * For the details of the enconding, see the long comment before the 
+ * For the details of the encoding, see the long comment before the 
  * function k2dfs_sizes() in k2text.c 
  * 
  * If the option -p is used, we assume that the nibble 0000 (POINTER)
@@ -61,8 +61,9 @@ int main (int argc, char **argv) {
   char *outfile=NULL, *pinfile = NULL, *poutfile=NULL;
   int32_t depth_subtree = 0;
   long node_limit = 0;
+  double node_limit_multiplier = 1;
 
-  while ((c=getopt(argc, argv, "o:p:P:D:N:cnhv")) != -1) {
+  while ((c=getopt(argc, argv, "o:p:P:N:M:cnhv")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -75,10 +76,12 @@ int main (int argc, char **argv) {
         check = true; break;
       case 'n':
         write = false; break;
-      case 'D':
+      case 'D':  // option currently not available 
         depth_subtree = atoi(optarg); break;
       case 'N':
         node_limit = atol(optarg); break;
+      case 'M':
+        node_limit_multiplier = atof(optarg); break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -88,8 +91,8 @@ int main (int argc, char **argv) {
         exit(1);
       }
   }
-  if(depth_subtree!=0 && node_limit!=0) 
-    quit("Options -D and -N are incompatible",__LINE__,__FILE__);
+  if(depth_subtree!=0 && (node_limit!=0 || node_limit_multiplier!=1))  
+    quit("Options -D and -N/-M are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
   if(poutfile!=NULL && pinfile==NULL) 
@@ -111,6 +114,8 @@ int main (int argc, char **argv) {
   sprintf(iname,"%s",argv[1]);
   if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
+  if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
+  else sprintf(poname,"%s%s",argv[1],default_pext);
  
   // read input compressed matrix
   k2mat_t a = K2MAT_INITIALIZER;
@@ -127,9 +132,7 @@ int main (int argc, char **argv) {
   // show information acquired so far from the input files 
   if (verbose)  
       mshow_stats(size, asize,&a,iname,stdout);
-  
-
-
+ 
   // compute encoding information
   vu64_t z;      // resizable array to contain the subtree sizes
   vu64_init(&z);
@@ -137,13 +140,16 @@ int main (int argc, char **argv) {
   size_t pos=0;
   // check if the limit is on the subtree depth or node count
   if(depth_subtree > 0) {
+    exit(1); // option not available yet
     printf("Computing subtree sizes up to level: %d\n", depth_subtree);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
   }
   else {
     if(node_limit==0) node_limit = intsqrt(a.pos);
-    printf("Computing subtree sizes up to node limit: %zu\n", node_limit);
+    node_limit = (long) node_limit*node_limit_multiplier; // apply multiplier
+    if(node_limit < 17) node_limit = 17; // minimum node limit (ensure at least 2 levels)
+    printf("Computing subtree sizes for trees larger than %zu nodes\n", node_limit);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);
   }
@@ -155,6 +161,10 @@ int main (int argc, char **argv) {
     if(!out) quit("Error opening output file",__LINE__,__FILE__);
     vu64_write(out,&z);
     fclose(out);
+    if(verbose) fprintf(stdout,"Subtree information written to file: %s\n",oname);
+    if(poname!=NULL)
+      pointers_write_to_file(a.backp,poname); // write pointer information if available
+    if(verbose) fprintf(stdout,"Enriched pointer information written to file: %s\n",poname);
   }
   if(check || !write) { // if not writing force check 
     size_t znsave = z.n;
@@ -175,8 +185,8 @@ int main (int argc, char **argv) {
   matrix_free(&a);
   minimat_reset(); // reset the minimat library and free minimat product table
   // statistics
-  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  fprintf(stdout,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
+  fprintf(stdout,"==== Done\n");
   return EXIT_SUCCESS;
 }
 
@@ -186,7 +196,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
-    fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
+    // fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
     fprintf(stderr,"\t-p pin  file containing pointer information (def. infile%s)\n", default_ext);
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
