@@ -121,14 +121,6 @@ int main (int argc, char **argv) {
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
-  // if pointer information was provided load it
-  if(pinfile!=NULL) {
-    a.backp = pointers_load_from_file(pinfile);
-    if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
-    // compute stored order of the pointers, and init index to 0
-    pointers_sort(a.backp);
-  }
-  else a.backp = NULL;
   // show information acquired so far from the input files 
   if (verbose)  
       mshow_stats(size, asize,&a,iname,stdout);
@@ -156,13 +148,28 @@ int main (int argc, char **argv) {
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
   printf("Subtree info storage: %zu bytes\n", z.n*sizeof(z.v[0]));
+  // enrich backpointrs if requested
+  // if pointer information was provided update it with subtinfo
+  if(pinfile!=NULL) {
+    a.backp = pointers_load_from_file(pinfile);
+    if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
+    // compute stored order of the pointers, and init index to 0
+    pointers_sort(a.backp);
+    // compute info
+    size_t znsave = z.n;
+    z.n=0; // reset z vector
+    pos=0; // start from position 0 in the k2 matrix
+    k2dfs_backpointer_info(asize,&a,&pos,&z);
+    assert(pos==a.pos);      // check visit was complete
+    assert(z.n==znsave);     // check that we have scanned z
+  }
   if(write) {
     FILE *out = fopen(oname,"wb");
     if(!out) quit("Error opening output file",__LINE__,__FILE__);
     vu64_write(out,&z);
     fclose(out);
     if(verbose) fprintf(stdout,"Subtree information written to file: %s\n",oname);
-    if(poname!=NULL)
+    if(pinfile!=NULL)
       pointers_write_to_file(a.backp,poname); // write pointer information if available
     if(verbose) fprintf(stdout,"Enriched pointer information written to file: %s\n",poname);
   }
@@ -181,6 +188,7 @@ int main (int argc, char **argv) {
     else 
       if(verbose) printf("Tree size matches: %zu nibbles (%zu bytes)\n",pcheck,(pcheck+1)/2);
   }
+  // free resources
   vu64_free(&z);
   matrix_free(&a);
   minimat_reset(); // reset the minimat library and free minimat product table

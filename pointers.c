@@ -13,7 +13,7 @@
 
 static void quit(const char *msg, int line, char *file);
 
-// init a pointers structure usng data from the v array
+// init a pointers structure using data from the v array
 pointers_t *pointers_init(vu64_t* v) {
   assert(v != NULL);
   assert(v->v != NULL);
@@ -31,7 +31,8 @@ pointers_t *pointers_init(vu64_t* v) {
 
 
 // write the node pointers info to file
-void pointers_write_to_file(pointers_t *ps, const char* filename) {  
+void pointers_write_to_file(pointers_t *ps, const char* filename) { 
+  assert(ps!=NULL); 
   FILE* file = fopen(filename, "w");
   if(file == NULL) quit("error opening file", __LINE__, __FILE__);
 
