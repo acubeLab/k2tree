@@ -36,6 +36,7 @@ static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 
 
+
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
@@ -44,7 +45,7 @@ int main (int argc, char **argv) {
   char iname1[PATH_MAX], iname2[PATH_MAX], oname[PATH_MAX];
   #ifndef B128MAT
   char *infofile1=NULL, *infofile2=NULL;
-  char *backpfile=NULL; // file with backpointers
+  char *backpfile1=NULL, *backpfile2=NULL; // file with backpointers
   uint32_t rank_block_size = 64; // block rank for k2 compression  
   #endif
   time_t start_wc = time(NULL);
@@ -55,16 +56,18 @@ int main (int argc, char **argv) {
   char *outfile = NULL;
   Use_all_ones_node = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:t:b:o:qhcnv1")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:t:I:J:o:qhcnv1")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;                 
       #ifndef B128MAT
-      case 'b':
-        backpfile = optarg; break;                 
+      case 'I':
+        backpfile1 = optarg; break;                 
       case 'i':
         infofile1 = optarg; break;                 
+      case 'J':
+        backpfile2 = optarg; break;                 
       case 'j':
         infofile2 = optarg; break;                 
       case '1':
@@ -105,8 +108,8 @@ int main (int argc, char **argv) {
     exit(2);
   }
   #ifndef B128MAT
-  if(optimize_squaring && infofile2!=NULL) {
-    fprintf(stderr,"Options -q and -j are incompatible (second matrix uses the same info as first)\n");
+  if(optimize_squaring && (infofile2!=NULL || backpfile2!=NULL)) {
+    fprintf(stderr,"Options -q and -j/-J are incompatible (second matrix uses the same info as first)\n");
     exit(3);
   }
   #endif
@@ -127,9 +130,9 @@ int main (int argc, char **argv) {
   // possibly load subtree info
   if(infofile1) k2add_subtinfo(&a,infofile1);
   // possibly load backpointers info
-  if(backpfile) {
-    a.backp = pointers_load_from_file(backpfile);
-    if(a.backp==NULL) quit("Error loading backpointers",__LINE__,__FILE__);
+  if(backpfile1) {
+    a.backp = pointers_load_from_file(backpfile1);
+    if(a.backp==NULL) quit("Error loading backpointers for first operand",__LINE__,__FILE__);
     assert(rank_block_size>0 && rank_block_size%4==0);  
     rank_init(&(a.r),rank_block_size,&a);
   } 
@@ -146,9 +149,9 @@ int main (int argc, char **argv) {
     // possibly load subtree info
     #ifndef B128MAT
     if(infofile2) k2add_subtinfo(&b,infofile2);
-    if(backpfile) {
-      b.backp = pointers_load_from_file(backpfile);
-      if(b.backp==NULL) quit("Error loading backpointers",__LINE__,__FILE__);
+    if(backpfile2) {
+      b.backp = pointers_load_from_file(backpfile2);
+      if(b.backp==NULL) quit("Error loading backpointers for second operand",__LINE__,__FILE__);
       assert(rank_block_size>0 && rank_block_size%4==0); 
       rank_init(&(b.r),rank_block_size,&b);
     }

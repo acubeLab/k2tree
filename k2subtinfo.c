@@ -121,8 +121,7 @@ int main (int argc, char **argv) {
   size = mload_from_file(&asize, &a, iname); // also init k2 library
   // show information acquired so far from the input files 
   if (verbose) {
-    fprintf(stdout,"Caution: the following information is incorrect\n");
-    fprintf(stdout,"         if the input matrix is compressed with pointers\n"); 
+    fprintf(stdout,"Caution: the following information is incorrect if the input matrix is in compressed ck2 format\n"); 
     mshow_stats(size, asize,&a,iname,stdout);
   }
 

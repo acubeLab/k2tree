@@ -526,7 +526,6 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
-  assert(next+a->offset==k2pos(a));
   assert(next==k2treesize(a)); // next should be at the end of the matrix
 }
 

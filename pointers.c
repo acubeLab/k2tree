@@ -23,7 +23,14 @@ pointers_t *pointers_init(vu64_t* v) {
   ps->size =  v->n;
   ps->nodep = malloc(sizeof(k2pointer_t) * ps->size);
   if(ps->nodep == NULL) quit("malloc failed",__LINE__,__FILE__);
-  for(size_t i = 0; i < ps->size; i++) ps->nodep[i] = (k2pointer_t) v->v[i];
+  for(size_t i = 0; i < ps->size; i++) {
+    if(v->v[i] > MAXPOINTER) {
+      fprintf(stderr, "error: pointer value %lu exceeds maximum value %lu\n",
+              (unsigned long)v->v[i], (unsigned long)MAXPOINTER);
+      exit(EXIT_FAILURE);
+    }
+    ps->nodep[i] = (k2pointer_t) v->v[i];
+  }
   ps->sorted = NULL; // no sorted order yet
   ps->sidx = 0; // no sorted order yet
   return ps;
@@ -67,6 +74,8 @@ pointers_t *pointers_load_from_file(const char* filename) {
   size_t check = fread(ps->nodep, sizeof(k2pointer_t), ps->size, file);
   if(check != ps->size) quit("error reading the pointers", __LINE__, __FILE__);
   fclose(file);
+  ps->sorted= NULL; // no sorted order used yet
+  ps->sidx = 0; 
   return ps;
 }
 
@@ -130,10 +139,6 @@ void pointers_sort(pointers_t* ps) {
   #endif
   ps->sidx = 0; // reset index in the sorted array
 }
-
-
-
-
 
 
 // write error message and exit

@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
     pointers_write_to_file(ca.backp, file_p);
 
     #if 0
-    // the rank 0000 auxiliary structure is recomputed    
+    // the rank 0000 auxiliary structure is recomputed from scratch after reading the amtrix   
     char file_r[strlen(file_ck2) + 4];
     strcpy(file_r, file_ck2);
     strcat(file_p, ".r");
@@ -158,7 +158,7 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-b      amount of nodes per block for rank 0000 (def. 64)\n");
     fprintf(stderr,"\t-t      minimum amount of bits to remove a subtree (def. 32)\n");
-    fprintf(stderr,"\t-c      check amount of ones of the compressed tree\n");
+    fprintf(stderr,"\t-c      check number of ones in the compressed matrix\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
