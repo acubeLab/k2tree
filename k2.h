@@ -133,6 +133,9 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
 uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit);
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size);
+void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z);
+
+
 // compress k2tree
 void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size);
 void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a);

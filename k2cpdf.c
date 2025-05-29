@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
   extern int optind, opterr, optopt;
 
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize, totnz=0;
+  size_t size, asize;
   uint32_t rank_block = 64;
   uint32_t threshold = 32;
   int verbose = 0, check = 0, write = 1;
@@ -79,14 +79,19 @@ int main(int argc, char* argv[]) {
     matrix_free(&a);
     exit(1);
   }
+
+  #if 0
+  // write the original matrix to a text file
   char file_ones[strlen(k2name_file) + 4];
   strcpy(file_ones, k2name_file);
   strcat(file_ones, ".pos");
   mwrite_to_textfile(size, asize, &a, file_ones);
+  #endif 
 
-  totnz += mshow_stats(size, asize, &a, basename(k2name_file), stdout);
+  // show the stats of the original matrix
+  size_t totnz = mshow_stats(size, asize, &a, basename(k2name_file), stdout);
 
-
+  // execute subtree compression
   k2mat_t ca = K2MAT_INITIALIZER;
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
@@ -99,17 +104,21 @@ int main(int argc, char* argv[]) {
   file_ck2[strlen(k2name_file) + 1] = '\0';
 
   if(write) {
+    // save .ck2 file
     msave_to_file(size, asize, &ca, file_ck2);
-
+    // save .ck2.p file with pointers
     char file_p[strlen(file_ck2) + 4];
     strcpy(file_p, file_ck2);
     strcat(file_p, ".p");
     pointers_write_to_file(ca.backp, file_p);
 
+    #if 0
+    // the rank 0000 auxiliary structure is recomputed    
     char file_r[strlen(file_ck2) + 4];
     strcpy(file_r, file_ck2);
     strcat(file_p, ".r");
     rank_write_to_file(ca.r, file_p);
+    #endif 
   }
   if(check || verbose || !write) {
     size_t totnz_ca = 0;
@@ -120,7 +129,7 @@ int main(int argc, char* argv[]) {
         size_t pos = 0;
         if(verbose) printf("Decompressing the k2tree and comparing it with the original\n");
         k2decompress(asize, &ca, &pos, &check_a);
-        size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "check decompressed tree", stdout);
+        size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "Decompressed matrix", stdout);
         if(totnz_ca_a == totnz) {
           int d = mequals(asize, &a, &check_a);
           if(d < 0) {
@@ -132,7 +141,7 @@ int main(int argc, char* argv[]) {
           printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
         }
       } else {
-        printf("Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+        printf("Number of nonzeros mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
       }
     }
   }

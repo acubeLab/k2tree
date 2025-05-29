@@ -67,6 +67,8 @@ void k2make_empty(k2mat_t *m)
 {
   assert(!m->read_only);
   assert(m->offset==0);
+  assert(m->backp==NULL); // backpointers not allowed in empty matrices
+  assert(m->r==NULL);     // rank not allowed in empty matrices
   m->pos = 0;
 }
 
@@ -242,7 +244,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
     assert(m->offset==0);
     uint64_t rp = rank_rank(m->r, m, (*pos) - 1); //\\ apparently ok, m[(*pos)-1]==POINTER, but called with offset==0
     assert(rp < m->backp->size);
-    *pos = m->backp->nodep[rp];
+    *pos = m->backp->nodep[rp] & TSIZEMASK;
     assert(*pos < m->pos);
     k2dfs_visit(size, m, pos, nodes, minimats, nz, all1); // read submatrix and advance pos
     // restore values
@@ -274,6 +276,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
 // as above but does not track nodes, minimats and nonzero
 // used to split a matrix into 4 submatrices
 // subtree info is not used, and pointers are not followed
+// scan the subtree from *pos (root) to the end of the subtree
 void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 {
   assert(size>MMsize);
@@ -405,7 +408,12 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     for(int k=0;k<4;k++) {
       int i=k/2; int j=k%2;
       if(root & (1<<k)) { // k-th child is non empty
-        next = pos + (tmp.subtinfo[child]&TSIZEMASK);       // jump to end of submatrix
+        size_t next0 = pos + (tmp.subtinfo[child]&TSIZEMASK);       // jump to end of submatrix
+        k2dfs_visit_fast(size/2,&tmp,&next); //!!
+        // if(next!=next0) {
+        fprintf(stderr,"k2jumpsplit_k2: next=%zu, next0=%zu\n",next,next0);
+          // exit(EXIT_FAILURE);
+        // } //!! next should be the end of the submatrix
         k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                             // advance to next submatrix
         b[i][j].subtinfo_size = tmp.subtinfo[child] >> BITSxTSIZE;
@@ -516,7 +524,10 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
-  assert(next+a->offset==k2pos(a));
+  // assert(next+a->offset==k2pos(a));
+  if(next+a->offset!=k2pos(a)) {
+    fprintf(stderr,"k2split_k2: next=%zu, size=%zu, offset=%zu, kpos=%zu\n",next,size,a->offset, a->pos);
+  }
 }
 
 

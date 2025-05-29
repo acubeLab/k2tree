@@ -112,7 +112,7 @@ void pointers_sort(pointers_t* ps) {
   for(size_t i = 0; i < ps->size; i++) {
     ps->nodep[i] &= ((k2pointer_t) 1 << BITSxTSIZE) - 1; // clear higher bits
   }
-  // create array giving the order of the pointers  
+  // create permutation array ordering pointers by destination
   ps->sorted = malloc(sizeof(uint32_t) * ps->size);
   if(ps->sorted == NULL) quit("malloc failed", __LINE__, __FILE__);
   for(uint32_t i = 0; i < ps->size; i++) {
@@ -127,8 +127,8 @@ void pointers_sort(pointers_t* ps) {
       exit(EXIT_FAILURE);
     }
   }
-  ps->sidx = 0; // reset index
   #endif
+  ps->sidx = 0; // reset index in the sorted array
 }
 
 

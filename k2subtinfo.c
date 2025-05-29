@@ -34,7 +34,7 @@
 #include <libgen.h>
 #include "k2.h"
 #define default_ext ".sinfo"
-#define default_pext ".pinfo"
+#define default_pext ".psinfo"
 // already defined in k2.h
 //#define BITSxTSIZE 40
 //#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
@@ -44,8 +44,6 @@
 static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 static size_t intsqrt(size_t n);
-
-
 
 int main (int argc, char **argv) { 
   extern char *optarg;
@@ -68,9 +66,9 @@ int main (int argc, char **argv) {
       {
       case 'o':
         outfile = optarg; break;
-      case 'p':
-        poutfile = optarg; break;        
       case 'P':
+        poutfile = optarg; break;        
+      case 'p':
         pinfile = optarg; break;
       case 'c':
         check = true; break;
@@ -96,7 +94,7 @@ int main (int argc, char **argv) {
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
   if(poutfile!=NULL && pinfile==NULL) 
-    quit("Option -p requires option -P",__LINE__,__FILE__);
+    quit("Option -P requires option -p",__LINE__,__FILE__);
 
   if(verbose>0) {
     fputs("==== Command line:\n",stdout);
@@ -117,15 +115,18 @@ int main (int argc, char **argv) {
   if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
   else sprintf(poname,"%s%s",argv[1],default_pext);
  
-  // read input compressed matrix
+  // read input matrix (coulf be compressed. we cannot know...)
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
   // show information acquired so far from the input files 
-  if (verbose)  
-      mshow_stats(size, asize,&a,iname,stdout);
- 
-  // compute encoding information
+  if (verbose) {
+    fprintf(stdout,"Caution: the following information is incorrect\n");
+    fprintf(stdout,"         if the input matrix is compressed with pointers\n"); 
+    mshow_stats(size, asize,&a,iname,stdout);
+  }
+
+  // compute subtree information
   vu64_t z;      // resizable array to contain the subtree sizes
   vu64_init(&z);
   uint64_t p;
@@ -147,33 +148,9 @@ int main (int argc, char **argv) {
   }
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
-  printf("Subtree info storage: %zu bytes\n", z.n*sizeof(z.v[0]));
-  // enrich backpointrs if requested
-  // if pointer information was provided update it with subtinfo
-  if(pinfile!=NULL) {
-    a.backp = pointers_load_from_file(pinfile);
-    if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
-    // compute stored order of the pointers, and init index to 0
-    pointers_sort(a.backp);
-    // compute info
-    size_t znsave = z.n;
-    z.n=0; // reset z vector
-    pos=0; // start from position 0 in the k2 matrix
-    k2dfs_backpointer_info(asize,&a,&pos,&z);
-    assert(pos==a.pos);      // check visit was complete
-    assert(z.n==znsave);     // check that we have scanned z
-  }
-  if(write) {
-    FILE *out = fopen(oname,"wb");
-    if(!out) quit("Error opening output file",__LINE__,__FILE__);
-    vu64_write(out,&z);
-    fclose(out);
-    if(verbose) fprintf(stdout,"Subtree information written to file: %s\n",oname);
-    if(pinfile!=NULL)
-      pointers_write_to_file(a.backp,poname); // write pointer information if available
-    if(verbose) fprintf(stdout,"Enriched pointer information written to file: %s\n",poname);
-  }
-  if(check || !write) { // if not writing force check 
+  printf("Subtree info takes: %zu bytes\n", z.n*sizeof(z.v[0]));
+
+  if(check || !write) { // if not writing force check of subtree information
     size_t znsave = z.n;
     z.n=0; // reset z vector
     pos=0; // start from position 0 in the k2 matrix
@@ -187,6 +164,37 @@ int main (int argc, char **argv) {
       printf("Tree size mismatch! expected: %zu, got: %zu nibbles\n",a.pos,pcheck);
     else 
       if(verbose) printf("Tree size matches: %zu nibbles (%zu bytes)\n",pcheck,(pcheck+1)/2);
+  }
+
+
+  // enrich backpointers if option -P was used to provide them 
+  // this implies that the matrix was compressed with pointers
+  // note rank information is not needed since we do not follow pointers
+  if(pinfile!=NULL) {
+    a.backp = pointers_load_from_file(pinfile);
+    if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
+    // compute stored order of the pointers, and init index to 0
+    pointers_sort(a.backp);
+    // compute info
+    size_t znsave = z.n;
+    z.n=0; // reset z vector
+    pos=0; // start from position 0 in the k2 matrix
+    k2dfs_compute_backpointer_info(asize,&a,&pos,&z);
+    assert(pos==a.pos);      // check visit was complete
+    assert(z.n==znsave);     // check that we have scanned z
+  }
+
+  // if -n was not used save the computed structures 
+  if(write) {
+    FILE *out = fopen(oname,"wb");
+    if(!out) quit("Error opening output file",__LINE__,__FILE__);
+    vu64_write(out,&z);
+    fclose(out);
+    if(verbose) fprintf(stdout,"Subtree information written to file: %s\n",oname);
+    if(pinfile!=NULL) {
+      pointers_write_to_file(a.backp,poname); // write pointer information if available
+      if(verbose) fprintf(stdout,"Enriched pointer information written to file: %s\n",poname);
+    }
   }
   // free resources
   vu64_free(&z);
@@ -203,17 +211,18 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
+    fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
     // fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
-    fprintf(stderr,"\t-p pin  file containing pointer information (def. infile%s)\n", default_ext);
+    fprintf(stderr,"\t-p pin  file containing backpointer information\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
-    // fprintf(stderr,"\t-p pout outfile for pointer-subtree information (def. infile%s)\n", default_pext);
+    fprintf(stderr,"\t-P pout outfile for backpointer-subtree information (def. infile%s)\n", default_pext);
     fprintf(stderr,"\t-c      check subtree information\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     fprintf(stderr,"Compute and store in a separate file the information about the size\n"
-                   "of the top subtrees of the input compressed matrix.\n\n");
+                   "of the largest subtrees of the input matrix.\n"
+                   "If -p option is used backpointers are enriched with subtree information.\n\n");
     exit(1);
 }
 

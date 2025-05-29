@@ -159,7 +159,7 @@ int main (int argc, char **argv) {
   }
   if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
 
-  // do the multiplication shos/save the result
+  // do the multiplication show/save the result
   mmult(asize,&a,&b,&ab);
   if (verbose || !write) 
     mshow_stats(size, asize,&ab,oname,stdout);

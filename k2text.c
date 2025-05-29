@@ -487,7 +487,7 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
 // similar to the previous function, but instead of checking the subtree sizes
 // for each node which is destination of a backpointer, we start the position
 // of each correponding subtree info together with the backpointer 
-void k2dfs_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z)  
+void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z)  
 {
   assert(size>MMsize);
   assert(size%2==0);
@@ -496,18 +496,22 @@ void k2dfs_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, vu64_t *
   node_t root = k2read_node(m,*pos); (*pos)++;
   assert(root<ILLEGAL_NODE);
   if(*pos > TSIZEMASK) quit("k2dfs_backpointer_info: *pos overflow",__LINE__,__FILE__);
-
   if(root==ALL_ONES)          // all 1's matrix consists of root only
-    return;                   // nothing to do (this case should not happen)
-  // we have a non-singleton tree T with root in *pos and subting in z->v[z->n] 
-  // if pos is a destination of a backpointer, the corresponding backpointer
-  // is enriched with z->n
+    return;                   // nothing to do (this case should not happen unless the whole matrix is ALL_ONES)
+
+  // we have a non-singleton tree T with root in *pos and subtring in z->v[z->n] 
+  // if pos is destination of a backpointer, the corresponding backpointer
+  // is enriched with the value z->n
   pointers_t *ps = m->backp; // backpointer structure
-  assert(ps->sidx==ps->size || *pos <= ps->nodep[ps->sorted[ps->sidx]]);
+  // skip values in ps->sorted until we reach the first value >= *pos
+  while(ps->sidx<ps->size && *pos > ps->nodep[ps->sorted[ps->sidx]]) 
+    ps->sidx += 1; // skip all entries smaller than *pos
   while(ps->sidx<ps->size && *pos == ps->nodep[ps->sorted[ps->sidx]]) {
-    ps->nodep[ps->sorted[ps->sidx]] |= z->n << BITSxTSIZE; // store the backpointer in z->n
-    ps->sidx += 1;
+      ps->nodep[ps->sorted[ps->sidx]] |= z->n << BITSxTSIZE; // store the backpointer in z->n
+      ps->sidx += 1;
   }
+
+  // now recurse on the subtrees of T  
   // compute number of children
   size_t nchildren = __builtin_popcountll(root);
   assert(nchildren>0 && nchildren<=4);
@@ -527,7 +531,7 @@ void k2dfs_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, vu64_t *
       else if(child_encode_size==0)     // no subtree encoding, scan subtree with dfs
         k2dfs_visit_fast(size/2,m,pos);    // advance pos to the end of subtree
       else // recurse on subtree
-        k2dfs_backpointer_info(size/2,m,pos,z);
+        k2dfs_compute_backpointer_info(size/2,m,pos,z);
       cnum++;
     }  
   assert(cnum==nchildren); // we should have visited all children
