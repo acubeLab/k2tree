@@ -401,6 +401,8 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   else {
     // get number of children
     size_t nchildren = __builtin_popcountll(root);
+    //fprintf(stderr, "k2jumpsplit_k2: root is a pointer to node %zu, subtinfo %zu, children %zu root=%zu fc=%zu\n", 
+    //                 nodep, subtp,nchildren,k2read_node(&tmp,0),k2read_node(&tmp,1));
     assert(nchildren>0 && nchildren<=4); 
     uint64_t *next_info = tmp.subtinfo + nchildren; // start of next subtree information
     int child = 0;   // child index, used for subt_size[] subt_info[] 
@@ -408,12 +410,12 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     for(int k=0;k<4;k++) {
       int i=k/2; int j=k%2;
       if(root & (1<<k)) { // k-th child is non empty
-        size_t next0 = pos + (tmp.subtinfo[child]&TSIZEMASK);       // jump to end of submatrix
-        k2dfs_visit_fast(size/2,&tmp,&next); //!!
-        // if(next!=next0) {
-        fprintf(stderr,"k2jumpsplit_k2: next=%zu, next0=%zu\n",next,next0);
-          // exit(EXIT_FAILURE);
-        // } //!! next should be the end of the submatrix
+        next = pos + (tmp.subtinfo[child]&TSIZEMASK); // jump to end of submatrix
+        #ifndef NDEBUG
+        size_t next0 = pos;       // compute dimension scanning the matrix
+        k2dfs_visit_fast(size/2,&tmp,&next0); 
+        assert(next==next0); // scanned size should match the size in subtinfo
+        #endif
         k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                             // advance to next submatrix
         b[i][j].subtinfo_size = tmp.subtinfo[child] >> BITSxTSIZE;
@@ -430,7 +432,7 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 }
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
-// the submatrices are "pointers" inside a, so no memory is allocated
+// the submatrices are "pointers" inside :a, so no memory is allocated
 // the submatrices are not minimats, but k2mat_t structs
 // since we are not at the last level of the k2 tree
 // :a is not all 0's, it could be all 1's (for now)
@@ -524,10 +526,8 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
-  // assert(next+a->offset==k2pos(a));
-  if(next+a->offset!=k2pos(a)) {
-    fprintf(stderr,"k2split_k2: next=%zu, size=%zu, offset=%zu, kpos=%zu\n",next,size,a->offset, a->pos);
-  }
+  assert(next+a->offset==k2pos(a));
+  assert(next==k2treesize(a)); // next should be at the end of the matrix
 }
 
 

@@ -493,7 +493,7 @@ void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, 
   assert(size%2==0);
   assert(*pos<m->pos);        // implies m is non-empty
   assert(z->n < z->nmax);
-  node_t root = k2read_node(m,*pos); (*pos)++;
+  node_t root = k2read_node(m,*pos); 
   assert(root<ILLEGAL_NODE);
   if(*pos > TSIZEMASK) quit("k2dfs_backpointer_info: *pos overflow",__LINE__,__FILE__);
   if(root==ALL_ONES)          // all 1's matrix consists of root only
@@ -508,11 +508,14 @@ void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, 
     ps->sidx += 1; // skip all entries smaller than *pos
   while(ps->sidx<ps->size && *pos == ps->nodep[ps->sorted[ps->sidx]]) {
       ps->nodep[ps->sorted[ps->sidx]] |= z->n << BITSxTSIZE; // store the backpointer in z->n
+      // uncompress the following line if you want to see the backpointer subtree info on stderr
+      //fprintf(stderr,"For node %zu the subtree info is in %zu first size %zu root:%zu, fc %zu\n",*pos, z->n,z->v[z->n]&TSIZEMASK,k2read_node(m,*pos),k2read_node(m,*pos+1));
       ps->sidx += 1;
   }
 
   // now recurse on the subtrees of T  
   // compute number of children
+  (*pos)++;
   size_t nchildren = __builtin_popcountll(root);
   assert(nchildren>0 && nchildren<=4);
   // read subtree information 
