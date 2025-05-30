@@ -79,5 +79,10 @@ release: CFLAGS = -O3 -Wall -std=c11 -g -DNDEBUG
 release: clean
 release: $(EXECS)  
 
+simple: CFLAGS=-O1 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined -DSIMPLEBACKPOINTERS
+simple: clean
+simple: $(EXECS)
+
+
 clean:
 	rm -f $(EXECS) *.o 

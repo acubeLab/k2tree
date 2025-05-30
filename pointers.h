@@ -11,7 +11,7 @@
 // type to represent the position of a node in a k2_tree
 #ifdef SIMPLEBACKPOINTERS
 typedef uint32_t k2pointer_t;
-#define MAXPOINTER UINT32_MAX  // maximum value for a pointer: largets 40-bit value
+#define MAXPOINTER ((uint64_t) UINT32_MAX)  // maximum value for a pointer: largets 40-bit value
 #else
 typedef uint64_t k2pointer_t;
 #define MAXPOINTER TSIZEMASK   // maximum value for a pointer: largets 40-bit value

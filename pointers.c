@@ -11,6 +11,11 @@
 #include <errno.h>
 #include "k2.h" 
 
+#ifdef SIMPLEBACKPOINTERS
+#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
+#endif
+
+
 static void quit(const char *msg, int line, char *file);
 
 // init a pointers structure using data from the v array
@@ -99,6 +104,7 @@ uint64_t pointers_size_in_bits(pointers_t* ps) {
   return (sizeof(*ps) + sizeof(k2pointer_t) * ps->size) * 8;
 }
 
+#ifndef SIMPLEBACKPOINTERS
 // compare function for qsort_r
 static int pointers_cmp(const void *a, const void *b, void *arg) {
   k2pointer_t *p = (k2pointer_t *) arg;
@@ -108,14 +114,15 @@ static int pointers_cmp(const void *a, const void *b, void *arg) {
   else if(p[i] > p[j]) return 1;
   return 0;
 }
+#endif
 
-// initialze the field ps->sorted containing the order of the pointers
+// initialize the field ps->sorted containing the order of the pointers
 // when sorted according to their destination
 // before the sorting clear the 24 higher bits of the pointers
 void pointers_sort(pointers_t* ps) {
   #ifdef SIMPLEBACKPOINTERS
   quit("pointers_sort: should not be used for simple backpointers", __LINE__, __FILE__);
-  #endif
+  #else
   assert(ps != NULL);
   assert(ps->nodep != NULL && ps->size > 0);
   if(ps->size >= UINT32_MAX) 
@@ -141,6 +148,7 @@ void pointers_sort(pointers_t* ps) {
   }
   #endif
   ps->sidx = 0; // reset index in the sorted array
+  #endif
 }
 
 

@@ -50,8 +50,9 @@
 #include "rank_0000.h"
 
 #ifdef SIMPLEBACKPOINTERS
-#warning "SIMPLEBACKPOINTERS is defined, using old style subtree info"
+#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
 #endif
+
 
 // prototypes of static functions
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);
@@ -588,7 +589,7 @@ void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, 
 {
   #ifdef SIMPLEBACKPOINTERS
   quit("k2dfs_compute_backpointer_info: should not be used for simple backpointers", __LINE__, __FILE__);
-  #endif
+  #else
   assert(size>MMsize);
   assert(size%2==0);
   assert(*pos<m->pos);        // implies m is non-empty
@@ -638,7 +639,7 @@ void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, 
       cnum++;
     }  
   assert(cnum==nchildren); // we should have visited all children
-  return;
+  #endif
 }
 
 

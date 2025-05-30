@@ -52,6 +52,10 @@
 #define default_pext ".pxinfo"
 #endif
 
+#ifdef SIMPLEBACKPOINTERS
+#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
+#endif
+
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);

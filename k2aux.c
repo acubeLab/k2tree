@@ -455,15 +455,14 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // if root is all 1's create 4 all 1's submatrices and stop
   // this will disappear if we optimize all operations for all 1's submatrices
   if(root==ALL_ONES) {
-    assert(a->backp==NULL); // compressed amtrices cannot have ALL_ONES submatrices 
+    assert(a->backp==NULL); // compressed matrices cannot have ALL_ONES submatrices 
     // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
-      k2clone(a, pos-1, pos, &b[i][j]); // ????? check this
+      k2clone(a, pos-1, pos, &b[i][j]); 
     return;    
   }
   // root is not all 1's: we have the standard structure
   // and we need to do a real partition of the input matrix 
-
   // if subtree info is available use it to partition
   // more efficiently and pass the info at the lower levels
   // array of subtree sizes and subtree info
@@ -474,11 +473,16 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   size_t nchildren = __builtin_popcountll(root);
   assert(nchildren>0 && nchildren<=4);  
   // if we have subtree info fill subt_size[] subt_info[] subt_info_size[] 
-  if(a->subtinfo!=NULL) { 
+  if(a->subtinfo!=NULL) {
     // start of subtree information
-    uint64_t *nextsubtinfo = a->subtinfo + (nchildren);
     size_t subt_size_tot = 0, subt_info_size_tot =0;
-    for(int i=0;i<nchildren;i++) {
+    #ifdef SIMPLEBACKPOINTERS
+    uint64_t *nextsubtinfo = a->subtinfo + (nchildren-1);
+    for(int i=0;i<nchildren-1;i++) { // last child is handled separately
+    #else
+    uint64_t *nextsubtinfo = a->subtinfo + (nchildren);
+    for(int i=0;i<nchildren;i++) {   // all children are handled, including the last one
+    #endif
       // save subtree size 
       subt_size[i] = a->subtinfo[i] &TSIZEMASK;    // size of subtree i 
       assert(subt_size[i]>0);
@@ -491,9 +495,8 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
         subt_info_size_tot += subt_info_size[i];
       }
     }
-    // ------ removed: now info for last child is stores with the others 
-    // compute size of last subtree
-    #if 0
+    #ifdef SIMPLEBACKPOINTERS
+    // handling of the last child 
     assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
     subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
@@ -505,10 +508,11 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       // no need to update nextsubtinfo and subt_info_size_tot
       assert(subt_info[nchildren-1]+subt_info_size[nchildren-1]== a->subtinfo+a->subtinfo_size);
     }
-    #endif
-    // ---------------------------------------
+    #else
+    // smoe extrachecks that make sense when all children are treated equally
     assert(subt_size_tot +1 == k2treesize(a)); // +1 for the root 
     assert(subt_info_size_tot + nchildren == a->subtinfo_size);
+    #endif
   }
   // do the actual splitting 
   int child = 0;   // child index, used for subt_size[] subt_info[] 
