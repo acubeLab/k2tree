@@ -8,6 +8,9 @@
 
 // type to represent the position of a node in a k2_tree
 typedef uint64_t k2pointer_t;
+#define MAXPOINTER TSIZEMASK   // maximum value for a pointer: largets 40-bit value
+// typedef uint32_t k2pointer_t;
+// #define MAXPOINTER UINT32_MAX  // maximum value for a pointer: largets 40-bit value
 
 typedef struct pointers_t {
   // pointers info
