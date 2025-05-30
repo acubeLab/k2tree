@@ -10,13 +10,24 @@
  * For the details of the encoding, see the long comment before the 
  * function k2dfs_sizes() in k2text.c 
  * 
+ * General version:
  * If the option -p is used, we assume that the nibble 0000 (POINTER)
  * marks a pointer to a subtree. The starting position of the subtree is stored
  * in the backp structure consisting of an array of uint64_t. The destination of the
  * i-th (in left to right order) pointer is stores in the lower BITSxTSIZE (40) bits
- * of backp->node[i]. While we compute the subtree infromation we store in the 
- * remaining (24) bits the starting position of the subtree information 
- * for that subtree (if any infomation is available).
+ * of backp->node[i]. After computing the subtree information we do a second
+ * pass where we store in the remaining (24) bits the starting position of 
+ * the subtree information for that subtree (if any information is available).
+ * The use of backpointers require thet for each subtree the subtree information 
+ * is the size of the subtree for all children (not excluding the last one)
+ * The subtree info file has default extension .xinfo
+ * 
+ * SIMPLEBACKPOINTERS version:
+ * We do not store for the backpointers the starting position of the subtree information,
+ * (since this is availble only for large repeated submatrices). As a consequence:
+ *   1. we use an unint32_t for each packpointer
+ *   2. we do not store the subtree information for the last child
+ * The subtree info file has default extension .sinfo
  * 
  * Copyright August 2024-today   ---  giovanni.manzini@unipi.it
 */
@@ -31,7 +42,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <libgen.h>
+#include <math.h>
 #include "k2.h"
 #ifdef SIMPLEBACKPOINTERS
 #define default_ext ".sinfo"     // extension for simple (old style) subtree info
@@ -40,10 +51,6 @@
 #define default_ext ".xinfo"
 #define default_pext ".pxinfo"
 #endif
-
-// reminder: defined in k2.h
-//#define BITSxTSIZE 40
-//#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
 
 // static functions at the end of the file
@@ -68,7 +75,7 @@ int main (int argc, char **argv) {
   double node_limit_multiplier = 1;
 
   #ifdef SIMPLEBACKPOINTERS
-  while ((c=getopt(argc, argv, "o:N:M:cnhv")) != -1) {
+  while ((c=getopt(argc, argv, "o:D:N:M:cnhv")) != -1) {
   #else
   while ((c=getopt(argc, argv, "o:p:P:N:M:cnhv")) != -1) {
   #endif
@@ -84,7 +91,7 @@ int main (int argc, char **argv) {
         check = true; break;
       case 'n':
         write = false; break;
-      case 'D':  // option currently not available 
+      case 'D':  
         depth_subtree = atoi(optarg); break;
       case 'N':
         node_limit = atol(optarg); break;
@@ -101,6 +108,8 @@ int main (int argc, char **argv) {
   }
   if(depth_subtree!=0 && (node_limit!=0 || node_limit_multiplier!=1))  
     quit("Options -D and -N/-M are incompatible",__LINE__,__FILE__);
+  if(node_limit!=0 && node_limit_multiplier!=1)  
+    quit("Options -N and -M are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
   if(poutfile!=NULL && pinfile==NULL) 
@@ -125,7 +134,7 @@ int main (int argc, char **argv) {
   if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
   else sprintf(poname,"%s%s",argv[1],default_pext);
  
-  // read input matrix (coulf be compressed. we cannot know...)
+  // read input matrix (could be compressed. we cannot know...)
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
@@ -142,14 +151,13 @@ int main (int argc, char **argv) {
   size_t pos=0;
   // check if the limit is on the subtree depth or node count
   if(depth_subtree > 0) {
-    exit(1); // option not available yet
     printf("Computing subtree sizes up to level: %d\n", depth_subtree);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
   }
   else {
     if(node_limit==0) node_limit = intsqrt(a.pos);
-    node_limit = (long) node_limit*node_limit_multiplier; // apply multiplier
+    node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
     if(node_limit < 17) node_limit = 17; // minimum node limit (ensure at least 2 levels)
     printf("Computing subtree sizes for trees larger than %zu nodes\n", node_limit);
     // visit tree, compute and save subtree sizes in z  

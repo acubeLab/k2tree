@@ -21,7 +21,7 @@ all: $(EXECS)
 
 # rule for generic k2xxx executable
 k2%.x: k2%.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
-	$(CC) $(LDFLAGS) -o $@ $^ 
+	$(CC) $(LDFLAGS) -lm -o $@ $^ 
 
 # rule for k2mult.o k2sparse.o
 k2%.o: k2%.c k2.h bbm.h
