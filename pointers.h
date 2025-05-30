@@ -6,11 +6,16 @@
 #include <stdio.h>
 #include "vu64.h"
 
+#define SIMPLEBACKPOINTERS  // use simple backpointers, not the full ones
+
 // type to represent the position of a node in a k2_tree
+#ifdef SIMPLEBACKPOINTERS
+typedef uint32_t k2pointer_t;
+#define MAXPOINTER UINT32_MAX  // maximum value for a pointer: largets 40-bit value
+#else
 typedef uint64_t k2pointer_t;
 #define MAXPOINTER TSIZEMASK   // maximum value for a pointer: largets 40-bit value
-// typedef uint32_t k2pointer_t;
-// #define MAXPOINTER UINT32_MAX  // maximum value for a pointer: largets 40-bit value
+#endif
 
 typedef struct pointers_t {
   // pointers info

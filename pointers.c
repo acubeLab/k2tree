@@ -25,8 +25,7 @@ pointers_t *pointers_init(vu64_t* v) {
   if(ps->nodep == NULL) quit("malloc failed",__LINE__,__FILE__);
   for(size_t i = 0; i < ps->size; i++) {
     if(v->v[i] > MAXPOINTER) {
-      fprintf(stderr, "error: pointer value %lu exceeds maximum value %lu\n",
-              (unsigned long)v->v[i], (unsigned long)MAXPOINTER);
+      fprintf(stderr, "error: pointer value %zu exceeds maximum value %zu\n", v->v[i], MAXPOINTER);
       exit(EXIT_FAILURE);
     }
     ps->nodep[i] = (k2pointer_t) v->v[i];
@@ -61,7 +60,7 @@ pointers_t *pointers_load_from_file(const char* filename) {
 
   // check if the file size is a multiple of the size of a pointer
   if(size % sizeof(k2pointer_t) != 0) 
-    quit("error: file size is not a multiple of pointer size", __LINE__, __FILE__);
+    quit("error: file size is not a multiple of a k2pointer", __LINE__, __FILE__);
   // allocate and read pointers
   pointers_t *ps = malloc(sizeof(pointers_t));
   if(ps == NULL) quit("malloc failed",__LINE__,__FILE__);
@@ -74,7 +73,7 @@ pointers_t *pointers_load_from_file(const char* filename) {
   size_t check = fread(ps->nodep, sizeof(k2pointer_t), ps->size, file);
   if(check != ps->size) quit("error reading the pointers", __LINE__, __FILE__);
   fclose(file);
-  ps->sorted= NULL; // no sorted order used yet
+  ps->sorted= NULL; // no sorted order used yet, initialize sorted and sindx
   ps->sidx = 0; 
   return ps;
 }
@@ -87,11 +86,12 @@ void pointers_free(pointers_t* ps) {
   ps->nodep = NULL;
   ps->size = 0;
   ps->sorted = NULL;
+  ps->sidx = 0;
   free(ps);
 }
 
 // return space usage of pointers structure in bits
-// do not include the size of sorted which is used only for construction
+// do not include the size of the sorted array which is used only for construction
 uint64_t pointers_size_in_bits(pointers_t* ps) {
   if(ps == NULL) return 0;
   // there are no pointers
@@ -113,10 +113,13 @@ static int pointers_cmp(const void *a, const void *b, void *arg) {
 // when sorted according to their destination
 // before the sorting clear the 24 higher bits of the pointers
 void pointers_sort(pointers_t* ps) {
+  #ifdef SIMPLEBACKPOINTERS
+  quit("pointers_sort: should not be used for simple backpointers", __LINE__, __FILE__);
+  #endif
   assert(ps != NULL);
   assert(ps->nodep != NULL && ps->size > 0);
   if(ps->size >= UINT32_MAX) 
-    quit("error: too many pointers", __LINE__, __FILE__);
+    quit("error: too many pointers, restrict the set compressible subtrees", __LINE__, __FILE__);
   // clear the 24 higher bits of the pointers
   for(size_t i = 0; i < ps->size; i++) {
     ps->nodep[i] &= ((k2pointer_t) 1 << BITSxTSIZE) - 1; // clear higher bits

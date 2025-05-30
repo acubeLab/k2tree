@@ -33,9 +33,15 @@
 #include <stdbool.h>
 #include <libgen.h>
 #include "k2.h"
-#define default_ext ".sinfo"
-#define default_pext ".psinfo"
-// already defined in k2.h
+#ifdef SIMPLEBACKPOINTERS
+#define default_ext ".sinfo"     // extension for simple (old style) subtree info
+#define default_pext ".error"    // no such file for simple backpointers
+#else
+#define default_ext ".xinfo"
+#define default_pext ".pxinfo"
+#endif
+
+// reminder: defined in k2.h
 //#define BITSxTSIZE 40
 //#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
 
@@ -61,7 +67,11 @@ int main (int argc, char **argv) {
   long node_limit = 0;
   double node_limit_multiplier = 1;
 
+  #ifdef SIMPLEBACKPOINTERS
+  while ((c=getopt(argc, argv, "o:N:M:cnhv")) != -1) {
+  #else
   while ((c=getopt(argc, argv, "o:p:P:N:M:cnhv")) != -1) {
+  #endif
     switch (c) 
       {
       case 'o':
@@ -213,9 +223,11 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
     // fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
-    fprintf(stderr,"\t-p pin  file containing backpointer information\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
+    #ifndef SIMPLEBACKPOINTERS
+    fprintf(stderr,"\t-p pin  file containing backpointer information\n");
     fprintf(stderr,"\t-P pout outfile for backpointer-subtree information (def. infile%s)\n", default_pext);
+    #endif
     fprintf(stderr,"\t-c      check subtree information\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
