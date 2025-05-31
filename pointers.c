@@ -11,10 +11,6 @@
 #include <errno.h>
 #include "k2.h" 
 
-#ifdef SIMPLEBACKPOINTERS
-#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
-#endif
-
 
 static void quit(const char *msg, int line, char *file);
 

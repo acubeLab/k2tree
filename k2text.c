@@ -49,10 +49,6 @@
 #include "pointers.h"
 #include "rank_0000.h"
 
-#ifdef SIMPLEBACKPOINTERS
-#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
-#endif
-
 
 // prototypes of static functions
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);

@@ -212,8 +212,6 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 // --------------------------------------------------------------
 // complex operations on k2mat struct, operating on submatrices
 
-
-
 // visit a size x size non-empty submatrix starting from its root (in *pos)
 // the visit is done recursively in depth first order 
 // count the number of nodes and minimatrices visited incrementing *nodes and *minimats
@@ -374,8 +372,13 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   node_t root = k2read_node(a,0);  // read root of current tree
   assert(root==POINTER); 
   k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree
-  size_t nodep = destp &TSIZEMASK;     // pointer to destination node in pos  
-  size_t subtp = destp >> BITSxTSIZE;  // possible pointer to subtree info
+  #ifdef SIMPLEBACKPOINTERS
+  size_t nodep = destp;    // pointer to destination node
+  size_t subtp = 0;        // no subtree info available for destination nodes
+  #else
+  size_t nodep = destp &TSIZEMASK;     // pointer to destination node 
+  size_t subtp = destp >> BITSxTSIZE;  // possible pointer to subtree info for destination node
+  #endif
   k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
   k2make_pointer(a, &tmp); // make tmp a shallow copy of a
   tmp.offset = nodep; // set pos to the node where the subtree starts
@@ -399,6 +402,9 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     }
   } 
   else {
+    #ifdef SIMPLEBACKPOINTERS
+    quit("Illegal operation: k2jumpsplit_k2 with simple backpointers",__LINE__,__FILE__);
+    #endif
     // get number of children
     size_t nchildren = __builtin_popcountll(root);
     //fprintf(stderr, "k2jumpsplit_k2: root is a pointer to node %zu, subtinfo %zu, children %zu root=%zu fc=%zu\n", 

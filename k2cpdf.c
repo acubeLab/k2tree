@@ -107,9 +107,13 @@ int main(int argc, char* argv[]) {
     // save .ck2 file
     msave_to_file(size, asize, &ca, file_ck2);
     // save .ck2.p file with pointers
-    char file_p[strlen(file_ck2) + 4];
+    char file_p[strlen(file_ck2) + 5];
     strcpy(file_p, file_ck2);
+    #ifdef SIMPLEBACKPOINTERS
     strcat(file_p, ".p");
+    #else
+    strcat(file_p, ".xp");
+    #endif
     pointers_write_to_file(ca.backp, file_p);
 
     #if 0

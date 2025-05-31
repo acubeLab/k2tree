@@ -48,8 +48,8 @@
 #define default_ext ".sinfo"     // extension for simple (old style) subtree info
 #define default_pext ".error"    // no such file for simple backpointers
 #else
-#define default_ext ".xinfo"
-#define default_pext ".pxinfo"
+#define default_ext ".xsinfo"
+#define default_pext ".xpinfo"
 #endif
 
 #ifdef SIMPLEBACKPOINTERS

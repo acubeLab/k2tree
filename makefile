@@ -3,10 +3,14 @@ CFLAGS=-O1 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fs
 LDFLAGS=-fsanitize=undefined
 CC=gcc
 
+# option for using simple pointers 
+EXTRA=-DSIMPLEBACKPOINTERS
+
 # main executables 
 K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x k2pagerank.x k2bpagerank.x k2subtinfo.x k2cpdf.x
 B128EXECS=b128bbm.x b128sparse.x b128mult.x
 EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x 
+
 
 
 # targets not producing a file declared phony
@@ -25,10 +29,10 @@ k2%.x: k2%.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
 
 # rule for k2mult.o k2sparse.o
 k2%.o: k2%.c k2.h bbm.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $<
 
 k2cpdf.o: k2cpdf.c k2.h bbm.h extra/xerrors.h libsais/liblibsais.a
-	$(CC) $(CFLAGS) -c -o $@ $< 
+	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $< 
 
 k2pagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
 	$(CC) $(CFLAGS) -c -o $@ $< 
@@ -37,13 +41,16 @@ k2bpagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h
 	$(CC) $(CFLAGS) -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
 
 k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o  pointers.o rank_0000.o libsais/liblibsais.a
-	$(CC) $(CFLAGS) -o $@ $^ 
+	$(CC) $(LDFLAGS) -o $@ $^ 
 
 k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
-	$(CC) $(CFLAGS) -o $@ $^ 
+	$(CC) $(LDFLAGS) -o $@ $^ 
 
 k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $<
+
+pointers.o:  pointers.c pointers.h
+	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $<
 
 bbm.o: bbm.c bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -68,7 +75,7 @@ bbmmult.o: bbmmult.c bbm.h
 	$(CC) $(CFLAGS) -fopenmp -c -o $@ $<
 
 
-# compare two textual arc files
+# compare two textual sparse matrix files
 matrixcmp.x: matrixcmp.c
 	$(CC) $(CFLAGS) -o $@ $^ 
 
@@ -79,10 +86,16 @@ release: CFLAGS = -O3 -Wall -std=c11 -g -DNDEBUG
 release: clean
 release: $(EXECS)  
 
-simple: CFLAGS=-O1 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined -DSIMPLEBACKPOINTERS
-simple: clean
-simple: $(EXECS)
+# compile version with enriched backward pointers 
+ebp: EXTRA= 
+ebp: clean
+ebp: $(EXECS)
 
+# as before but release version
+ebprelease: CFLAGS = -O3 -Wall -std=c11 -DNDEBUG
+ebprelease: EXTRA=
+ebprelease: clean
+ebprelease: $(EXECS)
 
 clean:
 	rm -f $(EXECS) *.o 
