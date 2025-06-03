@@ -235,6 +235,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
     fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
+    fprintf(stderr,"\t-M M    multiplier for node limit (def. 1)\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
     #ifndef SIMPLEBACKPOINTERS
     fprintf(stderr,"\t-p pin  file containing backpointer information\n");
