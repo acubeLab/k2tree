@@ -395,7 +395,8 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
-void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+//void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(size>MMsize); // inputs cannot be minimats 
@@ -428,8 +429,43 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   else if(rootb==ALL_ONES) {
     right1_mmult(size,a,c);
   }*/
-  else 
+  #define EEPDF 0 // experimental, on the fly computation of subtree sizes
+  else {
+    #ifdef EEPDF
+    // experimental, on the fly computation of subtree sizes
+    bool subinfo_added_a = false, subinfo_added_b = false;
+    vu64_t za, zb; size_t posa=0, posb=0;
+    if(a->subtinfo==NULL) {
+      subinfo_added_a = true; // we will add subtree info
+      vu64_init(&za);
+      size_t p = k2dfs_sizes(size, a, &posa, &za,99999); // compute subtree sizes up to the last level
+      assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
+      // now z contains the subtree sizes, save info in a->subtinfo
+      a->subtinfo = za.v; a->subtinfo_size = za.n; 
+    }
+    if(b->subtinfo==NULL) {
+      subinfo_added_b = true; // we will add subtree info
+      vu64_init(&zb);
+      size_t p = k2dfs_sizes(size, b, &posb, &zb,99999); // compute subtree sizes up to the last level
+      assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
+      // now z contains the subtree sizes, save info in a->subtinfo
+      b->subtinfo = zb.v; b->subtinfo_size = zb.n; 
+    }
+    #endif
     split_and_rec(size,a,b,c);
+    #ifdef EEPDF
+    if(subinfo_added_a) { // if we added subtree info, free it
+      vu64_free(&za); // free the temporary subtree info
+      a->subtinfo = NULL; // no more subtree info in a
+      a->subtinfo_size = 0; // no more subtree info in a
+    }
+    if(subinfo_added_b) { // if we added subtree info, free it
+      vu64_free(&zb); // free the temporary subtree info
+      b->subtinfo = NULL; // no more subtree info in a
+      b->subtinfo_size = 0; // no more subtree info in a
+    }
+    #endif
+  }
 }
 
 

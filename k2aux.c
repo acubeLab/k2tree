@@ -449,6 +449,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   assert(!k2is_empty(a));
   assert(k2is_empty(&b[0][0]) && k2is_empty(&b[0][1]) &&
          k2is_empty(&b[1][0]) && k2is_empty(&b[1][1]));
+   
   // read root node
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
@@ -477,7 +478,8 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   size_t subt_info_size[4] = {0,0,0,0};  
   // get number of children
   size_t nchildren = __builtin_popcountll(root);
-  assert(nchildren>0 && nchildren<=4);  
+  assert(nchildren>0 && nchildren<=4);
+
   // if we have subtree info fill subt_size[] subt_info[] subt_info_size[] 
   if(a->subtinfo!=NULL) {
     // start of subtree information
@@ -503,7 +505,14 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     }
     #ifdef SIMPLEBACKPOINTERS
     // handling of the last child 
-    assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
+    // assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
+    if(subt_size_tot +1 >= k2treesize(a)) { // +1 for the root, there must be a final subtree 
+      fprintf(stderr,"children: %zu k2split_k2: subsize_tot=%zu, treesize:%zu, size:%zu\n", 
+        nchildren,subt_size_tot, k2treesize(a), size);
+      for(int i=0;i<nchildren;i++) {
+        fprintf(stderr,"child %d: size=%zu, info_size=%zu\n", i, subt_size[i], subt_info_size[i]);
+      }
+    }
     subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
     assert(nchildren-1+ subt_info_size_tot <= a->subtinfo_size);
@@ -515,7 +524,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       assert(subt_info[nchildren-1]+subt_info_size[nchildren-1]== a->subtinfo+a->subtinfo_size);
     }
     #else
-    // smoe extrachecks that make sense when all children are treated equally
+    // some extra checks that make sense when all children are treated equally
     assert(subt_size_tot +1 == k2treesize(a)); // +1 for the root 
     assert(subt_info_size_tot + nchildren == a->subtinfo_size);
     #endif

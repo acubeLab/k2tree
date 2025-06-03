@@ -282,7 +282,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
       #endif
     }
   assert(cpos==nchildren); // we should have visited all children
-  // check subtree size for all children except last one
+  // add subtree size for all children except last one
   if(depth2go>0) {
     for(int i=0; i<cpos-1; i++)
       z->v[zn_save++] = csize[i];
@@ -293,7 +293,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
     subtree_size += (nchildren-1)<<BITSxTSIZE;
     #endif
   }
-  else assert(subtree_size>>BITSxTSIZE == 0); // there should not be any subtree encodings
+  else assert(subtree_size>>BITSxTSIZE == 0); // there should not be any subtree encoding
   if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size
     fprintf(stderr,"Scanned size: %zu, computed size: %lu\n", *pos-pos_save,subtree_size&TSIZEMASK); 
     quit("Error or overflow in size encoding",__LINE__,__FILE__);

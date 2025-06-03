@@ -20,7 +20,7 @@
  * the subtree information for that subtree (if any information is available).
  * The use of backpointers require thet for each subtree the subtree information 
  * is the size of the subtree for all children (not excluding the last one)
- * The subtree info file has default extension .xinfo
+ * The subtree info file has default extension .xsinfo
  * 
  * SIMPLEBACKPOINTERS version:
  * We do not store for the backpointers the starting position of the subtree information,
@@ -233,7 +233,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
-    // fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
+    fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
     #ifndef SIMPLEBACKPOINTERS
