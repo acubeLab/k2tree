@@ -23,6 +23,8 @@ static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
 static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y);
+// global variable to force computation of subtree info on the fly
+bool Extended_edf = false; // compute subtree info on the fly
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
@@ -429,42 +431,40 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
   else if(rootb==ALL_ONES) {
     right1_mmult(size,a,c);
   }*/
-  #define EEPDF 0 // experimental, on the fly computation of subtree sizes
+  //#define EEPDF 0 // experimental, on the fly computation of subtree sizes
   else {
-    #ifdef EEPDF
-    // experimental, on the fly computation of subtree sizes
-    bool subinfo_added_a = false, subinfo_added_b = false;
-    vu64_t za, zb; size_t posa=0, posb=0;
-    if(a->subtinfo==NULL) {
-      subinfo_added_a = true; // we will add subtree info
-      vu64_init(&za);
-      size_t p = k2dfs_sizes(size, a, &posa, &za,99999); // compute subtree sizes up to the last level
-      assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
-      // now z contains the subtree sizes, save info in a->subtinfo
-      a->subtinfo = za.v; a->subtinfo_size = za.n; 
+    bool subinfo_added_a = false, subinfo_added_b = false; vu64_t za, zb; 
+    if(Extended_edf) { // on the fly computation of subtree sizes
+      size_t posa=0, posb=0;
+      if(a->subtinfo==NULL) {
+        vu64_init(&za);
+        size_t p = k2dfs_sizes(size, a, &posa, &za,99999); // compute subtree sizes up to the last level
+        assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
+        a->subtinfo = za.v; a->subtinfo_size = za.n; // now z contains the subtree sizes, save in a->subtinfo
+        subinfo_added_a = true; (void) p; // subtree info added
+      }
+      if(b->subtinfo==NULL) {
+        vu64_init(&zb);
+        size_t p = k2dfs_sizes(size, b, &posb, &zb,99999); // compute subtree sizes up to the last level
+        assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
+        // now z contains the subtree sizes, save info in a->subtinfo
+        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now z contains the subtree sizes, save in b->subtinfo
+        subinfo_added_b = true; (void) p; // subtree info added
+      }
     }
-    if(b->subtinfo==NULL) {
-      subinfo_added_b = true; // we will add subtree info
-      vu64_init(&zb);
-      size_t p = k2dfs_sizes(size, b, &posb, &zb,99999); // compute subtree sizes up to the last level
-      assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
-      // now z contains the subtree sizes, save info in a->subtinfo
-      b->subtinfo = zb.v; b->subtinfo_size = zb.n; 
-    }
-    #endif
     split_and_rec(size,a,b,c);
-    #ifdef EEPDF
-    if(subinfo_added_a) { // if we added subtree info, free it
-      vu64_free(&za); // free the temporary subtree info
-      a->subtinfo = NULL; // no more subtree info in a
-      a->subtinfo_size = 0; // no more subtree info in a
+    if(Extended_edf) {
+      if(subinfo_added_a) { // if we added subtree info, free it
+        vu64_free(&za); // free the temporary subtree info
+        a->subtinfo = NULL; // no more subtree info in a
+        a->subtinfo_size = 0; // no more subtree info in a
+      }
+      if(subinfo_added_b) { // if we added subtree info, free it
+        vu64_free(&zb); // free the temporary subtree info
+        b->subtinfo = NULL; // no more subtree info in a
+        b->subtinfo_size = 0; // no more subtree info in a
+      }
     }
-    if(subinfo_added_b) { // if we added subtree info, free it
-      vu64_free(&zb); // free the temporary subtree info
-      b->subtinfo = NULL; // no more subtree info in a
-      b->subtinfo_size = 0; // no more subtree info in a
-    }
-    #endif
   }
 }
 

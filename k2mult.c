@@ -19,13 +19,15 @@
 #include <limits.h>
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef B128MAT
-#include "b128.h"
-#define K2MAT_INITIALIZER B128MAT_INITIALIZER
-typedef b128mat_t k2mat_t;
-bool Use_all_ones_node; // not used: added for compatibility with k2mat
+ #include "b128.h"
+ #define K2MAT_INITIALIZER B128MAT_INITIALIZER
+ typedef b128mat_t k2mat_t;
+ bool Use_all_ones_node; // not used: added for compatibility with k2mat
+ bool Extended_edf;      // not used: added for compatibility with k2mat
 #else // k2mat
-#include "k2.h"
-extern bool Use_all_ones_node; // use the special ALL_ONES node?
+ #include "k2.h"
+ extern bool Use_all_ones_node; // use the special ALL_ONES node?
+ extern bool Extended_edf;      // compute subtree info on the fly 
 #endif
 // used by both matrix type
 #include "bbm.h"
@@ -54,9 +56,9 @@ int main (int argc, char **argv) {
   opterr = 0;
   bool check = false, write = true;
   char *outfile = NULL;
-  Use_all_ones_node = false;
+  Use_all_ones_node = false; Extended_edf = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:t:I:J:o:qhcnv1")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:t:I:J:o:qhcnv1e")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -69,7 +71,9 @@ int main (int argc, char **argv) {
       case 'J':
         backpfile2 = optarg; break;                 
       case 'j':
-        infofile2 = optarg; break;                 
+        infofile2 = optarg; break;
+      case 'e':
+        Extended_edf = true; break; // compute subtree info on the fly                 
       case '1':
         Use_all_ones_node = true; break;
       case 't':
@@ -111,6 +115,10 @@ int main (int argc, char **argv) {
   if(optimize_squaring && (infofile2!=NULL || backpfile2!=NULL)) {
     fprintf(stderr,"Options -q and -j/-J are incompatible (second matrix uses the same info as first)\n");
     exit(3);
+  }
+  if(Extended_edf && (backpfile1!=NULL || backpfile2!=NULL)) {
+    fprintf(stderr,"Option -e is incompatible with options -I/-J\n");
+    exit(4);
   }
   #endif
   
@@ -221,6 +229,10 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
     fprintf(stderr,"\t-i info   infile1 subtree info file\n");
     fprintf(stderr,"\t-j info   infile2 subtree info file\n");
+    fprintf(stderr,"\t-I info   infile1 backpointers file\n");
+    fprintf(stderr,"\t-J info   infile2 backpointers file\n");
+    fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-e        compute subtree info on the fly (def. do not use depth)\n");
     #endif  
     fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
