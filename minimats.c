@@ -45,7 +45,7 @@ bool Use_all_ones_node = true;
 
 // minimat constants (depend on size, these are of for 2x2 and 4x4)
 static minimat_t MINIMAT0s=0;  // minimat containing all 0's, correctly initialized 
-static minimat_t MINIMAT1s=0;  // minimat containing all 1's, incorrect value, initialzed in minimats_init  
+static minimat_t MINIMAT1s=0;  // minimat containing all 1's, initialized in minimats_init  
 
 
 // multiplication functions for minimats of different sizes
@@ -144,7 +144,7 @@ void minimat_init(int msize) {
  else 
    MINIMAT1s = (((minimat_t) 1) << (msize*msize)) -1;
 
-  // so far only size 2 is allowed
+  // so far only size 2 or 4 are allowed
   if(MMsize==2)  
     init_mprods2x2();
   else if (MMsize==4) {
@@ -152,6 +152,13 @@ void minimat_init(int msize) {
   }
   else quit("minimats_init: MMsize!=2,4",__LINE__,__FILE__); 
 }
+
+// return minimat size
+uint32_t minimat_size() {
+  if(MMsize==0) quit("minimats_size: not initialized",__LINE__,__FILE__);
+  return MMsize;
+}
+
 
 // reset minimats initialization and makes it possible
 // to call minimat init again

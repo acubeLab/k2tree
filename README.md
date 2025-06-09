@@ -8,15 +8,19 @@ This repository contains a set of functions for working with square sparse boole
 
 A modern `gcc` supporting `c11` and `make`
 
-
+A cmake version `>= 3.10`
 
 ## Installation 
 
-Clone/download the repostory then `make release`
+Clone/download the repostory then:
+
+```
+git submodule update --init --recursive
+cd libsais; cmake .; make; cd ..
+make release
+```
 
 All tools invoked without arguments provide basic usage instructions. 
-
-
 
 ## Getting started
 
@@ -186,7 +190,7 @@ on its largest subtrees. This information must be computed with `k2subtinfo.x`, 
 k2subtinfo.x -vc m.k2 -o m.k2.info 
 ```
 computes the information for the compressed matrix `m.k2` and stores it in `m.k2.info`. By default the information is computed for the subtrees whose size is at least the square root of the size of the k2 tree representing the whole matrix. 
-Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`, or use the option `-D d` to compute the info only for the subtree at depth up to `d`. 
+Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`. Alternatively use the option `-M` set the limit of to a fraction of the square root of the number of nodes, for example for a tree with 1.000.000 nodes, using `-M 0.2` will set the limit to 200 nodes. ~~ use the option `-D d` to compute the info only for the subtree at depth up to `d`.~~ 
 
 At the moment this additional information can be used only to speed-up matrix-matrix multiplication. For example write
 ```bash
@@ -196,6 +200,51 @@ to compute the product `m1.k2` times `m2.k2` using the extra information `m1.k2.
 and `m2.k2.info` for the compressed matrix `m2.k2` (the information can be used also for only one of the two input matrices).
 
 NOTE: to see a real speed improvement at the moment it is necessary to use the release version (`make release`). 
+
+
+## Compressed k2-tree
+
+The executable `k2cpdf.x` is used to compress k2tree representation based on subtree compression; run it without arguments to get basic usage instructions
+```
+Usage:
+          ./k2cpdf.x [options] infile
+
+Options:
+        -b      amount of nodes per block for rank 0000 (def. 64)
+        -t      minimum amount of bits to remove a subtree (def. 32)
+        -c      check compression by decompressing and checking the amount of ones
+	-n      do not write the output file, only show stats
+        -h      show this help message
+        -v      verbose
+
+Compute and store in separates files the compressed tree and
+its auxiliary information of the input compressed matrix
+, based on subtree compression.
+```
+
+Invoked will generate three new files in the same directory as `infile`:
+
+* `m.ck2`: contains the compressed k2-tree. You can load it using the `mload_from_file` function.
+* `m.ck2.p`: a binary file holding a `uint64_t` array. Each value is the destination of a pointer node `0000`.  
+
+The options `-b` and `-t` can be used to change the default values of those parameters.
+
+When invoked with `-c` will check that the compressed representation can get the same amount of non-zero elements as the original k2tree representation, then decompressed it to check again the non-zero elements.
+
+When invoked with `-n` will not write any file, only compress and show statistic.
+
+### Enriched compressed format
+
+To use subtree information for compressed k2-tree use `k2subtinfo.x` as follows
+```
+k2subtinfo.x -vc -p m.ck2.p m.ck2
+```
+This command creates a file `m.ck2.sinfo` containing the subtree information, and a file `m.ck2.psinfo` containing the enriched pointers (each pointer now also contains the location of the subtree information of the destination node, if any).
+
+To compute the matrix product using the enriched compressed format:
+```
+k2mult.x -v -i a.ck2.sinfo -I a.ck2.psinfo  -j b.ck2.sinfo -j b.ck2.psinfo  a.ck2  b.ck2
+```
 
 
 
@@ -220,8 +269,6 @@ The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2
 ## Product of bbm matrices with openmp
 
 The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
-
-
 
 ## Additional tools 
 

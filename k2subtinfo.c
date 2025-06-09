@@ -7,8 +7,27 @@
  * store the size of such information for any subtree, so that we can 
  * reach in O(1) time such information for any given subtree    
  * 
- * For the details of the enconding, see the long comment before the 
+ * For the details of the encoding, see the long comment before the 
  * function k2dfs_sizes() in k2text.c 
+ * 
+ * General version:
+ * If the option -p is used, we assume that the nibble 0000 (POINTER)
+ * marks a pointer to a subtree. The starting position of the subtree is stored
+ * in the backp structure consisting of an array of uint64_t. The destination of the
+ * i-th (in left to right order) pointer is stores in the lower BITSxTSIZE (40) bits
+ * of backp->node[i]. After computing the subtree information we do a second
+ * pass where we store in the remaining (24) bits the starting position of 
+ * the subtree information for that subtree (if any information is available).
+ * The use of backpointers require thet for each subtree the subtree information 
+ * is the size of the subtree for all children (not excluding the last one)
+ * The subtree info file has default extension .xsinfo
+ * 
+ * SIMPLEBACKPOINTERS version:
+ * We do not store for the backpointers the starting position of the subtree information,
+ * (since this is availble only for large repeated submatrices). As a consequence:
+ *   1. we use an unint32_t for each packpointer
+ *   2. we do not store the subtree information for the last child
+ * The subtree info file has default extension .sinfo
  * 
  * Copyright August 2024-today   ---  giovanni.manzini@unipi.it
 */
@@ -23,11 +42,19 @@
 #include <limits.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <libgen.h>
+#include <math.h>
 #include "k2.h"
-#define default_ext ".sinfo"
-#define BITSxTSIZE 40
-#define TSIZEMASK ( (((uint64_t) 1)<<BITSxTSIZE) -1 )
+#ifdef SIMPLEBACKPOINTERS
+#define default_ext ".sinfo"     // extension for simple (old style) subtree info
+#define default_pext ".error"    // no such file for simple backpointers
+#else
+#define default_ext ".xsinfo"
+#define default_pext ".xpinfo"
+#endif
+
+#ifdef SIMPLEBACKPOINTERS
+#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
+#endif
 
 
 // static functions at the end of the file
@@ -35,35 +62,45 @@ static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 static size_t intsqrt(size_t n);
 
-
-
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
   int verbose=0;
   int c;
-  char iname[PATH_MAX], oname[PATH_MAX];
+  char iname[PATH_MAX], oname[PATH_MAX], poname[PATH_MAX];
   time_t start_wc = time(NULL);
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
   bool check = false, write = true;
-  char *outfile = NULL;
+  char *outfile=NULL, *pinfile = NULL, *poutfile=NULL;
   int32_t depth_subtree = 0;
   long node_limit = 0;
-  while ((c=getopt(argc, argv, "o:D:N:cnhv")) != -1) {
+  double node_limit_multiplier = 1;
+
+  #ifdef SIMPLEBACKPOINTERS
+  while ((c=getopt(argc, argv, "o:D:N:M:cnhv")) != -1) {
+  #else
+  while ((c=getopt(argc, argv, "o:p:P:N:M:cnhv")) != -1) {
+  #endif
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
+      case 'P':
+        poutfile = optarg; break;        
+      case 'p':
+        pinfile = optarg; break;
       case 'c':
         check = true; break;
       case 'n':
         write = false; break;
-      case 'D':
+      case 'D':  
         depth_subtree = atoi(optarg); break;
       case 'N':
         node_limit = atol(optarg); break;
+      case 'M':
+        node_limit_multiplier = atof(optarg); break;
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -73,11 +110,15 @@ int main (int argc, char **argv) {
         exit(1);
       }
   }
-  if(depth_subtree!=0 && node_limit!=0) 
-    quit("Options -D and -N are incompatible",__LINE__,__FILE__);
+  if(depth_subtree!=0 && (node_limit!=0 || node_limit_multiplier!=1))  
+    quit("Options -D and -N/-M are incompatible",__LINE__,__FILE__);
+  if(node_limit!=0 && node_limit_multiplier!=1)  
+    quit("Options -N and -M are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
-    
+  if(poutfile!=NULL && pinfile==NULL) 
+    quit("Option -P requires option -p",__LINE__,__FILE__);
+
   if(verbose>0) {
     fputs("==== Command line:\n",stdout);
     for(int i=0;i<argc;i++)
@@ -92,16 +133,22 @@ int main (int argc, char **argv) {
 
   // assign default extension and create file names
   sprintf(iname,"%s",argv[1]);
-  if(outfile!=NULL)sprintf(oname,"%s",outfile);
+  if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
-
-  // read input compressed matrix
+  if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
+  else sprintf(poname,"%s%s",argv[1],default_pext);
+ 
+  // read input matrix (could be compressed. we cannot know...)
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
-  if (verbose)  
-      mshow_stats(size, asize,&a,iname,stdout);
-  // compute encoding information
+  // show information acquired so far from the input files 
+  if (verbose) {
+    fprintf(stdout,"Caution: the following information is incorrect if the input matrix is in compressed ck2 format\n"); 
+    mshow_stats(size, asize,&a,iname,stdout);
+  }
+
+  // compute subtree information
   vu64_t z;      // resizable array to contain the subtree sizes
   vu64_init(&z);
   uint64_t p;
@@ -114,20 +161,17 @@ int main (int argc, char **argv) {
   }
   else {
     if(node_limit==0) node_limit = intsqrt(a.pos);
-    printf("Computing subtree sizes up to node limit: %zu\n", node_limit);
+    node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
+    if(node_limit < 17) node_limit = 17; // minimum node limit (ensure at least 2 levels)
+    printf("Computing subtree sizes for trees larger than %zu nodes\n", node_limit);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);
   }
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
-  printf("Subtree info storage: %zu bytes\n", z.n*sizeof(z.v[0]));
-  if(write) {
-    FILE *out = fopen(oname,"wb");
-    if(!out) quit("Error opening output file",__LINE__,__FILE__);
-    vu64_write(out,&z);
-    fclose(out);
-  }
-  if(check || !write) { // if not writing force check 
+  printf("Subtree info takes: %zu bytes\n", z.n*sizeof(z.v[0]));
+
+  if(check || !write) { // if not writing force check of subtree information
     size_t znsave = z.n;
     z.n=0; // reset z vector
     pos=0; // start from position 0 in the k2 matrix
@@ -142,12 +186,44 @@ int main (int argc, char **argv) {
     else 
       if(verbose) printf("Tree size matches: %zu nibbles (%zu bytes)\n",pcheck,(pcheck+1)/2);
   }
+
+
+  // enrich backpointers if option -P was used to provide them 
+  // this implies that the matrix was compressed with pointers
+  // note rank information is not needed since we do not follow pointers
+  if(pinfile!=NULL) {
+    a.backp = pointers_load_from_file(pinfile);
+    if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
+    // compute stored order of the pointers, and init index to 0
+    pointers_sort(a.backp);
+    // compute info
+    size_t znsave = z.n;
+    z.n=0; // reset z vector
+    pos=0; // start from position 0 in the k2 matrix
+    k2dfs_compute_backpointer_info(asize,&a,&pos,&z);
+    assert(pos==a.pos);      // check visit was complete
+    assert(z.n==znsave);     // check that we have scanned z
+  }
+
+  // if -n was not used save the computed structures 
+  if(write) {
+    FILE *out = fopen(oname,"wb");
+    if(!out) quit("Error opening output file",__LINE__,__FILE__);
+    vu64_write(out,&z);
+    fclose(out);
+    if(verbose) fprintf(stdout,"Subtree information written to file: %s\n",oname);
+    if(pinfile!=NULL) {
+      pointers_write_to_file(a.backp,poname); // write pointer information if available
+      if(verbose) fprintf(stdout,"Enriched pointer information written to file: %s\n",poname);
+    }
+  }
+  // free resources
   vu64_free(&z);
   matrix_free(&a);
   minimat_reset(); // reset the minimat library and free minimat product table
   // statistics
-  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  fprintf(stdout,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
+  fprintf(stdout,"==== Done\n");
   return EXIT_SUCCESS;
 }
 
@@ -156,15 +232,21 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-n      do not write the output file, only show stats and check\n");
-    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
+    fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
     fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
     fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
+    fprintf(stderr,"\t-M M    multiplier for node limit (def. 1)\n");
+    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
+    #ifndef SIMPLEBACKPOINTERS
+    fprintf(stderr,"\t-p pin  file containing backpointer information\n");
+    fprintf(stderr,"\t-P pout outfile for backpointer-subtree information (def. infile%s)\n", default_pext);
+    #endif
     fprintf(stderr,"\t-c      check subtree information\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
     fprintf(stderr,"Compute and store in a separate file the information about the size\n"
-                   "of the top subtrees of the input compressed matrix.\n\n");
+                   "of the largest subtrees of the input matrix.\n"
+                   "If -p option is used backpointers are enriched with subtree information.\n\n");
     exit(1);
 }
 

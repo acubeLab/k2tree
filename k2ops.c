@@ -11,17 +11,20 @@
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#include "rank_0000.h"
 #endif
 #pragma GCC target ("sse4.2")  // ensure sse4.2 compiler switch it is used 
 #include "k2aux.c"    // includes minimats.c k2.h bbm.h
 #include "k2text.c"   // includes k2.h 
-#include "bbm.h"
+
 
 static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c);
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
 static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y);
+// global variable to force computation of subtree info on the fly
+bool Extended_edf = false; // compute subtree info on the fly
 
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
@@ -62,7 +65,7 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
 {
   *pos=*nodes=*minimats=*nz=*all1=0;
   if(!k2is_empty(a)) k2dfs_visit(asize,a,pos,nodes,minimats,nz,all1);
-  int eq = mequals(asize,a,a);
+  int eq = mequals(asize,a,a); // strange way to compute the number of levels, maybe testing mequals? 
   assert(eq<0);
   return -eq;
 }
@@ -72,12 +75,23 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   size_t pos, nodes, minimats, nz, all1;
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
-  assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu, Nonzeros: %zu\n",
-          levels,nodes,minimats, all1, nz);
-  // each pos takes 4 bits, so three size in bytes is (pos+1)/2         
-  fprintf(file," Tree size: %zu bytes, Bits x nonzero: %lf\n",
-          (pos+1)/2 , 4.0*(double)(pos)/(double) nz);
+  if(a->backp == NULL)
+    assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
+  fprintf(file," #Nonzeros: %zu, Nonzero x row: %lf\n", nz, (double) nz/(double)size);
+  fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu\n",
+          levels,nodes,minimats, all1);
+  fprintf(file," #Sized submats: %zu,", a->subtinfo_size);
+  fprintf(file," #Pointers: %zu\n", a->backp ? a->backp->size : 0);
+  size_t bits_sub = sizeof(*(a->subtinfo)) * a->subtinfo_size;
+  fprintf(file, " Subtree info size (bits): %zu\n", bits_sub);
+  size_t bits_p = pointers_size_in_bits(a->backp);
+  size_t bits_r = rank_size_in_bits(a->r);
+  fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits): %zu\n", bits_p, bits_r);
+  // each pos takes 4 bits, so tree size in bytes is (pos+1)/2         
+  fprintf(file," Tree size: %zu bytes, %zu bits, Bits x nonzero: %lf\n",
+          (pos+1)/2 , 4*pos, 4.0*(double)(pos)/(double) nz);
+  fprintf(file, " Total space (bits): %zu, Bits x nonzero: %lf\n", 
+      pos * 4 + bits_r + bits_p, (double) (pos * 4 + bits_r + bits_p) / (double) nz);
   return nz;
 }
 
@@ -149,12 +163,14 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // copy matrix a: to b: used instead of sum when one of the matrices is all 0s
+//??? Instead of using recursion, can we just copy the content of a (from offset to pos) to b?
 static void mcopy(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a));
   assert(!b->read_only);
+  assert(!a->read_only);
   size_t pos = 0;
   k2copy_rec(size,a,&pos,b);
  }
@@ -178,19 +194,16 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
-  // size_t tmp1=0,tmp2=0, tmp3=0; // not used, defined to pass to k2dfs_visit
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
-    k2dfs_visit_fast(size,b,posb); //scan but ignore a content
-    // k2dfs_visit(size,b,posb,&tmp1,&tmp2,&tmp3); //reach end of b but ignore its content
+    k2dfs_visit_fast(size,b,posb); //scan but ignore b content
     return;
   }
   else if(rootb==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posb+=1; // same as above with a and b swapped
     k2dfs_visit_fast(size,a,posa); //scan but ignore a content
-    // k2dfs_visit(size,a,posa,&tmp1,&tmp2,&tmp3); //scan but ignore a content
     return;
   }
   assert(roota!=ALL_ONES && rootb!=ALL_ONES);
@@ -259,10 +272,14 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
 //    if the result is a zero matrix c is left empty
 //    if the result is an all one's matrix c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
+// Note: this function is called by matrix product, to sum partial products 
+// so the operands are never compressed  
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
+  assert(a->backp==NULL && a->subtinfo==NULL);
+  assert(b->backp==NULL && b->subtinfo==NULL);
 
   k2_free(c); // free old content and initialize as empty
   if(k2is_empty(a) && k2is_empty(b)) 
@@ -288,6 +305,7 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 //  if c is all 0s nothing is written
 //  if c is all 1s the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + nonzero minisize matrices 
+// Note, even if a or b are compressed, there cannot be pointers at this level (height=1)
 // Here is the only part where we call the base multiplication function
 // using the following macro, change it to support additional sizes
 #define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
@@ -300,23 +318,40 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   // c is always an empty matrix because a partial product is never 
   // written directly to a result matrix 
   assert(k2is_empty(c));
-  // initialize ax[][] and bx[][] to cover the case when the matrix is all 1s                       
+  // initialize ax[][] and bx[][] to cover the case when the matrix a/b is all 1s                       
   minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   minimat_t bx[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   //both matrices are all 1s ?
   if(roota==ALL_ONES && rootb == ALL_ONES) {
-    k2add_node(c,ALL_ONES);
+    #ifndef NDEBUG
+    if(a->backp!=NULL)
+      quit("Illegal left operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
+    if(b->backp!=NULL)
+      quit("Illegal right operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
+    #endif
+    if(Use_all_ones_node) k2add_node(c,ALL_ONES);
+    else {
+      // if Use_all_ones_node is false we write a 2x2 matrix of all 1s
+      k2add_node(c,ALL_CHILDREN); // write root node
+      k2add_minimat(c,MINIMAT1s); // write 4 submatrices matrix of all 1s
+      k2add_minimat(c,MINIMAT1s);
+      k2add_minimat(c,MINIMAT1s);
+      k2add_minimat(c,MINIMAT1s);
+    }
     return;
   }
-  // ??? here possible code for case when one matrix is all 1s and the other is not
+  // ??? here insert possible code for case when one matrix is all 1s and the other is not
   // split a and b
   size_t posa=1,posb=1; // we have already read the root node
   if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above
     k2split_minimats(a,&posa,roota,ax);
+  else assert(a->backp==NULL); // if a is ALL_ONES it cannot have backp pointers 
   if(rootb!=ALL_ONES) 
     k2split_minimats(b,&posb,rootb,bx);
+  else assert(b->backp==NULL); // if b is ALL_ONES it cannot have backp pointers
+
   // split done, now multiply and store c 
   // optimization on all 1's submatrices still missing 
   bool all_ones=true; // true if all c submatrices cx[i][j] are all 1's
@@ -327,7 +362,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     int i=k/2; int j=k%2;
     assert(size==4 || size==8); // implies that minimats are 2x2  or 4x4
     minimat_t cx  = mmultNxN(MMsize,ax[i][0],bx[0][j]);
-    cx |= mmultNxN(MMsize,ax[i][1],bx[1][j]);
+    cx |= mmultNxN(MMsize,ax[i][1],bx[1][j]); // c[i][j] = a[i][0]*b[0][j] + a[i][1]*b[1][j]
     if(cx!=MINIMAT0s) {
       rootc |= (1UL<<k);
       k2add_minimat(c,cx);
@@ -335,7 +370,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     if(cx!=MINIMAT1s) all_ones = false;
   }
   // fix root, normalize matrix and return 
-  if(rootc==NO_CHILDREN) {   // all 0s matrix is represented as a an empty matrix
+  if(rootc==NO_CHILDREN) {   // all 0s matrix is represented as an empty matrix
     assert(k2pos(c)==rootpos+1); // we wrote only root to c 
     k2setpos(c,rootpos); // delete root 
   }
@@ -345,7 +380,10 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     k2setpos(c,rootpos+1);       // discard children
     assert(k2read_node(c,rootpos)==ALL_ONES);
   }
-  else k2write_node(c,rootpos,rootc); // just fix root 
+  else {
+    //root is not all_one or Use_all_ones_node is false, just write correct root node
+    k2write_node(c,rootpos,rootc);
+  }
 }
 
 
@@ -359,7 +397,8 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
-void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+//void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(size>MMsize); // inputs cannot be minimats 
@@ -378,20 +417,55 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(size> 2*MMsize);
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
-  // the product of two all 1's is all 1's 
-  if(roota==ALL_ONES &&  rootb==ALL_ONES) {
-    k2add_node(c,ALL_ONES);
+  // the product of two all 1's is all 1's, but  now ALL_NODES could be a pointer 
+  if( (roota==ALL_ONES && a->backp==NULL) &&  (rootb==ALL_ONES && b->backp==NULL) ) {
+    if(!Use_all_ones_node) 
+      quit("Problem here: both matrices are ALL_ONES but Use_all_ones_node is false", __LINE__,__FILE__);
+    k2add_node(c,ALL_ONES); // in the output matrix there are no pointers, so we can write ALL_ONES
   }
   // further all 1s matrix optimization to be written
   /*
-  else if(na==ALL_ONES) {
+  else if(roota==ALL_ONES) {
     left1_mmult(size,b,c);
   }
-  else if(nb==ALL_ONES) {
+  else if(rootb==ALL_ONES) {
     right1_mmult(size,a,c);
   }*/
-  else 
+  //#define EEPDF 0 // experimental, on the fly computation of subtree sizes
+  else {
+    bool subinfo_added_a = false, subinfo_added_b = false; vu64_t za, zb; 
+    if(Extended_edf) { // on the fly computation of subtree sizes
+      size_t posa=0, posb=0;
+      if(a->subtinfo==NULL) {
+        vu64_init(&za);
+        size_t p = k2dfs_sizes(size, a, &posa, &za,99999); // compute subtree sizes up to the last level
+        assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
+        a->subtinfo = za.v; a->subtinfo_size = za.n; // now z contains the subtree sizes, save in a->subtinfo
+        subinfo_added_a = true; (void) p; // subtree info added
+      }
+      if(b->subtinfo==NULL) {
+        vu64_init(&zb);
+        size_t p = k2dfs_sizes(size, b, &posb, &zb,99999); // compute subtree sizes up to the last level
+        assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
+        // now z contains the subtree sizes, save info in a->subtinfo
+        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now z contains the subtree sizes, save in b->subtinfo
+        subinfo_added_b = true; (void) p; // subtree info added
+      }
+    }
     split_and_rec(size,a,b,c);
+    if(Extended_edf) {
+      if(subinfo_added_a) { // if we added subtree info, free it
+        vu64_free(&za); // free the temporary subtree info
+        a->subtinfo = NULL; // no more subtree info in a
+        a->subtinfo_size = 0; // no more subtree info in a
+      }
+      if(subinfo_added_b) { // if we added subtree info, free it
+        vu64_free(&zb); // free the temporary subtree info
+        b->subtinfo = NULL; // no more subtree info in a
+        b->subtinfo_size = 0; // no more subtree info in a
+      }
+    }
+  }
 }
 
 
@@ -450,10 +524,10 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   size_t e = fwrite(&size,sizeof(size),1,f);
   if(e!=1) quit("msave_to_file: cannot write size",__LINE__,__FILE__);
-  e = fwrite(&MMsize, sizeof(int),1,f);
+  e = fwrite(&MMsize, sizeof(MMsize),1,f);
   if(e!=1) quit("msave_to_file: cannot write MMsize",__LINE__,__FILE__);
   e = fwrite(&asize, sizeof(asize),1,f);
-  if(e!=1) quit("msave: cannot write asize",__LINE__,__FILE__);
+  if(e!=1) quit("msave_to_file: cannot write asize",__LINE__,__FILE__);
   e = fwrite(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("msave_to_file: cannot write number of positions",__LINE__,__FILE__);
   if(a->pos>0) {

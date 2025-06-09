@@ -30,7 +30,7 @@
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
 bool Use_all_ones_node; // not used: added for compatibility with k2mat 
-#else // k2mat
+#else // defintions for k2 matrices 
 #include "k2.h"
 #define default_cext ".k2"
 extern bool Use_all_ones_node; // use the special ALL_ONES node
@@ -122,7 +122,7 @@ int main (int argc, char **argv) {
   else       sprintf(oname,"%s%s",argv[1],ext); 
 
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize;
+  size_t size, asize; // size the acutal matrix size, asize the internal size 
   if(decompress) {
     size = mload_from_file(&asize, &a, iname); // also init k2 library
     if (verbose || !write)  

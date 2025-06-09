@@ -19,13 +19,15 @@
 #include <limits.h>
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef B128MAT
-#include "b128.h"
-#define K2MAT_INITIALIZER B128MAT_INITIALIZER
-typedef b128mat_t k2mat_t;
-bool Use_all_ones_node; // not used: added for compatibility with k2mat
+ #include "b128.h"
+ #define K2MAT_INITIALIZER B128MAT_INITIALIZER
+ typedef b128mat_t k2mat_t;
+ bool Use_all_ones_node; // not used: added for compatibility with k2mat
+ bool Extended_edf;      // not used: added for compatibility with k2mat
 #else // k2mat
-#include "k2.h"
-extern bool Use_all_ones_node; // use the special ALL_ONES node?
+ #include "k2.h"
+ extern bool Use_all_ones_node; // use the special ALL_ONES node?
+ extern bool Extended_edf;      // compute subtree info on the fly 
 #endif
 // used by both matrix type
 #include "bbm.h"
@@ -36,6 +38,7 @@ static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 
 
+
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
@@ -44,6 +47,8 @@ int main (int argc, char **argv) {
   char iname1[PATH_MAX], iname2[PATH_MAX], oname[PATH_MAX];
   #ifndef B128MAT
   char *infofile1=NULL, *infofile2=NULL;
+  char *backpfile1=NULL, *backpfile2=NULL; // file with backpointers
+  uint32_t rank_block_size = 64; // block rank for k2 compression  
   #endif
   time_t start_wc = time(NULL);
 
@@ -51,20 +56,28 @@ int main (int argc, char **argv) {
   opterr = 0;
   bool check = false, write = true;
   char *outfile = NULL;
-  Use_all_ones_node = false;
+  Use_all_ones_node = false; Extended_edf = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:o:qhcnv1")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:t:I:J:o:qhcnv1e")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;                 
       #ifndef B128MAT
+      case 'I':
+        backpfile1 = optarg; break;                 
       case 'i':
         infofile1 = optarg; break;                 
+      case 'J':
+        backpfile2 = optarg; break;                 
       case 'j':
-        infofile2 = optarg; break;                 
+        infofile2 = optarg; break;
+      case 'e':
+        Extended_edf = true; break; // compute subtree info on the fly                 
       case '1':
         Use_all_ones_node = true; break;
+      case 't':
+        rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif
       case 'c':
         check = true; break;      
@@ -99,9 +112,13 @@ int main (int argc, char **argv) {
     exit(2);
   }
   #ifndef B128MAT
-  if(optimize_squaring && infofile2!=NULL) {
-    fprintf(stderr,"Options -q and -j are incompatible (second matrix uses the same info as first)\n");
+  if(optimize_squaring && (infofile2!=NULL || backpfile2!=NULL)) {
+    fprintf(stderr,"Options -q and -j/-J are incompatible (second matrix uses the same info as first)\n");
     exit(3);
+  }
+  if(Extended_edf && (backpfile1!=NULL || backpfile2!=NULL)) {
+    fprintf(stderr,"Option -e is incompatible with options -I/-J\n");
+    exit(4);
   }
   #endif
   
@@ -120,6 +137,13 @@ int main (int argc, char **argv) {
   #ifndef B128MAT
   // possibly load subtree info
   if(infofile1) k2add_subtinfo(&a,infofile1);
+  // possibly load backpointers info
+  if(backpfile1) {
+    a.backp = pointers_load_from_file(backpfile1);
+    if(a.backp==NULL) quit("Error loading backpointers for first operand",__LINE__,__FILE__);
+    assert(rank_block_size>0 && rank_block_size%4==0);  
+    rank_init(&(a.r),rank_block_size,&a);
+  } 
   #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
@@ -133,6 +157,12 @@ int main (int argc, char **argv) {
     // possibly load subtree info
     #ifndef B128MAT
     if(infofile2) k2add_subtinfo(&b,infofile2);
+    if(backpfile2) {
+      b.backp = pointers_load_from_file(backpfile2);
+      if(b.backp==NULL) quit("Error loading backpointers for second operand",__LINE__,__FILE__);
+      assert(rank_block_size>0 && rank_block_size%4==0); 
+      rank_init(&(b.r),rank_block_size,&b);
+    }
     #endif
     // check sizes correpondds
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
@@ -140,7 +170,7 @@ int main (int argc, char **argv) {
   }
   if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
 
-  // do the multiplication shos/save the result
+  // do the multiplication show/save the result
   mmult(asize,&a,&b,&ab);
   if (verbose || !write) 
     mshow_stats(size, asize,&ab,oname,stdout);
@@ -183,8 +213,8 @@ int main (int argc, char **argv) {
   matrix_free(&ab);    
   minimat_reset(); // reset the minimat library and free minimat product table
   // report running time
-  fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  fprintf(stdout,"Elapsed time: %.8lf secs\n", ((double) (time(NULL)-start_wc)));
+  fprintf(stdout,"==== Done\n");
   return EXIT_SUCCESS;
 }
 
@@ -199,6 +229,10 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
     fprintf(stderr,"\t-i info   infile1 subtree info file\n");
     fprintf(stderr,"\t-j info   infile2 subtree info file\n");
+    fprintf(stderr,"\t-I info   infile1 backpointers file\n");
+    fprintf(stderr,"\t-J info   infile2 backpointers file\n");
+    fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-e        compute subtree info on the fly (def. do not use depth)\n");
     #endif  
     fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
