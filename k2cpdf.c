@@ -80,13 +80,6 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  #if 0
-  // write the original matrix to a text file
-  char file_ones[strlen(k2name_file) + 4];
-  strcpy(file_ones, k2name_file);
-  strcat(file_ones, ".pos");
-  mwrite_to_textfile(size, asize, &a, file_ones);
-  #endif 
 
   // show the stats of the original matrix
   size_t totnz = mshow_stats(size, asize, &a, basename(k2name_file), stdout);
@@ -160,14 +153,14 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-b      amount of nodes per block for rank 0000 (def. 64)\n");
-    fprintf(stderr,"\t-t      minimum amount of bits to remove a subtree (def. 32)\n");
+    fprintf(stderr,"\t-b      block size for rank 0000 operation (def. 64)\n");
+    fprintf(stderr,"\t-t      smallest subtree size to be removed in bits (def. 32)\n");
     fprintf(stderr,"\t-c      check number of ones in the compressed matrix\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-h      show this help message\n");    
     fprintf(stderr,"\t-v      verbose\n\n");
-    fprintf(stderr,"Compress a k2 tree explotig the rpesence of identical subtrees.\n" 
+    fprintf(stderr,"Compress a k2 tree explotig the presence of identical subtrees.\n" 
                    "Compute and store in separates files the compressed tree and\n"
-                   "its auxiliary information (pointers and rank information)\n\n");
+                   "its auxiliary information (pointers information)\n\n");
     exit(1);
 }

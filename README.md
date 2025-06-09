@@ -139,20 +139,24 @@ By default the input matrix is assumed to be of size 1+(largest index in the inp
 ## Product of matrices in k2 format
 
 The executable `k2mult.c` can be used to multiply two compressed matrices in k2 format. The matrices must have the same size and must have been compressed with the same `-m` parameter. The output is still in k2 format.
-
 ```
 Usage:
-      k2mult.x [options] infile1 infile2
+	  k2mult.x [options] infile1 infile2
 
 Options:
-    -n        do not write output file, only show stats
-    -o out    outfile name (def. infile1.prod)
-    -1        compact all 1's submatrices in the result matrix
-    -i info   infile1 subtree info file
-    -j info   infile2 subtree info file
-    -c        check multiplication (O(n^3) time and O(n^2) space!)
-    -h        show this help message
-    -v        verbose
+	-n        do not write output file, only show stats
+	-o out    outfile name (def. infile1.prod)
+	-1        compact all 1's submatrices in the result matrix
+	-i info   infile1 subtree info file
+	-j info   infile2 subtree info file
+	-I info   infile1 backpointers file
+	-J info   infile2 backpointers file
+	-t size   rank block size for k2 compression (def. 64)
+	-e        compute subtree info on the fly (def. do not use depth)
+	-q        use a single copy when squaring a matrix
+	-c        check multiplication (O(n^3) time and O(n^2) space!)
+	-h        show this help message
+	-v        verbose
 
 Multiply two compressed matrices stored in infile1 and infile2
 ```
@@ -184,66 +188,66 @@ should eventually display the matrix `t8.bbm` squared:
 
 ## Enriched format
 
-In order to speedup operations on compressed matrices in k2 format it is possible to use some extra information 
-on its largest subtrees. This information must be computed with `k2subtinfo.x`, for example:
+In order to speedup operations on compressed matrices in k2 format it is possible to use some extra information on its largest subtrees. This information must be computed with `k2subtinfo.x`, for example:
 ```bash
 k2subtinfo.x -vc m.k2 -o m.k2.info 
 ```
-computes the information for the compressed matrix `m.k2` and stores it in `m.k2.info`. By default the information is computed for the subtrees whose size is at least the square root of the size of the k2 tree representing the whole matrix. 
-Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`. Alternatively use the option `-M` set the limit of to a fraction of the square root of the number of nodes, for example for a tree with 1.000.000 nodes, using `-M 0.2` will set the limit to 200 nodes. ~~ use the option `-D d` to compute the info only for the subtree at depth up to `d`.~~ 
+computes the information for the compressed matrix `m.k2` and stores it in `m.k2.sinfo`. By default the information is computed for the subtrees whose size is at least the square root of the size of the k2 tree representing the whole matrix. 
+Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`. Alternatively use the option `-M` set the limit of to a fraction of the square root of the number of nodes, for example for a tree with 1.000.000 nodes, using `-M 0.2` will set the limit to 200 nodes. As an alternative to `-N` and `-M` one can use the option `-D d` to compute the info only for the subtree at depth up to `d`. 
 
 At the moment this additional information can be used only to speed-up matrix-matrix multiplication. For example write
 ```bash
-k2mult.x m1.k2 m2.k2 -i m1.k2.info -j m2.k2.info 
+k2mult.x m1.k2 m2.k2 -i m1.k2.sinfo -j m2.k2.sinfo 
 ```
-to compute the product `m1.k2` times `m2.k2` using the extra information `m1.k2.info` for the compressed matrix `m1.k2`
-and `m2.k2.info` for the compressed matrix `m2.k2` (the information can be used also for only one of the two input matrices).
+to compute the product `m1.k2` times `m2.k2` using the extra information `m1.k2.sinfo` for the compressed matrix `m1.k2`and `m2.k2.sinfo` for the compressed matrix `m2.k2` (the information can be used also for only one of the two input matrices). 
 
-NOTE: to see a real speed improvement at the moment it is necessary to use the release version (`make release`). 
+The option `-e` enables the "on the fly" computation of the subtree information: when the multiplication algorithm reaches a subtree for which no subtree information is available, 
+
+NOTE: to see a real speed improvement in the matrix multiplication algorithm using subtree size info at the moment it is necessary to use the release version (`make release`) since the default version still performs many redundant checks. 
+
 
 
 ## Compressed k2-tree
 
-The executable `k2cpdf.x` is used to compress k2tree representation based on subtree compression; run it without arguments to get basic usage instructions
+The executable `k2cpdf.x` is used to compress a k2tree representation using subtree compression; run it without arguments to get basic usage instructions
 ```
 Usage:
-          ./k2cpdf.x [options] infile
+	  k2cpdf.x [options] infile
 
 Options:
-        -b      amount of nodes per block for rank 0000 (def. 64)
-        -t      minimum amount of bits to remove a subtree (def. 32)
-        -c      check compression by decompressing and checking the amount of ones
+	-b      block size for rank 0000 operation (def. 64)
+	-t      smallest subtree size to be removed in bits (def. 32)
+	-c      check number of ones in the compressed matrix
 	-n      do not write the output file, only show stats
-        -h      show this help message
-        -v      verbose
+	-h      show this help message
+	-v      verbose
 
+Compress a k2 tree explotig the presence of identical subtrees.
 Compute and store in separates files the compressed tree and
-its auxiliary information of the input compressed matrix
-, based on subtree compression.
+its auxiliary information (pointers information)
 ```
 
-Invoked will generate three new files in the same directory as `infile`:
+When invoked will generate three new files in the same directory as `infile`:
 
 * `m.ck2`: contains the compressed k2-tree. You can load it using the `mload_from_file` function.
-* `m.ck2.p`: a binary file holding a `uint64_t` array. Each value is the destination of a pointer node `0000`.  
+* `m.ck2.p`: a binary file holding a `uint64_t` array. Each value is the destination of a special pointer node `0000`.  
 
-The options `-b` and `-t` can be used to change the default values of those parameters.
-
-When invoked with `-c` will check that the compressed representation can get the same amount of non-zero elements as the original k2tree representation, then decompressed it to check again the non-zero elements.
+When invoked with `-c` will check that the compressed representation contains the same amount of non-zero elements as the original k2tree representation.
 
 When invoked with `-n` will not write any file, only compress and show statistic.
 
+
 ### Enriched compressed format
 
-To use subtree information for compressed k2-tree use `k2subtinfo.x` as follows
+To compute subtree information for compressed k2-tree use `k2subtinfo.x` as follows
 ```
-k2subtinfo.x -vc -p m.ck2.p m.ck2
+k2subtinfo.x -vc m.ck2
 ```
-This command creates a file `m.ck2.sinfo` containing the subtree information, and a file `m.ck2.psinfo` containing the enriched pointers (each pointer now also contains the location of the subtree information of the destination node, if any).
+This command creates a file `m.ck2.sinfo` containing the subtree information..
 
 To compute the matrix product using the enriched compressed format:
 ```
-k2mult.x -v -i a.ck2.sinfo -I a.ck2.psinfo  -j b.ck2.sinfo -j b.ck2.psinfo  a.ck2  b.ck2
+k2mult.x -v -i a.ck2.sinfo -I a.ck2.p  -j b.ck2.sinfo -j b.ck2.p  a.ck2  b.ck2
 ```
 
 

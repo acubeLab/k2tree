@@ -232,7 +232,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-I info   infile1 backpointers file\n");
     fprintf(stderr,"\t-J info   infile2 backpointers file\n");
     fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
-    fprintf(stderr,"\t-e        compute subtree info on the fly (def. do not use depth)\n");
+    fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
     #endif  
     fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
