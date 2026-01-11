@@ -14,18 +14,18 @@
  * If the option -p is used, we assume that the nibble 0000 (POINTER)
  * marks a pointer to a subtree. The starting position of the subtree is stored
  * in the backp structure consisting of an array of uint64_t. The destination of the
- * i-th (in left to right order) pointer is stores in the lower BITSxTSIZE (40) bits
+ * i-th (in left to right order) pointer is stored in the lower BITSxTSIZE (40) bits
  * of backp->node[i]. After computing the subtree information we do a second
  * pass where we store in the remaining (24) bits the starting position of 
  * the subtree information for that subtree (if any information is available).
- * The use of backpointers require thet for each subtree the subtree information 
+ * The use of backpointers require that for each subtree the subtree information 
  * is the size of the subtree for all children (not excluding the last one)
  * The subtree info file has default extension .xsinfo
  * 
  * SIMPLEBACKPOINTERS version:
  * We do not store for the backpointers the starting position of the subtree information,
  * (since this is availble only for large repeated submatrices). As a consequence:
- *   1. we use an unint32_t for each packpointer
+ *   1. we use an unint32_t for each backpointer
  *   2. we do not store the subtree information for the last child
  * The subtree info file has default extension .sinfo
  * 
@@ -233,8 +233,8 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
-    fprintf(stderr,"\t-D D    depth limit for storing subtree information (def. do not use depth)\n");
-    fprintf(stderr,"\t-N N    #node limit for storing subtree information (def. sqrt(tot_nodes))\n");
+    fprintf(stderr,"\t-D D    depth limit for subtree information (def. ignore depth)\n");
+    fprintf(stderr,"\t-N N    node limit for subtree information (def. sqrt(tot_nodes))\n");
     fprintf(stderr,"\t-M M    multiplier for node limit (def. 1)\n");
     fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
     #ifndef SIMPLEBACKPOINTERS
