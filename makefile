@@ -7,8 +7,8 @@ CC=gcc
 EXTRA=-DSIMPLEBACKPOINTERS
 
 # main executables 
-K2EXECS=k2bbm.x k2sparse.x k2mult.x k2info.x k2pagerank.x k2bpagerank.x k2subtinfo.x k2cpdf.x
-B128EXECS=b128bbm.x b128sparse.x b128mult.x
+K2EXECS=k2bbm.x k2sparse.x k2mult.x k2showinfo.x k2pagerank.x k2bpagerank.x k2subtinfo.x k2cpdf.x
+B128EXECS=b128bbm.x b128sparse.x b128mult.x b128showinfo.x
 EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x 
 
 

@@ -224,8 +224,9 @@ its auxiliary information (pointers information)
 
 When invoked will generate three new files in the same directory as `infile`:
 
-* `m.ck2`: contains the compressed k2-tree. You can load it using the `mload_from_file` function.
-* `m.ck2.p`: a binary file holding a `uint64_t` array. Each value is the destination of a special pointer node `0000`.  
+* `infile.ck2`: file containing the compressed k2-tree: repeated subtree are  represented by the special node `0000`.
+* `infile.ck2.p`: a binary file holding a `uint64_t` array. Each value is the destination of a special pointer node `0000`.  
+
 
 When invoked with `-c` will check that the compressed representation contains the same amount of non-zero elements as the original k2tree representation.
 
@@ -272,7 +273,7 @@ The program `bbmmult.x` computes the product of two `.bbm` matrices using `openm
 ## Additional tools 
 
 
-The program `k2info.x` display statics on the k2-compressed files passed on the command line.
+The program `k2showinfo.x` display statics on the k2-compressed files passed on the command line.
 
 The script `submatrix.py` can be used to extract a square submatrix form a matrix in textual form.
 

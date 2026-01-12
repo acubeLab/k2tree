@@ -57,12 +57,12 @@ typedef struct k2mat {
   uint64_t *subtinfoarray; // subtree size encoding if present, or NULL            
   uint64_t *subtinfo;      // start of subtree information for current submatrix 
                            // only read-only (sub)matrices can have subtinfo!=subtinfoarray
-  size_t subtinfo_size;    // size (# elements) of subtinfo for current submatrix, only for debugging?
+  size_t subtinfo_size;    // size (# elements) of subtinfo for current submatrix
   // the following two fields support pointers to subtrees for compressed matrices  
   pointers_t *backp;    // pointers to repeated subtree information
   rank_0000_t *r;       // rank 0000 auxiliary structure
   // flag to denote if the matrix is read only; if true the matrix is a pointer to another matrix
-  // and usually defines a submatrix the other matrix, using offset,pos, and subtinfo 
+  // and usually defines a submatrix of the other matrix, using offset,pos, and subtinfo 
   // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are read only  
   bool read_only;   // if true write and add operations are not allowed     
 } k2mat_t;

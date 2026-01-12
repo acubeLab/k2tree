@@ -8,26 +8,33 @@
  * reach in O(1) time such information for any given subtree    
  * 
  * For the details of the encoding, see the long comment before the 
- * function k2dfs_sizes() in k2text.c 
+ * function k2dfs_sizes() in k2text.c [change this]
  * 
- * General version:
- * If the option -p is used, we assume that the nibble 0000 (POINTER)
- * marks a pointer to a subtree. The starting position of the subtree is stored
- * in the backp structure consisting of an array of uint64_t. The destination of the
- * i-th (in left to right order) pointer is stored in the lower BITSxTSIZE (40) bits
+ * General version (SIMPLEBACKPOINTERS not defined):
+ * If the option -p is used, we assume the nibble 0000 denotes a 
+ * pointer to a subtree. The destination of the pointer subtree is stored
+ * in the array of uint64_t m->backp whicvh is read from pinfile. 
+ * The destination of the i-th (in left to right order) pointer is 
+ * stored in the lower BITSxTSIZE (40) bits
  * of backp->node[i]. After computing the subtree information we do a second
  * pass where we store in the remaining (24) bits the starting position of 
  * the subtree information for that subtree (if any information is available).
- * The use of backpointers require that for each subtree the subtree information 
- * is the size of the subtree for all children (not excluding the last one)
- * The subtree info file has default extension .xsinfo
+ * The use of backpointers requires that for each subtree it is available 
+ * the size of the subtree for all children (not excluding the last one)
+ * The subtree info file created by this version has default extension .xsinfo
+ * and the backpointer info file has default extension .xpinfo (use -P to change it)
  * 
- * SIMPLEBACKPOINTERS version:
- * We do not store for the backpointers the starting position of the subtree information,
- * (since this is availble only for large repeated submatrices). As a consequence:
- *   1. we use an unint32_t for each backpointer
+ * Version with SIMPLEBACKPOINTERS defined:
+ * The nibble 0000 is not trated in any special way, hence we do not read a file of backpointers
+ * We do not store the subtree information for the destination of backpointers
+ * (since this would be availble only for large repeated submatrices). 
+ * As a consequence:
+ *   1. we use an uint32_t for each backpointer (see pointers.h)
  *   2. we do not store the subtree information for the last child
  * The subtree info file has default extension .sinfo
+ * This version uses less space, but it is less efficient since
+ * when accessing a subtree which is destination of a backpointer
+ * we do not have the subtree information.
  * 
  * Copyright August 2024-today   ---  giovanni.manzini@unipi.it
 */
@@ -52,8 +59,8 @@
 #define default_pext ".xpinfo"
 #endif
 
-#ifdef SIMPLEBACKPOINTERS
-#pragma message "Compiling with SIMPLEBACKPOINTERS: using old style subtree info and simple backpointers"
+#ifndef SIMPLEBACKPOINTERS
+#pragma message "Compiling with  FULL 64bit BACKPOINTERS and subtree information for all children"
 #endif
 
 

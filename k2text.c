@@ -44,6 +44,7 @@
 #endif
 #include <inttypes.h>
 #include "k2.h"
+#include "minimats.c"
 
 #include "libsais/include/libsais64.h"
 #include "pointers.h"
@@ -106,13 +107,10 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
 
-// ----------- static auxiliary functions ------------
 // subtree size computation and verification 
-// int32_t Depth_subtree_size_save=0;
-
 
 // The next function does a dfs visit of the k2 matrix :m and writes 
-// the subtree sizes and the econding of the sizes in the growing array z
+// the subtree sizes and the enconding of the sizes in the growing array z
 // The returned value is the total size of the k2 submatrix (in nibbles) 
 // and in the upper 24 bits the cost of subtree encoding (ie the cost
 // of encoding recursively the submatrices) 
@@ -123,21 +121,21 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 // we need to compute and return the total size of the representation ie the length of 
 // the above string (ie #R(==1) + #1 + #2 + #3)  and we need to store to z an encoding 
 // of #1 and #2 followed by the same information for the subtrees 1, 2 and 3
-// This information stored in z for T is called the subtree information for T.
+// This information stored in z is called the subtree information for T.
 // We can fill z with a DFS visit of the k2tree: when we reach a subtree T
 // above we leave two empty slots in z, call the function recursively getting 
-// #1, #2 and #3, storing #1, #2 in the empty slots and return 1 + #1 + #2 + #3
+// #1, #2 and #3, store #1, #2 in the empty slots and return 1 + #1 + #2 + #3
 // However, since z is used to skip subtree 1 and/or 2, in z together with 
 // #1 we also need to store the total information stored in z for the subtree 
 // rooted at 1, and the same for the subtree rooted at 2 (because we need
 // to be able to skip this information as well). 
 // Hence, array z will not simply contain the encoding of 
 //     <#1> <#2> info_Sub(1) info_Sub(2) info_Sub(3)
-// (where < > denotes an encoding of a size, for example 7x8), but
+// (where < > denotes an encoding of a size, for example 7x8 byte encoding), but
 //     <#1> <|info_Sub(1)|> <#2> <|info_Sub(2)|> info_Sub(1) info_Sub(2) info_Sub(3) 
 // (to complicate things info Sub(i) is different from above because 
 //  now includes the additional values <|info Sub()|> for the subtrees of i  
-// To do the computation, this function, for each subtree T, returns 2 values:
+// To do the computation for each subtree T  this function returns 2 values:
 //   1. the total length of T encoding (as before, 1+ #1 + #2 + #3)
 //      this is the amount of info that we need to skip in the k2 matrix to skip T
 //   2. the total length of the above complete encoding of T subtree information
@@ -176,17 +174,17 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 //  as the total lenght of the subtree information
 // 
 // An alternative scheme is to store the subtree info only for 
-// those subtree which are larger than a certain threshold;
-// in this case we need a strategy to recognize at run time when
+// those subtrees which are larger than a certain threshold;
+// in this case we need a strategy to recognize, when we use the matrix, if
 // the subtree info is present without additional external information.
 // The idea is the following (see k2split_k2() for an example):
 //   if m->subtinfo==NULL then there is no subtree info for the current 
 //      tree (and its subtrees!) 
-//   if m->subtinfo!=NULL then it contains the size of its subtree,
+//   if m->subtinfo!=NULL then it contains the size of its subtrees,
 //    in the above example #1 and #2, the size of the last subtree 
 //    is obtained by subtraction: #3 = #T -1 (root) - #1 -#2
 //   for each subtree (1,2,3) we need to compute Ei to see if there
-//    is subtree info stored for Ei.
+//    is subtree info stored for Ei (ie if Ei!=0)
 //    for 1 and 2 we just look at <E1>, <E2> that are saved in subtinfo
 //    while we get E3 by the formula 
 //       m->subtinfo_size = |<#1>| + |<E1>| + |<#2>| + |<E2>| + E1 + E2 + E3
@@ -199,7 +197,7 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 // Note that in this function we are not actually encoding (ie compressing) the values 
 // but only computing them (we can always encode later). Such values are stored 
 // to z using the above 40+24 scheme, the values then have to be stored (on disk)
-// using the appropriate scheme. In a first attempt we can avoid the encoding
+// using the appropriate scheme. As a first attempt we avoid the encoding
 // and just use the array z as above. In that case we can measure everything
 // in uint64's so we simply have that |<#1>| + |<E1>| = 1 (1 uint64_t)
 //
@@ -237,11 +235,13 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 // 
 #define CHECK_ESIZE_OVERFLOW 1
 // Parameters:
-//  size: k2 size of the current submatrix
+//  size: k2 size of the current submatrix (ie 2^k * MMsize)
 //  m,*pos the current submatrix starts at position *pos within *m 
 //  z: dynamic vector where the subtree information will be stored
 //  depth2go: # levels for which we store the subtree information 
 // uses the simpler .sinfo format with the last child  of each node excluded
+// This function, with a depth limit) is available only for the case in which 
+// the subtreesize info for the last child is not stored (SIMPLEBACKPOINTERS case)
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go)
 {
   assert(size>MMsize);
@@ -421,12 +421,12 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
 // the checking is done recursively, but as soon as the encoding of a subtree
 // has length 0, that subtree is explored with a fast dfs visit that only reports 
 // the subtree size.
-// in the code below we call "tree" the one we are exploring (representing :m) 
+// In the code below we call "tree" the one we are exploring (representing :m) 
 // and "subtrees" its immediate descendant
 // Recall that if the tree has 3 non empty children
 // its encoding consists of 
 //   <T1> <Sub1> <T2> <Sub2> Sub1 Sub2 Sub3 (where <x> denotes size of x) 
-// We compare <T1> and <T2> with the size returned from the subtree visit
+// We compare <T1> and <T2> with the size returned from the subtree visits
 // <T3> is not stored so it is checked at the upper level where
 // 1 + <T1> + <T2> + <T3> will be compared with the size stored for 
 // T's parent. <Sub1> and <Sub2> are tested with the amount of data
@@ -512,7 +512,7 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
   return tree_size;
 }
 #else
-// alternative version storing the info also for the last child
+// alternative version in which the subtree size is stored also for the last child
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 
                                 size_t tot_encode_size)
 {
@@ -578,8 +578,8 @@ size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z,
 }
 #endif
 
-// similar to the previous function, but instead of checking the subtree sizes
-// for each node which is destination of a backpointer, we start the position
+// similar to k2dfs_check_sizes(), but instead of checking the subtree sizes
+// for each node which is destination of a backpointer, we start???? the position
 // of each correponding subtree info together with the backpointer 
 void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z)  
 {
@@ -639,7 +639,7 @@ void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, 
 }
 
 
-
+// ----------- static auxiliary functions ------------
 
 // compress the matrix of size msize represented by the interleaved
 // array ia[0..n-1] into the k2mat_t structure *a 
@@ -1036,7 +1036,7 @@ uint64_t get_size_rec(uint8_t *tree, vu64_t *z, uint64_t t_pos, uint64_t t_size,
       return t_size - 1;
   }
 
-  // search for wich tree you are
+  // search for which tree you are
   uint64_t z_m = c_root - 1;
   uint64_t t_m = 0;
   for(uint64_t i = z_pos; i < z_pos + c_root - 1; i++) {

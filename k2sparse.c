@@ -122,7 +122,7 @@ int main (int argc, char **argv) {
   else       sprintf(oname,"%s%s",argv[1],ext); 
 
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize; // size the acutal matrix size, asize the internal size 
+  size_t size, asize; // size the actual matrix size, asize the internal size 2^k * MMsize
   if(decompress) {
     size = mload_from_file(&asize, &a, iname); // also init k2 library
     if (verbose || !write)  

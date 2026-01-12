@@ -13,6 +13,9 @@
 
    Copyright August 2023-today   ---  giovanni.manzini@unipi.it
 */
+#ifndef _K2MINIMATS_C
+#define _K2MINIMATS_C 1
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -303,3 +306,4 @@ static void quit(const char *msg, int line, char *file) {
   fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
   exit(1);
 }
+#endif
