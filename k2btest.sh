@@ -8,7 +8,7 @@ then
   echo "         $0 file1 [file2 ...]"
   echo
   echo "Compress, decompress, and check all the input files with all the"
-  echo "known variants of k2sparse (wildcards in file names are ok)"
+  echo "known variants of k2bbm (wildcards in file names are ok)"
   echo
   echo "Sample usage:"
   echo "         $0 data/*.bin"        

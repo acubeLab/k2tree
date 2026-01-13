@@ -82,13 +82,13 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   fprintf(file," #Nonzeros: %zu, Nonzero x row: %lf\n", nz, (double) nz/(double)size);
   fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu\n",
           levels,nodes,minimats, all1);
-  fprintf(file," #Sized submats: %zu,", a->subtinfo_size);
+  fprintf(file," Subtree info size (bytes): %zu,", a->subtinfo_size);
   fprintf(file," #Pointers: %zu\n", a->backp ? a->backp->size : 0);
   size_t bits_sub = sizeof(*(a->subtinfo)) * a->subtinfo_size;
   fprintf(file, " Subtree info size (bits): %zu\n", bits_sub);
   size_t bits_p = pointers_size_in_bits(a->backp);
   size_t bits_r = rank_size_in_bits(a->r);
-  fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits): %zu\n", bits_p, bits_r);
+  fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits, not stored): %zu\n", bits_p, bits_r);
   // each pos takes 4 bits, so tree size in bytes is (pos+1)/2         
   fprintf(file," Tree size: %zu bytes, %zu bits, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4*pos, 4.0*(double)(pos)/(double) nz);
@@ -268,11 +268,11 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
 // main entry point for matrix addition
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
-// :a and :b must be of (same) size at least 2*MMsize but their content can be 
+// :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
-//    if the result is a zero matrix c is left empty
-//    if the result is an all one's matrix c contains a single ALL_ONES node
+//    if the result is a zero matrix, c is left empty
+//    if the result is an all one's matrix, c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
 // Note: this function is called by matrix product, to sum partial products 
 // so the operands are never compressed  
@@ -420,14 +420,14 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   // the product of two all 1's is all 1's, but  now ALL_NODES could be a pointer 
+  // TODO: introduce flag all_ones_submats 
   if( (roota==ALL_ONES && a->backp==NULL) &&  (rootb==ALL_ONES && b->backp==NULL) ) {
     if(!Use_all_ones_node) 
       quit("Problem here: both matrices are ALL_ONES but Use_all_ones_node is false", __LINE__,__FILE__);
     k2add_node(c,ALL_ONES); // in the output matrix there are no pointers, so we can write ALL_ONES
-  }
-  // further all 1s matrix optimization to be written
+  }  
   /*
-  else if(roota==ALL_ONES) {
+  else if(roota==ALL_ONES) { // further all 1s matrix optimization to be written
     left1_mmult(size,b,c);
   }
   else if(rootb==ALL_ONES) {
@@ -442,15 +442,14 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
         vu64_init(&za);
         size_t p = k2dfs_sizes(size, a, &posa, &za,99999); // compute subtree sizes up to the last level
         assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
-        a->subtinfo = za.v; a->subtinfo_size = za.n; // now z contains the subtree sizes, save in a->subtinfo
+        a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
         subinfo_added_a = true; (void) p; // subtree info added
       }
       if(b->subtinfo==NULL) {
         vu64_init(&zb);
         size_t p = k2dfs_sizes(size, b, &posb, &zb,99999); // compute subtree sizes up to the last level
         assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
-        // now z contains the subtree sizes, save info in a->subtinfo
-        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now z contains the subtree sizes, save in b->subtinfo
+        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now zb contains the subtree sizes, save in b->subtinfo
         subinfo_added_b = true; (void) p; // subtree info added
       }
     }

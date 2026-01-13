@@ -1,5 +1,5 @@
 /* Routines for converting boolean matrices in text form
-   to/from compressed k^2 tree representation 
+   (ie one entry per line) to/from compressed k^2 tree representation 
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0

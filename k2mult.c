@@ -26,10 +26,10 @@
  bool Extended_edf;      // not used: added for compatibility with k2mat
 #else // k2mat
  #include "k2.h"
- extern bool Use_all_ones_node; // use the special ALL_ONES node?
+ extern bool Use_all_ones_node; // use the special ALL_ONES node in the result
  extern bool Extended_edf;      // compute subtree info on the fly 
 #endif
-// used by both matrix type
+// used by both matrix types
 #include "bbm.h"
 #define default_ext ".prod"
 

@@ -2,7 +2,7 @@
 
 # test matrix multiplication speed squaring each input matrix
 
-if [ $# -le 2 ]
+if [ $# -lt 1 ]
 then
   echo "Usage:"
   echo "         $0 file1 [file2 ...]"
@@ -19,5 +19,5 @@ fi
 for f in "$@"
 do 
   echo ">>>>>>>> Squaring $f"
-  /usr/bin/time -f"Command: %C\nE(secs):%e Mem(kb):%M" k2mult.x $f $f
+  /usr/bin/time -f"Command: %C\nE(secs):%e Mem(kb):%M" k2mult.x -c $f $f
 done

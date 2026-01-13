@@ -13,8 +13,8 @@
  * General version (SIMPLEBACKPOINTERS not defined):
  * If the option -p is used, we assume the nibble 0000 denotes a 
  * pointer to a subtree. The destination of the pointer subtree is stored
- * in the array of uint64_t m->backp whicvh is read from pinfile. 
- * The destination of the i-th (in left to right order) pointer is 
+ * in the array of uint64_t m->backp which is read from pinfile. 
+ * The destination of the i-th (in lef-to-right order) pointer is 
  * stored in the lower BITSxTSIZE (40) bits
  * of backp->node[i]. After computing the subtree information we do a second
  * pass where we store in the remaining (24) bits the starting position of 
@@ -25,9 +25,9 @@
  * and the backpointer info file has default extension .xpinfo (use -P to change it)
  * 
  * Version with SIMPLEBACKPOINTERS defined:
- * The nibble 0000 is not trated in any special way, hence we do not read a file of backpointers
+ * The nibble 0000 is not treated in any special way, so we do not read backpointers
  * We do not store the subtree information for the destination of backpointers
- * (since this would be availble only for large repeated submatrices). 
+ * (the rationale is that this would be availble only for large repeated submatrices). 
  * As a consequence:
  *   1. we use an uint32_t for each backpointer (see pointers.h)
  *   2. we do not store the subtree information for the last child
@@ -60,7 +60,7 @@
 #endif
 
 #ifndef SIMPLEBACKPOINTERS
-#pragma message "Compiling with  FULL 64bit BACKPOINTERS and subtree information for all children"
+#pragma message "Compiling with FULL 64bit BACKPOINTERS and subtree information for all children"
 #endif
 
 
@@ -151,7 +151,7 @@ int main (int argc, char **argv) {
   size = mload_from_file(&asize, &a, iname); // also init k2 library
   // show information acquired so far from the input files 
   if (verbose) {
-    fprintf(stdout,"Caution: the following information is incorrect if the input matrix is in compressed ck2 format\n"); 
+    fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
     mshow_stats(size, asize,&a,iname,stdout);
   }
 
@@ -239,12 +239,14 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
+    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
     fprintf(stderr,"\t-n      do not write the output file(s), only show stats and check\n");
     fprintf(stderr,"\t-D D    depth limit for subtree information (def. ignore depth)\n");
     fprintf(stderr,"\t-N N    node limit for subtree information (def. sqrt(tot_nodes))\n");
     fprintf(stderr,"\t-M M    multiplier for node limit (def. 1)\n");
-    fprintf(stderr,"\t-o out  outfile name (def. infile%s)\n", default_ext);
-    #ifndef SIMPLEBACKPOINTERS
+    #ifdef SIMPLEBACKPOINTERS
+    fprintf(stderr,"\t-D D    depth limit for subtree information (def. ignore depth)\n");
+    #else
     fprintf(stderr,"\t-p pin  file containing backpointer information\n");
     fprintf(stderr,"\t-P pout outfile for backpointer-subtree information (def. infile%s)\n", default_pext);
     #endif
@@ -253,7 +255,11 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-v      verbose\n\n");
     fprintf(stderr,"Compute and store in a separate file the information about the size\n"
                    "of the largest subtrees of the input matrix.\n"
+                   #ifdef SIMPLEBACKPOINTERS
+                    "This version uses simple backpointers (no subtree info for backpointer destinations).\n\n");
+                   #else
                    "If -p option is used backpointers are enriched with subtree information.\n\n");
+                   #endif
     exit(1);
 }
 

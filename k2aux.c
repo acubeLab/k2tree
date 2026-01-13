@@ -382,18 +382,19 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
   k2make_pointer(a, &tmp); // make tmp a shallow copy of a
   tmp.offset = nodep; // set pos to the node where the subtree starts
-  tmp.subtinfo = subtp==0? NULL : a->subtinfoarray + subtp; // set subtree info if available
+  tmp.subtinfo = (subtp==0) ? NULL : a->subtinfoarray + subtp; // set subtree info if available
   tmp.subtinfo_size = 0; tmp.pos = tmp.lenb; // for debug purposes, not used since tmp will be discarded 
+  // TODO: can we go back to k2split_k2 here? for SIMPLEBACKPOINTERS probably yes
   // do the actual splitting
   size_t pos = 0;
   root = k2read_node(&tmp,pos); pos++;
   assert(root!=POINTER);      // the destination of a pointer cannot be a pointer
-  if(tmp.subtinfo==NULL) {    // no subtinfo information available, just visit the submatrices
+  if(tmp.subtinfo==NULL) {    // no subtinfo information available, visit the submatrices to do the splitting
     size_t next=pos; //now pos==1 since we already read the root
     for(int k=0;k<4;k++) {
       int i=k/2; int j=k%2;
       if(root & (1<<k)) { // k-th child is non empty
-        k2dfs_visit_fast(size/2,&tmp,&next);          // move to end of submatrix
+        k2dfs_visit_fast(size/2,&tmp,&next);       // move to end of submatrix
         k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                                // advance to next submatrix
         // by construction in b[i][j] subtinfo is NULL and subtinfo_size is 0  
@@ -401,7 +402,7 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   } 
-  else {
+  else { // recover subtree info for the destination node, and use it to do the splitting
     #ifdef SIMPLEBACKPOINTERS
     quit("Illegal operation: k2jumpsplit_k2 with simple backpointers",__LINE__,__FILE__);
     #endif

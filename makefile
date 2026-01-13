@@ -1,5 +1,5 @@
 # compilation flags
-CFLAGS=-O1 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined
+CFLAGS=-O2 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined
 LDFLAGS=-fsanitize=undefined
 CC=gcc
 
@@ -82,7 +82,7 @@ matrixcmp.x: matrixcmp.c
 # compile a release version with -O3 optimization and possibly no assertions
 # and debugging info (add -DNDEBUG to CFLAGS	and remove -g) 
 # these options also significantly reduce executable sizes
-release: CFLAGS = -O3 -Wall -std=c11 -g -DNDEBUG
+release: CFLAGS = -O3 -Wall -std=c11 -DNDEBUG
 release: clean
 release: $(EXECS)  
 

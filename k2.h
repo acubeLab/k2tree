@@ -50,7 +50,7 @@ typedef struct k2mat {
   uint8_t *b;
   size_t lenb;  // number of nodes that can be written in b without reallocating
   // the following two fields are be used to access a submatrix: b[offset,pos-1]
-  size_t pos;   // position where next node is written/ position+1 last node 
+  size_t pos;   // position where next node is written/ position of last node +1
   size_t offset;// initial nodes in b to be skipped (they are not from this matrix)
                 // only read only (sub)matrices can have a positive offset
   // the following three fields are used for the subtree size information  
