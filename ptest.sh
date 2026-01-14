@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+% exit immediately on error
+set -e
+
 if [ $# -lt 2 ]
 then
   echo "Usage:"
