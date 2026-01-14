@@ -1,7 +1,7 @@
 /* Compression and decompression of boolean matrices using k2 trees
 
-   k2showinfo: provide info on the ecoding of one or more 
-           k2-compressed matrices calling mshow_info on each of them  
+   k2showinfo: provide info on the encoding of one 
+           k2-compressed matrix calling mshow_info 
 
    For details of the k2 format see how the encoding is done in 
      mread_from textfile in  k2text.c (input is list of nonzero entries)
@@ -45,14 +45,26 @@ static void usage_and_exit(char *name);
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
+  #ifndef B128MAT
+  char *infofile1=NULL, *backpfile1=NULL; // file subtree info and backpointers
+  uint32_t rank_block_size = 64; // block size for rank DS  
+  #endif
   int c;
   time_t start_wc = time(NULL);
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
-  while ((c=getopt(argc, argv, "h")) != -1) {
+  while ((c=getopt(argc, argv, "hi:I:t:")) != -1) {
     switch (c) 
       {
+      #ifndef B128MAT  
+      case 'I':
+        backpfile1 = optarg; break;                 
+      case 'i':
+        infofile1 = optarg; break;                 
+      case 't':
+        rank_block_size = atoi(optarg); break; // block size of rank structure
+      #endif
       case 'h':
         usage_and_exit(argv[0]); break;        
       case '?':
@@ -63,19 +75,27 @@ int main (int argc, char **argv) {
 
   // virtually get rid of options from the command line 
   optind -=1;
-  if (argc-optind < 2) usage_and_exit(argv[0]); 
+  if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize, totnz=0;
-  for(int i=1;i<argc;i++) {
-    printf("Matrix file: %s\n",argv[i]);
-    size = mload_from_file(&asize, &a, argv[i]); // also init k2 library
-    totnz += mshow_stats(size, asize,&a,basename(argv[i]),stdout);
-    puts("");
-    matrix_free(&a);
-    minimat_reset();
-  }
+  printf("Matrix file: %s\n",argv[1]);
+  size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
+  #ifndef B128MAT
+  if(infofile1) k2add_subtinfo(&a,infofile1);
+  // possibly load backpointers info
+  if(backpfile1) {
+    a.backp = pointers_load_from_file(backpfile1);
+    if(a.backp==NULL) { perror("Error loading backpointers"); exit(1); }
+    assert(rank_block_size>0 && rank_block_size%4==0);  
+    rank_init(&(a.r),rank_block_size,&a);
+  } 
+  #endif
+  totnz += mshow_stats(size, asize,&a,basename(argv[1]),stdout);
+  puts("");
+  matrix_free(&a);
+  minimat_reset();
 
   // statistics
   fprintf(stderr,"Total nonzeros: %zu\n",totnz);
@@ -87,9 +107,14 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] file1 [file2 ...]\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] file1\n\n",name);
     fputs("Options:\n",stderr);
+    #ifndef B128MAT
+    fprintf(stderr,"\t-i info   subtree info file\n");
+    fprintf(stderr,"\t-I info   backpointers file\n");
+    fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
+    #endif
     fprintf(stderr,"\t-h      show this help message\n");    
-    fprintf(stderr,"Get info on the k2-compressed matrices file1 file2 ...\n\n");
+    fprintf(stderr,"Get info on the k2-compressed matrix file1\n\n");
     exit(1);
 }

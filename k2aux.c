@@ -16,12 +16,9 @@
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#include "k2.h"
 #endif
-#include "minimats.c" // includes k2.h bbm.h
+#include "minimats.c" // includes k2.h bbm.h pointers.h
 
-#include "pointers.h"
-#include "rank_0000.h"
 
 // ------------------------------------------------------------------- 
 // elementary operations on k2mat structures, operating on single fields

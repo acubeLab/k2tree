@@ -10,16 +10,16 @@
  * For the details of the encoding, see the long comment before the 
  * function k2dfs_sizes() in k2text.c [change this]
  * 
- * General version (SIMPLEBACKPOINTERS not defined):
+ * Extended version (SIMPLEBACKPOINTERS not defined, currently not used):
  * If the option -p is used, we assume the nibble 0000 denotes a 
  * pointer to a subtree. The destination of the pointer subtree is stored
  * in the array of uint64_t m->backp which is read from pinfile. 
- * The destination of the i-th (in lef-to-right order) pointer is 
+ * The destination of the i-th (in left-to-right order) pointer is 
  * stored in the lower BITSxTSIZE (40) bits
  * of backp->node[i]. After computing the subtree information we do a second
  * pass where we store in the remaining (24) bits the starting position of 
  * the subtree information for that subtree (if any information is available).
- * The use of backpointers requires that for each subtree it is available 
+ * This use of backpointers requires that for each subtree it is available 
  * the size of the subtree for all children (not excluding the last one)
  * The subtree info file created by this version has default extension .xsinfo
  * and the backpointer info file has default extension .xpinfo (use -P to change it)
@@ -145,7 +145,7 @@ int main (int argc, char **argv) {
   if(poutfile!=NULL) sprintf(poname,"%s",poutfile);
   else sprintf(poname,"%s%s",argv[1],default_pext);
  
-  // read input matrix (could be compressed. we cannot know...)
+  // read input matrix (could be subtree compressed, we cannot know...)
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
   size = mload_from_file(&asize, &a, iname); // also init k2 library
@@ -162,7 +162,7 @@ int main (int argc, char **argv) {
   size_t pos=0;
   // check if the limit is on the subtree depth or node count
   if(depth_subtree > 0) {
-    printf("Computing subtree sizes up to level: %d\n", depth_subtree);
+    if(verbose) printf("Computing subtree sizes up to level: %d\n", depth_subtree);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
   }
@@ -170,13 +170,13 @@ int main (int argc, char **argv) {
     if(node_limit==0) node_limit = intsqrt(a.pos);
     node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
     if(node_limit < 17) node_limit = 17; // minimum node limit (ensure at least 2 levels)
-    printf("Computing subtree sizes for trees larger than %zu nodes\n", node_limit);
+    if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);
   }
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
-  printf("Subtree info takes: %zu bytes\n", z.n*sizeof(z.v[0]));
+  if(verbose) printf("Subtree info takes: %zu bytes\n", z.n*sizeof(z.v[0]));
 
   if(check || !write) { // if not writing force check of subtree information
     size_t znsave = z.n;
@@ -195,9 +195,12 @@ int main (int argc, char **argv) {
   }
 
 
+  #ifndef SIMPLEBACKPOINTERS
   // enrich backpointers if option -P was used to provide them 
-  // this implies that the matrix was compressed with pointers
-  // note rank information is not needed since we do not follow pointers
+  // this implies that the matrix was compressed with 64-bit pointers
+  // and we add in the high 24 bits the starting position of the subtree info
+  // see the comment "Extended version" at the beginning of this file
+  // Note rank information is not needed since we do not follow pointers
   if(pinfile!=NULL) {
     a.backp = pointers_load_from_file(pinfile);
     if(a.backp==NULL) quit("Error loading pointer information",__LINE__,__FILE__);
@@ -211,6 +214,7 @@ int main (int argc, char **argv) {
     assert(pos==a.pos);      // check visit was complete
     assert(z.n==znsave);     // check that we have scanned z
   }
+  #endif
 
   // if -n was not used save the computed structures 
   if(write) {

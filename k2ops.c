@@ -70,6 +70,13 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
   return -eq;
 }
 
+// return number of nonzero elements in matrix a
+size_t mget_nonzeros(size_t asize, const k2mat_t *a) {
+  size_t pos, nodes, minimats, nz, all1;
+  mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
+  return nz;
+}
+
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 // :size is the acutal; matrix size (not power of 2), :asize is the internal size
 // return number of nonzeros in the matrix
@@ -83,12 +90,12 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
   fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu\n",
           levels,nodes,minimats, all1);
   fprintf(file," Subtree info size (bytes): %zu,", a->subtinfo_size);
-  fprintf(file," #Pointers: %zu\n", a->backp ? a->backp->size : 0);
   size_t bits_sub = sizeof(*(a->subtinfo)) * a->subtinfo_size;
   fprintf(file, " Subtree info size (bits): %zu\n", bits_sub);
+  fprintf(file," #Subtree pointers: %zu\n", a->backp ? a->backp->size : 0);
   size_t bits_p = pointers_size_in_bits(a->backp);
   size_t bits_r = rank_size_in_bits(a->r);
-  fprintf(file, " Subtree pointers (bits): %zu, Rank DS (bits, not stored): %zu\n", bits_p, bits_r);
+  fprintf(file, " Pointers size (bits): %zu, Rank DS (bits, not stored): %zu\n", bits_p, bits_r);
   // each pos takes 4 bits, so tree size in bytes is (pos+1)/2         
   fprintf(file," Tree size: %zu bytes, %zu bits, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4*pos, 4.0*(double)(pos)/(double) nz);
@@ -844,7 +851,7 @@ static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
 
 
 // recursively decode a k2 submatrix into a list of nonzero entries
-// and use each generate entry to update the matrix vector product
+// and use each generated entry to update the matrix vector product
 // Parameters:
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure

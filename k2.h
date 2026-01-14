@@ -104,6 +104,8 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename);
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a);
+// return number of nonzeros in the matrix
+size_t mget_nonzeros(size_t asize, const k2mat_t *a);
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 // return number of nonzeros in the matrix
 size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file);

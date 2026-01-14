@@ -80,15 +80,20 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-
-  // show the stats of the original matrix
-  size_t totnz = mshow_stats(size, asize, &a, basename(k2name_file), stdout);
+  // compute number of nonzeros, if verbose show the stats of the original matrix
+  size_t totnz = 0;
+  if(verbose) {
+    printf("Original matrix stats:\n");
+    totnz = mshow_stats(size, asize, &a, basename(k2name_file), stdout);
+  }
+  else totnz = mget_nonzeros(asize, &a);
 
   // execute subtree compression
   k2mat_t ca = K2MAT_INITIALIZER;
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
-  //!!! fix this
+  //!!! TODO: fix this, not nice 
+  // replace last two chars of input file name (likely k2) with ck2
   char file_ck2[strlen(k2name_file) + 5];
   strcpy(file_ck2, k2name_file);
   file_ck2[strlen(k2name_file) - 2] = 'c';
@@ -109,13 +114,7 @@ int main(int argc, char* argv[]) {
     #endif
     pointers_write_to_file(ca.backp, file_p);
 
-    #if 0
-    // the rank 0000 auxiliary structure is recomputed from scratch after reading the amtrix   
-    char file_r[strlen(file_ck2) + 4];
-    strcpy(file_r, file_ck2);
-    strcat(file_p, ".r");
-    rank_write_to_file(ca.r, file_p);
-    #endif 
+    // NOTE: the rank000 data structure is not stored but recomputed from scratch
   }
   if(check || verbose || !write) {
     size_t totnz_ca = 0;

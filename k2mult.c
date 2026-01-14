@@ -48,7 +48,7 @@ int main (int argc, char **argv) {
   #ifndef B128MAT
   char *infofile1=NULL, *infofile2=NULL;
   char *backpfile1=NULL, *backpfile2=NULL; // file with backpointers
-  uint32_t rank_block_size = 64; // block rank for k2 compression  
+  uint32_t rank_block_size = 64; // block size for rank DS  
   #endif
   time_t start_wc = time(NULL);
 

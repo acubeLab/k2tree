@@ -1,4 +1,4 @@
-/* Routines for converting boolean matrices in text form
+/* Routines for converting boolean matrices in sparse text form
    (ie one entry per line) to/from compressed k^2 tree representation 
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
