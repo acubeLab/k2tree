@@ -20,10 +20,10 @@ jobs:
         persist-credentials: true
         fetch-depth: 0
 
-    # - name: Defensive sync
-    #   run: |
-    #     git submodule sync --recursive
-    #     git submodule update --init --recursive --depth=1     
+    - name: Defensive sync
+      run: |
+        git submodule sync --recursive
+        git submodule update --init --recursive --depth=1     
 
     - name: run
       run: ./ptest.sh web cnr80k
