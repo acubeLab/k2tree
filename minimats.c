@@ -46,7 +46,7 @@ static uint32_t Minimat_node_ratio = 0;  // certainly incorrect value
 // ALL_ONES node to denote a submatrix of all 1's.
 bool Use_all_ones_node = true;
 
-// minimat constants (depend on size, these are of for 2x2 and 4x4)
+// minimat constants (depend on size, these are for 2x2 and 4x4)
 static minimat_t MINIMAT0s=0;  // minimat containing all 0's, correctly initialized 
 static minimat_t MINIMAT1s=0;  // minimat containing all 1's, initialized in minimats_init  
 

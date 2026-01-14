@@ -43,8 +43,7 @@
 #define _GNU_SOURCE
 #endif
 #include <inttypes.h>
-#include "k2.h"
-#include "minimats.c"
+#include "minimats.c" // includes k2.h bbm.h
 
 #include "libsais/include/libsais64.h"
 #include "pointers.h"

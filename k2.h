@@ -95,7 +95,7 @@ void minimat_reset();
 void k2add_subtinfo(k2mat_t *a, const char *infofile);
 size_t k2treesize(const k2mat_t *m);
 
-// from k2ops.c
+// from k2io.c
 // save a k2-matrix to file
 void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
@@ -109,6 +109,12 @@ size_t mget_nonzeros(size_t asize, const k2mat_t *a);
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 // return number of nonzeros in the matrix
 size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file);
+// free a k2 matrix
+void matrix_free(k2mat_t *m);
+// make a read-only copy of a k2 matrix without allocating new memory
+void mmake_pointer(const k2mat_t *a, k2mat_t *c);
+
+// from k2ops.c
 // check if two k2 compressed matrices :a and :b are equal
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
@@ -124,10 +130,6 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c);
 // :size is the internal size of the k2 matrices (not the size of the vector 
 // which can be smaller and in that case :a is padded with zeros)
 void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y, bool clear_y);
-// free a k2 matrix
-void matrix_free(k2mat_t *m);
-// make a read-only copy of a k2 matrix without allocating new memory
-void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 
 // from k2text.c
 void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);

@@ -47,7 +47,7 @@ void k2setpos(k2mat_t *m, size_t p)
   m->pos = p;
 }
 
-// check if a matrix is empty
+// check if a matrix is empty (should it be m->pos == m->offset ?)
 bool k2is_empty(const k2mat_t *m)
 {
   return m->pos == 0;
@@ -103,7 +103,7 @@ size_t k2add_node(k2mat_t *m, node_t n)
 {
   assert(!m->read_only);
   assert(n<ILLEGAL_NODE);
-  assert(m->lenb%16==0);            // #positions must be ==0(16) so tha conversion to uint64 is safe  
+  assert(m->lenb%16==0);            // #positions must be ==0(16) so that conversion to uint64 is safe  
   // make sure there is space
   if(m->pos >= m->lenb) {
     assert(m->pos ==m->lenb);
