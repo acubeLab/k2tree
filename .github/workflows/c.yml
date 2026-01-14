@@ -23,8 +23,12 @@ jobs:
     - name: Defensive sync
       run: |
         git submodule sync --recursive
-        git submodule update --init --recursive --depth=1     
+        git submodule update --init --recursive
 
+    - name: Compile libsais
+      run:
+        cd libsais; cmake .; make; cd ..  
+        
     - name: run
       run: ./ptest.sh web cnr80k
     # - name: configure
