@@ -24,6 +24,7 @@ jobs:
       run: |
         git submodule sync --recursive
         git submodule update --init --recursive
+        git submodule status
 
     - name: Compile libsais
       run:
