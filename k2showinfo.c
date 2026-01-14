@@ -40,7 +40,6 @@ typedef b128mat_t k2mat_t;
 static void usage_and_exit(char *name);
 // static void quit(const char *msg, int line, char *file);
 
-// TODO: add the possibilty of loading subtree sizes and backpointers files for k2 matrices
 
 int main (int argc, char **argv) { 
   extern char *optarg;

@@ -130,7 +130,7 @@ int main (int argc, char **argv) {
 
   // statistics
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  if(verbose) fprintf(stderr,"==== Done\n");
   
   return EXIT_SUCCESS;
 }

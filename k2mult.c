@@ -116,10 +116,13 @@ int main (int argc, char **argv) {
     fprintf(stderr,"Options -q and -j/-J are incompatible (second matrix uses the same info as first)\n");
     exit(3);
   }
+  #ifndef SIMPLEBACKPOINTERS
+  // Apparently when usin ssinglebackpointers, -e works fine
   if(Extended_edf && (backpfile1!=NULL || backpfile2!=NULL)) {
     fprintf(stderr,"Option -e is incompatible with options -I/-J\n");
     exit(4);
   }
+  #endif
   #endif
   
   // create file names
@@ -213,8 +216,8 @@ int main (int argc, char **argv) {
   matrix_free(&ab);    
   minimat_reset(); // reset the minimat library and free minimat product table
   // report running time
-  fprintf(stdout,"Elapsed time: %.8lf secs\n", ((double) (time(NULL)-start_wc)));
-  fprintf(stdout,"==== Done\n");
+  fprintf(stderr,"Elapsed time: %.8lf secs\n", ((double) (time(NULL)-start_wc)));
+  if(verbose) fprintf(stderr,"==== Done\n");
   return EXIT_SUCCESS;
 }
 

@@ -142,7 +142,7 @@ int main (int argc, char **argv) {
       matrix_free(&a);
       // statistics (we are not returning from execlp)
       fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-      fprintf(stderr,"==== Done\n");
+      if(verbose) fprintf(stderr,"==== Done\n");
       puts("==== Checking compression by calling " matrix_checker);
       char *tmp = strdup(argv[0]);
       char *exedir = dirname(tmp);
@@ -158,7 +158,7 @@ int main (int argc, char **argv) {
 
   // statistics
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  if(verbose) fprintf(stderr,"==== Done\n");
     
   return EXIT_SUCCESS;
 }

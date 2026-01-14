@@ -460,8 +460,10 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // if root is all 1's create 4 all 1's submatrices and stop
   // this will disappear if we optimize all operations for all 1's submatrices
   if(root==ALL_ONES) {
-    assert(a->backp==NULL); // compressed matrices cannot have ALL_ONES submatrices 
+    assert(a->backp==NULL); // backp compressed matrices cannot have ALL_ONES submatrices 
     // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
+    // even if a had subtree information, with cloning the info is lost 
+    // not a problem because there are no actual subtrees. 
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
       k2clone(a, pos-1, pos, &b[i][j]); 
     return;    
@@ -471,7 +473,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // if subtree info is available use it to partition
   // more efficiently and pass the info at the lower levels
   // array of subtree sizes and subtree info
-  size_t subt_size[4] = {0,0,0,0};  
+  size_t subt_size[4] = {0,0,0,0};
   uint64_t *subt_info[4] = {NULL,NULL,NULL,NULL}; 
   size_t subt_info_size[4] = {0,0,0,0};  
   // get number of children

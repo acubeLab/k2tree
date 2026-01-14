@@ -239,8 +239,9 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 //  z: dynamic vector where the subtree information will be stored
 //  depth2go: # levels for which we store the subtree information 
 // uses the simpler .sinfo format with the last child  of each node excluded
-// This function, with a depth limit) is available only for the case in which 
+// This function (with a depth limit) can be used only for the case in which 
 // the subtreesize info for the last child is not stored (SIMPLEBACKPOINTERS case)
+#ifdef SIMPLEBACKPOINTERS
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go)
 {
   assert(size>MMsize);
@@ -299,6 +300,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
   } 
   return subtree_size;
 }
+#endif
 
 // compute subtree information as above, but information is stored only 
 // for large trees, ie when the number of nodes is larger than :limit

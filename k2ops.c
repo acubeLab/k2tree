@@ -1,5 +1,5 @@
-/* Routines for arithmetic/logical operations on binary matrices 
-   represented as k^2 trees 
+/* Routines for arithmetic operations on binary matrices represented as k^2 trees 
+   operations are defined with the or/and operators playing the role of sum/product
 
    This file contains the definitions of the complex operations that make 
    use of the basic operations defined in k2aux.c
@@ -18,10 +18,45 @@
 #include "k2text.c"   // functions for input/output of k2 matrices from sparse text files  
 #include "k2io.c"     // input/output of of k2 files in compressed format
 
+/* The operations defined in this file are:
+  
+    mequals: check if two k2 matrices are equal
+    msum: sum of two k2 matrices
+    mmult: multiplication of two k2 matrices
+    mvmult: multiplication of a k2 matrix by a vector
+  
+    All operations assume that the input matrices are of size at least
+    2*MMsize (minimatrix size), ie, the size of the last level of recursion.
+  
+    The operations are defined recursively, splitting the input matrices
+    into four quadrants at each level, until reaching the minimat level.
+    The basic operations on nodes and minimats are defined in k2aux.c 
+    and minimats.c respectively.
+  
+    The zero matrix is represented by an empty tree (k2is_empty) 
+
+    The results are always in pdf (plain depth first) format, ie, no subtree
+    size information is computed: if necessary it can be added with k2dfs_sizes()
+    Backpointers also are not computed, but they cannot be easily added.
+    
+    If the flag Use_all_ones is set, then all ones submatrix compression
+    is used in the output matrix. 
+
+
+    Proposal: add a use_backp flag if it is not set, then 0000 is an all 1s submatrix
+    Proposal: add a transpose flag and a main_diag flag.
+
+
+*/
+
+
+
+
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
 static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y);
 // global variable to force computation of subtree info on the fly
+// chenge this to a per-matrix property
 bool Extended_edf = false; // compute subtree info on the fly
 
 
@@ -348,17 +383,18 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   // the product of two all 1's is all 1's, but  now ALL_NODES could be a pointer 
-  // TODO: introduce flag all_ones_submats 
+  // TODO: introduce flag for matrix using ALL_ONES
   if( (roota==ALL_ONES && a->backp==NULL) &&  (rootb==ALL_ONES && b->backp==NULL) ) {
-    if(!Use_all_ones_node) 
+    if(!Use_all_ones_node) //TODO: add the creation of a submatrix full of ones
       quit("Problem here: both matrices are ALL_ONES but Use_all_ones_node is false", __LINE__,__FILE__);
+    assert(c->backp==NULL); // results matrices cannot have backpointers, so we can use ALL_ONES 
     k2add_node(c,ALL_ONES); // in the output matrix there are no pointers, so we can write ALL_ONES
   }  
   /*
-  else if(roota==ALL_ONES) { // further all 1s matrix optimization to be written
+  else if(roota==ALL_ONES && a->backp==NULL) { // further all 1s matrix optimization to be written
     left1_mmult(size,b,c);
   }
-  else if(rootb==ALL_ONES) {
+  else if(rootb==ALL_ONES && b->backp==NULL) {
     right1_mmult(size,a,c);
   }*/
   //#define EEPDF 0 // experimental, on the fly computation of subtree sizes
@@ -368,14 +404,14 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
       size_t posa=0, posb=0;
       if(a->subtinfo==NULL) {
         vu64_init(&za);
-        size_t p = k2dfs_sizes(size, a, &posa, &za,99999); // compute subtree sizes up to the last level
+        size_t p = k2dfs_sizes(size, a, &posa, &za,INT32_MAX); // compute subtree sizes up to the last level
         assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
         a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
         subinfo_added_a = true; (void) p; // subtree info added
       }
       if(b->subtinfo==NULL) {
         vu64_init(&zb);
-        size_t p = k2dfs_sizes(size, b, &posb, &zb,99999); // compute subtree sizes up to the last level
+        size_t p = k2dfs_sizes(size, b, &posb, &zb,INT32_MAX); // compute subtree sizes up to the last level
         assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
         b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now zb contains the subtree sizes, save in b->subtinfo
         subinfo_added_b = true; (void) p; // subtree info added

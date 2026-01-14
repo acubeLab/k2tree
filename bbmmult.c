@@ -121,7 +121,7 @@ int main (int argc, char **argv) {
   free(ab);    
   // report running time
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
-  fprintf(stderr,"==== Done\n");
+  if(verbose) fprintf(stderr,"==== Done\n");
   return EXIT_SUCCESS;
 }
 
