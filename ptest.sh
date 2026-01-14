@@ -20,8 +20,6 @@ shift 1
 echo "Experiment run by $(whoami) at $(date) on $(hostname)"
 
 # compile if necessary 
-git submodule update --init --recursive
-cd libsais; cmake .; make; cd ..
 make
 
 # compute sa
