@@ -117,7 +117,7 @@ int main (int argc, char **argv) {
     exit(3);
   }
   #ifndef SIMPLEBACKPOINTERS
-  // Apparently when usin ssinglebackpointers, -e works fine
+  // When using singlebackpointers, -e works fine
   if(Extended_edf && (backpfile1!=NULL || backpfile2!=NULL)) {
     fprintf(stderr,"Option -e is incompatible with options -I/-J\n");
     exit(4);

@@ -127,20 +127,28 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
   return eq;
 }
 
-// copy matrix a: to b: used instead of sum when one of the matrices is all 0s
-//??? Instead of using recursion, can we just copy the content of a (from offset to pos) to b?
-static void mcopy(size_t size, const k2mat_t *a, k2mat_t *b)
+// full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
+//??? TODO: Instead of using recursion, can we just copy the content of a (from offset to pos) to b?
+static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a));
   assert(!b->read_only);
   assert(!a->read_only);
-  size_t pos = 0;
-  k2copy_rec(size,a,&pos,b);
+  // new version in which the complete content of a from a->offset to a->pos is copied to b
+  // ok since the size of the minimats is an integral multiple of the size of a node  
+  for(size_t pos=a->offset;pos < a->pos; pos++) {
+    node_t n = k2read_node(a,pos);
+    k2add_node(b,n);
+  }
+  // old version based on recursion
+  //size_t pos = 0;
+  // k2copy_rec(size,a,&pos,b);
  }
 
-// recursive sum of two k2 (sub)matrices 
+// recursive sum of two k2 (sub)matrices
+// assume plain matrices: no subtree info, no backpointers
 // a and b must not be all 0s (sub)matrices
 //   (if a or b is all 0s this function is not called because the sum is a copy) 
 // a and b can be all 1's 
@@ -150,7 +158,7 @@ static void mcopy(size_t size, const k2mat_t *a, k2mat_t *b)
 //  otherwise we follow the standard rule: root node + subtrees in DFS order
 // If Use_all_ones_node is false and a and b do not contain ALL_ONES nodes
 // then neither c does   
-static void msum_rec(size_t size, const k2mat_t *a, size_t *posa, 
+static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
   assert(size>=2*MMsize); // there must be the root node 
@@ -162,7 +170,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
   if(roota==ALL_ONES) {
     k2add_node(c,ALL_ONES); 
     *posa+=1; // reach the end of a
-    k2dfs_visit_fast(size,b,posb); //scan but ignore b content
+    k2dfs_visit_fast(size,b,posb); //scan but ignore b content (subtree info could speedup?)
     return;
   }
   else if(rootb==ALL_ONES) {
@@ -201,7 +209,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
       size_t tmp = k2pos(c);        // save current position
       if (roota & (1 << k)) {
         if(rootb & (1 << k)) 
-          msum_rec(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
+          msum_rec_plain(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
         else 
           k2copy_rec(size/2,a,posa,c); // k-th child of c is kth child of a
       }
@@ -229,6 +237,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
 }
 
 // main entry point for matrix addition
+// assume plain matrices: no subtreeinfo no backpointers
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
 // :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
@@ -250,12 +259,12 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   if(k2is_empty(a) && k2is_empty(b)) 
     return;                 // if a==0 && b==0: c=0
   else if(k2is_empty(b))      
-    mcopy(size,a,c);        // if b==0: c=a
+    mcopy_full(size,a,c);        // if b==0: c=a
   else if(k2is_empty(a))    
-    mcopy(size,b,c);        // if a==0: c=b
+    mcopy_full(size,b,c);        // if a==0: c=b
   else { // a and b are both not empty, call msum_rec
     size_t posa=0,posb=0;
-    msum_rec(size,a,&posa,b,&posb,c);
+    msum_rec_plain(size,a,&posa,b,&posb,c);
     assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completeley read
     assert(!k2is_empty(c));  // implied by a+b!=0
   }
@@ -397,7 +406,7 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
   else if(rootb==ALL_ONES && b->backp==NULL) {
     right1_mmult(size,a,c);
   }*/
-  //#define EEPDF 0 // experimental, on the fly computation of subtree sizes
+  // general case: we need to split the input matrices and recurse
   else {
     bool subinfo_added_a = false, subinfo_added_b = false; vu64_t za, zb; 
     if(Extended_edf) { // on the fly computation of subtree sizes
@@ -516,11 +525,11 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
     if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // compute v1+v2 if at least one is nonzero
       rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
       size_t tmp = k2pos(c); // save current position to check all 1's 
-      if(k2is_empty(&v2))      mcopy(size/2,&v1,c);  // copy v1 -> block c[i][j]  
-      else if(k2is_empty(&v1)) mcopy(size/2,&v2,c);  // copy v2 -> block c[i][j]  
+      if(k2is_empty(&v2))      mcopy_full(size/2,&v1,c);  // copy v1 -> block c[i][j]  
+      else if(k2is_empty(&v1)) mcopy_full(size/2,&v2,c);  // copy v2 -> block c[i][j]  
       else { // v1 and v2 are both not empty
         size_t p1=0,p2=0;
-        msum_rec(size/2,&v1,&p1,&v2,&p2,c);
+        msum_rec_plain(size/2,&v1,&p1,&v2,&p2,c);
         assert(k2pos(&v1)==p1 && k2pos(&v2)==p2); // v1 and v2 were completeley read
       }
       // check if v1+v2 is all 1's
