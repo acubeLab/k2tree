@@ -304,7 +304,7 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
-  assert(*posa<a->pos); // implies a is non-empty
+  assert(a->open_ended || *posa<a->pos); // implies a is non-empty
   // copy root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
   k2add_node(b,roota);
@@ -390,6 +390,7 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
 #error "Function k2jump for FULL pointers missing"
 #endif
 
+#if 0
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // special case in which the root is a pointer to a previous subtree
 // called only by k2split_k2, where the input parameters are tested 
@@ -464,6 +465,7 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     assert(child==nchildren); // all children should be processed    
   }
 }
+#endif
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside :a, so no memory is allocated
@@ -481,12 +483,12 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // read root node
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
-  // special case of a pointer node ELIMINARE: richiedere 
-  if(a->backp!=NULL && root==POINTER)
-  {
-    k2jumpsplit_k2(size, a, b);
-    return;
-  }
+  assert(a->backp==NULL || root!=POINTER); // backpointers should have been already solved
+ 
+  // // special case of a pointer node 
+  // if(a->backp==NULL && root==POINTER)
+  // { k2jumpsplit_k2(size, a, b); return; }
+
   // if root is all 1's create 4 all 1's submatrices and stop
   // this will disappear if we optimize all operations for all 1's submatrices
   if(root==ALL_ONES) {
@@ -575,7 +577,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
-  assert(next==k2treesize(a)); // next should be at the end of the matrix
+  assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix
 }
 
 
@@ -599,8 +601,27 @@ size_t k2get_k2size(size_t msize)
   return s;
 }
 
-// add the subtree info to a k2 matrix
-void k2add_subtinfo(k2mat_t *a, const char *infofile)
+
+// compute and add the subtree info to a k2 matrix
+void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit)
+{
+  assert(a->subtinfo==NULL);
+  size_t posa=0; vu64_t za;
+  vu64_init(&za);
+  size_t p = k2dfs_sizes_limit(size, a, &posa, &za,limit); // compute subtree sizes for tree larger than limit
+  assert((p&TSIZEMASK)==posa);
+  if(a->open_ended) {
+    a->pos = posa;  // use visit to init matrix size
+    a->open_ended = false;
+  }  
+  else assert(posa==k2treesize(a)); // we should have read the whole matrix
+  a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
+  (void) p; // subtree info added
+}
+
+
+// add the subtree info to a k2 matrix reading from a file
+void k2read_subtinfo(k2mat_t *a, const char *infofile)
 {
   assert(infofile!=NULL);
   size_t elsize = sizeof(*(a->subtinfo));  // size of an element in the subtinfo array

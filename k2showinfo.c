@@ -82,7 +82,7 @@ int main (int argc, char **argv) {
   printf("Matrix file: %s\n",argv[1]);
   size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
   #ifndef B128MAT
-  if(infofile1) k2add_subtinfo(&a,infofile1);
+  if(infofile1) k2read_subtinfo(&a,infofile1);
   // possibly load backpointers info
   if(backpfile1) {
     a.backp = pointers_load_from_file(backpfile1);

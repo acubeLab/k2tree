@@ -93,7 +93,8 @@ uint32_t minimat_size();
 void minimat_reset();
 
 // from k2aux.c
-void k2add_subtinfo(k2mat_t *a, const char *infofile);
+void k2read_subtinfo(k2mat_t *a, const char *infofile);
+void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit);
 size_t k2treesize(const k2mat_t *m);
 
 // from k2io.c
@@ -125,8 +126,7 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
-//void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
-void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c);
+void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // right mutiply a k2 matrix :a by a vector :x writing the result to :y
 // :size is the internal size of the k2 matrices (not the size of the vector 
 // which can be smaller and in that case :a is padded with zeros)

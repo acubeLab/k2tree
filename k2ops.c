@@ -132,13 +132,14 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   assert(!k2is_empty(a));
   assert(!b->read_only);
   assert(!a->read_only);
+  assert(!a->open_ended);
   // new version in which the complete content of a from a->offset to a->pos is copied to b
   // ok since the size of the minimats is an integral multiple of the size of a node  
   for(size_t pos=a->offset;pos < a->pos; pos++) {
     node_t n = k2read_node(a,pos);
     k2add_node(b,n);
   }
-  // old version based on recursion
+  // old version based on recursion, could work if a is open-ended
   //size_t pos = 0;
   // k2copy_rec(size,a,&pos,b);
  }
@@ -367,8 +368,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree  
-//void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
-void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
+void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(size>MMsize); // inputs cannot be minimats 
@@ -383,11 +383,11 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
     mmult_base(size,a,b,c);
     return;
   }
-  // general case 
+  // case  size > 2*MMsize
   assert(size> 2*MMsize);
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
-  // the product of two all 1's is all 1's, but  now ALL_NODES could be a pointer 
+  // the product of two all 1's is all 1's, but now ALL_NODES could be a pointer 
   // TODO: introduce flag for matrix using ALL_ONES
   if( (roota==ALL_ONES && a->backp==NULL) &&  (rootb==ALL_ONES && b->backp==NULL) ) {
     if(!Use_all_ones_node) //TODO: add the creation of a submatrix full of ones
@@ -404,37 +404,7 @@ void mmult(size_t size, k2mat_t *a, k2mat_t *b, k2mat_t *c)
   }*/
   // general case: we need to split the input matrices and recurse
   else {
-    bool subinfo_added_a = false, subinfo_added_b = false; vu64_t za, zb; 
-    if(Extended_edf) { // on the fly computation of subtree sizes
-      size_t posa=0, posb=0;
-      if(a->subtinfo==NULL) {
-        vu64_init(&za);
-        size_t p = k2dfs_sizes(size, a, &posa, &za,INT32_MAX); // compute subtree sizes up to the last level
-        assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
-        a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
-        subinfo_added_a = true; (void) p; // subtree info added
-      }
-      if(b->subtinfo==NULL) {
-        vu64_init(&zb);
-        size_t p = k2dfs_sizes(size, b, &posb, &zb,INT32_MAX); // compute subtree sizes up to the last level
-        assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
-        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now zb contains the subtree sizes, save in b->subtinfo
-        subinfo_added_b = true; (void) p; // subtree info added
-      }
-    }
     split_and_rec(size,a,b,c);
-    if(Extended_edf) {
-      if(subinfo_added_a) { // if we added subtree info, free it
-        vu64_free(&za); // free the temporary subtree info
-        a->subtinfo = NULL; // no more subtree info in a
-        a->subtinfo_size = 0; // no more subtree info in a
-      }
-      if(subinfo_added_b) { // if we added subtree info, free it
-        vu64_free(&zb); // free the temporary subtree info
-        b->subtinfo = NULL; // no more subtree info in a
-        b->subtinfo_size = 0; // no more subtree info in a
-      }
-    }
   }
 }
 
@@ -493,68 +463,33 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   assert(a!=NULL && b!=NULL && c!=NULL);
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
-  // copy *a and *b to local vars, take care of possible back pointres
+  // copy *a and *b to local vars, taking care of possible back pointres
   k2mat_t atmp, btmp;
   if(a->backp!=NULL && k2read_node(a,0)==POINTER) atmp = k2jump(size,a); 
   else atmp = *a;
-
-
-  // add subtree infro if requested
-  bool subinfo_added_a = false, subinfo_added_b = false; vu64_t za, zb; 
-
-
-  // add
-    if(Extended_edf) { // on the fly computation of subtree sizes
-      size_t posa=0, posb=0;
-      if(a->subtinfo==NULL) {
-        vu64_init(&za);
-        size_t p = k2dfs_sizes(size, a, &posa, &za,INT32_MAX); // compute subtree sizes up to the last level
-        assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
-        a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
-        subinfo_added_a = true; (void) p; // subtree info added
-      }
-      if(b->subtinfo==NULL) {
-        vu64_init(&zb);
-        size_t p = k2dfs_sizes(size, b, &posb, &zb,INT32_MAX); // compute subtree sizes up to the last level
-        assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
-        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now zb contains the subtree sizes, save in b->subtinfo
-        subinfo_added_b = true; (void) p; // subtree info added
-      }
-    }
-
-
-    // remove
-    if(Extended_edf) {
-      if(subinfo_added_a) { // if we added subtree info, free it
-        vu64_free(&za); // free the temporary subtree info
-        a->subtinfo = NULL; // no more subtree info in a
-        a->subtinfo_size = 0; // no more subtree info in a
-      }
-      if(subinfo_added_b) { // if we added subtree info, free it
-        vu64_free(&zb); // free the temporary subtree info
-        b->subtinfo = NULL; // no more subtree info in a
-        b->subtinfo_size = 0; // no more subtree info in a
-      }
-    }
+  if(b->backp!=NULL && k2read_node(b,0)==POINTER) btmp = k2jump(size,b); 
+  else btmp = *b;
+  // add subtree info if requested on-the-fly construction
+  bool subinfo_added_a = false, subinfo_added_b = false;
+  if(Extended_edf && a->subtinfo==NULL) {
+    k2add_subtinfo_limit(size,&atmp,17);
+    subinfo_added_a = true;
   }
-
-
-
-
-
-
-
+  if(Extended_edf && b->subtinfo==NULL) {
+    k2add_subtinfo_limit(size,&btmp,17);
+    subinfo_added_b = true;
+  }
 
   // split a and b into 4 blocks of half size  
   k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
   k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
-  k2split_k2(size,a,ax);  
-  k2split_k2(size,b,bx);
+  k2split_k2(size,&atmp,ax);  
+  k2split_k2(size,&btmp,bx);
+
   // temporary matrices for products
-  k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;
-  
+  k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;  
   // start building c
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;                 // actual root node to be computed
@@ -611,7 +546,10 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   else {
     // no all 0's or all 1's, just write the correct root 
     k2write_node(c,rootpos,rootc); // fix root
-  }  
+  }
+  // all done: deallocate subtree information if previously added
+  if(subinfo_added_a) free(atmp.subtinfo);
+  if(subinfo_added_b) free(btmp.subtinfo);
 }
 
 // base case of matrix vector multiplication: matrix of size 2*MMmin

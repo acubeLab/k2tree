@@ -139,7 +139,7 @@ int main (int argc, char **argv) {
   size = mload_from_file(&asize, &a, iname1); // also init k2 library
   #ifndef B128MAT
   // possibly load subtree info
-  if(infofile1) k2add_subtinfo(&a,infofile1);
+  if(infofile1) k2read_subtinfo(&a,infofile1);
   // possibly load backpointers info
   if(backpfile1) {
     a.backp = pointers_load_from_file(backpfile1);
@@ -159,7 +159,7 @@ int main (int argc, char **argv) {
     size_t bsize, size1 = mload_from_file(&bsize, &b, iname2);
     // possibly load subtree info
     #ifndef B128MAT
-    if(infofile2) k2add_subtinfo(&b,infofile2);
+    if(infofile2) k2read_subtinfo(&b,infofile2);
     if(backpfile2) {
       b.backp = pointers_load_from_file(backpfile2);
       if(b.backp==NULL) quit("Error loading backpointers for second operand",__LINE__,__FILE__);
