@@ -33,6 +33,7 @@ size_t k2pos(const k2mat_t *m)
 // return the size of the tree encoding the (sub)matrix
 size_t k2treesize(const k2mat_t *m)
 {
+  assert(!m->open_ended);
   assert(m->pos >= m->offset);
   return m->pos - m->offset;
 }
@@ -50,12 +51,14 @@ void k2setpos(k2mat_t *m, size_t p)
 // check if a matrix is empty (should it be m->pos == m->offset ?)
 bool k2is_empty(const k2mat_t *m)
 {
+  assert(!m->open_ended);
   return m->pos == 0;
 }
 
 // check if the submatrix starting at pos is empty
 bool k2submatrix_empty(const k2mat_t *m, size_t pos)
 {
+  assert(!m->open_ended);
   return pos == m->pos;
 }
 
@@ -66,6 +69,7 @@ void k2make_empty(k2mat_t *m)
   assert(m->offset==0);
   assert(m->backp==NULL); // backpointers not allowed in empty matrices
   assert(m->r==NULL);     // rank not allowed in empty matrices
+  m->open_ended = false;
   m->pos = 0;
 }
 
@@ -360,6 +364,32 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
   return m->backp->nodep[rp]; // return the pointer
 }
 
+
+// return the matrix obtained following the pointer in the root of a
+// return a read-only matrix, open ended because we do not know the size of the submatrix 
+#ifdef SIMPLEBACKPOINTERS
+k2mat_t k2jump(size_t size, const k2mat_t *a) 
+{
+  // read root node
+  node_t root = k2read_node(a,0);  // read root of current tree
+  assert(root==POINTER); 
+  // Warning: pointers are 32 bits
+  k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree
+  k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
+  k2make_pointer(a, &tmp); // make tmp a shallow copy of a
+  tmp.offset = destp;      // set offset to the node where the subtree starts
+  tmp.subtinfo =  NULL;    // set subtree info if available
+  tmp.subtinfo_size = 0; 
+  tmp.open_ended = true; tmp.pos = 0; // open_ended: tmp.pos is invalid
+  return tmp;
+}
+#else
+// write here a version of k2jump for FULL backpointers.
+// Use the code form k2jumpslit_k2 to recover and init the tmp.subtinfo 
+// and tmp.pos 
+#error "Function k2jump for FULL pointers missing"
+#endif
+
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // special case in which the root is a pointer to a previous subtree
 // called only by k2split_k2, where the input parameters are tested 
@@ -451,7 +481,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   // read root node
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
-  // special case of a pointer node 
+  // special case of a pointer node ELIMINARE: richiedere 
   if(a->backp!=NULL && root==POINTER)
   {
     k2jumpsplit_k2(size, a, b);

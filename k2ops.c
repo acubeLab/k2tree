@@ -48,10 +48,6 @@
 
 
 */
-
-
-
-
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
 static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y);
@@ -245,7 +241,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 // at exit:
 //    if the result is a zero matrix, c is left empty
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
-//    otherwise c is a node + the recursive description of its subtree  
+//    otherwise c is a node + the recursive description of its subtree (note Use_all_ones is ignored) 
 // Note: this function is called by matrix product, to sum partial products 
 // so the operands are never compressed  
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
@@ -305,7 +301,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     if(b->backp!=NULL)
       quit("Illegal right operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
     #endif
-    if(Use_all_ones_node) k2add_node(c,ALL_ONES);
+    if(Use_all_ones_node) k2add_node(c,ALL_ONES); // remove this 
     else {
       // if Use_all_ones_node is false we write a 2x2 matrix of all 1s
       k2add_node(c,ALL_CHILDREN); // write root node
@@ -316,7 +312,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     }
     return;
   }
-  // ??? here insert possible code for case when one matrix is all 1s and the other is not
+  // TODO: insert possible code for case when one matrix is all 1s and the other is not
   // split a and b
   size_t posa=1,posb=1; // we have already read the root node
   if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above
@@ -497,6 +493,58 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   assert(a!=NULL && b!=NULL && c!=NULL);
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
+  // copy *a and *b to local vars, take care of possible back pointres
+  k2mat_t atmp, btmp;
+  if(a->backp!=NULL && k2read_node(a,0)==POINTER) atmp = k2jump(size,a); 
+  else atmp = *a;
+
+
+  // add subtree infro if requested
+  bool subinfo_added_a = false, subinfo_added_b = false; vu64_t za, zb; 
+
+
+  // add
+    if(Extended_edf) { // on the fly computation of subtree sizes
+      size_t posa=0, posb=0;
+      if(a->subtinfo==NULL) {
+        vu64_init(&za);
+        size_t p = k2dfs_sizes(size, a, &posa, &za,INT32_MAX); // compute subtree sizes up to the last level
+        assert((p&TSIZEMASK)==k2treesize(a)); // we should have read the whole matrix
+        a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
+        subinfo_added_a = true; (void) p; // subtree info added
+      }
+      if(b->subtinfo==NULL) {
+        vu64_init(&zb);
+        size_t p = k2dfs_sizes(size, b, &posb, &zb,INT32_MAX); // compute subtree sizes up to the last level
+        assert((p&TSIZEMASK)==k2treesize(b)); // we should have read the whole matrix
+        b->subtinfo = zb.v; b->subtinfo_size = zb.n; // now zb contains the subtree sizes, save in b->subtinfo
+        subinfo_added_b = true; (void) p; // subtree info added
+      }
+    }
+
+
+    // remove
+    if(Extended_edf) {
+      if(subinfo_added_a) { // if we added subtree info, free it
+        vu64_free(&za); // free the temporary subtree info
+        a->subtinfo = NULL; // no more subtree info in a
+        a->subtinfo_size = 0; // no more subtree info in a
+      }
+      if(subinfo_added_b) { // if we added subtree info, free it
+        vu64_free(&zb); // free the temporary subtree info
+        b->subtinfo = NULL; // no more subtree info in a
+        b->subtinfo_size = 0; // no more subtree info in a
+      }
+    }
+  }
+
+
+
+
+
+
+
+
   // split a and b into 4 blocks of half size  
   k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};

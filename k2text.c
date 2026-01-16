@@ -233,6 +233,12 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
 // for signed int and they would add extra checks for all operations)
 // 
 #define CHECK_ESIZE_OVERFLOW 1
+// The next function does a dfs visit of the k2 matrix :m and writes 
+// the subtree sizes and the enconding of the sizes in the growing array z
+// The returned value is the total size of the k2 submatrix (in nibbles) 
+// and in the upper 24 bits the cost of subtree encoding (ie the cost
+// of encoding recursively the submatrices) 
+// 
 // Parameters:
 //  size: k2 size of the current submatrix (ie 2^k * MMsize)
 //  m,*pos the current submatrix starts at position *pos within *m 

@@ -64,10 +64,11 @@ typedef struct k2mat {
   // flag to denote if the matrix is read only; if true the matrix is a pointer to another matrix
   // and usually defines a submatrix of the other matrix, using offset,pos, and subtinfo 
   // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are read only  
-  bool read_only;   // if true write and add operations are not allowed     
+  bool read_only;   // if true write and add operations are not allowed
+  bool open_ended;  // pos does not mark the end of the matrix: only for read_only matrices      
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false}
+#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)
