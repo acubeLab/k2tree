@@ -33,7 +33,6 @@ size_t k2pos(const k2mat_t *m)
 // return the size of the tree encoding the (sub)matrix
 size_t k2treesize(const k2mat_t *m)
 {
-  assert(!m->open_ended);
   assert(m->pos >= m->offset);
   return m->pos - m->offset;
 }
@@ -48,28 +47,28 @@ void k2setpos(k2mat_t *m, size_t p)
   m->pos = p;
 }
 
-// check if a matrix is empty (should it be m->pos == m->offset ?)
+// check if a matrix is empty (should it be m->pos == m->offset, to include submatrices?)
 bool k2is_empty(const k2mat_t *m)
 {
-  assert(!m->open_ended);
+  assert(!m->open_ended); 
   return m->pos == 0;
 }
 
 // check if the submatrix starting at pos is empty
 bool k2submatrix_empty(const k2mat_t *m, size_t pos)
 {
-  assert(!m->open_ended);
+  assert(!m->open_ended); 
   return pos == m->pos;
 }
 
 // make m empty, but keep memory  
 void k2make_empty(k2mat_t *m)
 {
-  assert(!m->read_only);
-  assert(m->offset==0);
+  assert(!m->read_only);  // must be a whole matrix
+  assert(m->offset==0);   // must be a whole matrix
+  assert(!m->open_ended); // must be a whole matrix
   assert(m->backp==NULL); // backpointers not allowed in empty matrices
   assert(m->r==NULL);     // rank not allowed in empty matrices
-  m->open_ended = false;
   m->pos = 0;
 }
 
@@ -304,7 +303,7 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
-  assert(a->open_ended || *posa<a->pos); // implies a is non-empty
+  assert(*posa<a->pos); // implies a is non-empty
   // copy root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
   k2add_node(b,roota);
@@ -324,12 +323,12 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 
 // clone a k2 (sub)matrix of :a starting at position :start and ending at :end-1
 // creating a read only copy :c which is a pointer inside :a
-// used only by k2split_k2/k2splitjump_k2
+// used only by k2split_k2, a could be open ended
 // Note: it is important that b, lenb, subtinfostart, backp, and rank are copied as they are
 static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
-  assert(!k2is_empty(a));
+  assert(a->open_ended || !k2is_empty(a));
   assert(k2is_empty(c));
   assert(!c->read_only);
   *c = *a; // copy all fields
@@ -337,7 +336,8 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   c->offset += start;           // actual starting position of c in buffer
   c->subtinfo = NULL;           // if necessary will be initialized later 
   c->subtinfo_size = 0;         // if necessary will be initialized later 
-  c->read_only = true;   // c is read only
+  c->read_only = true;          // c is read only
+  c->open_ended = false;        // c not open ended since c->pos is correct
 }
 
 // make c an identical read-only image of matrix a
@@ -364,8 +364,18 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
   return m->backp->nodep[rp]; // return the pointer
 }
 
-
 // return the matrix obtained following the pointer in the root of a
+// NOTE: this function uses the slightly dangerous notion of open ended (submatrix)
+// ie a submatrix tmp of a larger matrix in which the field tmp.pos is not correclty
+// defined, since it is set to the end of the input submatrix a (since tmp precedes a, 
+// a->pos is larger than the actual tmp.pos)
+// the ending position of a visit can be obtained with a visit of the submatrix,
+// but it is not striclty necessary for all operations (eg matrix vector multiplication)
+// we use a lazy evaluation scheme and compute it if and when it is necessary. 
+// In the current code (not in this fucntion):
+//   1. if we add the subtree information the ending position is computed in that phase
+//   2. if we only have to split the matrix for recursion, the ending position is
+//      not necessary and it is not computed 
 // return a read-only matrix, open ended because we do not know the size of the submatrix 
 #ifdef SIMPLEBACKPOINTERS
 k2mat_t k2jump(size_t size, const k2mat_t *a) 
@@ -380,7 +390,7 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
   tmp.offset = destp;      // set offset to the node where the subtree starts
   tmp.subtinfo =  NULL;    // set subtree info if available
   tmp.subtinfo_size = 0; 
-  tmp.open_ended = true; tmp.pos = 0; // open_ended: tmp.pos is invalid
+  tmp.open_ended = true;  // open ended: tmp.pos=a->pos is larger than the actual end position
   return tmp;
 }
 #else
@@ -391,6 +401,8 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
 #endif
 
 #if 0
+// old version doing together jumping to a previous subtree and splitting
+// do not delete since it contains code useful for writeing k2jump for full pointers 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // special case in which the root is a pointer to a previous subtree
 // called only by k2split_k2, where the input parameters are tested 
@@ -469,14 +481,14 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside :a, so no memory is allocated
-// the submatrices are not minimats, but k2mat_t structs
-// since we are not at the last level of the k2 tree
+// the submatrices are not minimats since we are not at the last level of the tree
 // :a is not all 0's, it could be all 1's (for now)
+// note: a could be open ended
 void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL);
-  assert(!k2is_empty(a));
+  assert(a->open_ended || !k2is_empty(a)); // it is possible we are splitting an open ended matrix
   assert(k2is_empty(&b[0][0]) && k2is_empty(&b[0][1]) &&
          k2is_empty(&b[1][0]) && k2is_empty(&b[1][1]));
    
@@ -485,27 +497,19 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   node_t root = k2read_node(a,pos); pos++;
   assert(a->backp==NULL || root!=POINTER); // backpointers should have been already solved
  
-  // // special case of a pointer node 
-  // if(a->backp==NULL && root==POINTER)
-  // { k2jumpsplit_k2(size, a, b); return; }
-
   // if root is all 1's create 4 all 1's submatrices and stop
   // this will disappear if we optimize all operations for all 1's submatrices
   if(root==ALL_ONES) {
     assert(a->backp==NULL); // backp compressed matrices cannot have ALL_ONES submatrices 
     // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
-    // even if a had subtree information, with cloning the info is lost 
-    // not a problem because there are no actual subtrees. 
+    // even if :a had subtree information, with cloning the info is lost not a problem because there are no actual subtrees. 
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
       k2clone(a, pos-1, pos, &b[i][j]); 
     return;    
   }
-  // root is not all 1's: we have the standard structure
-  // and we need to do a real partition of the input matrix 
-  // if subtree info is available use it to partition
-  // more efficiently and pass the info at the lower levels
-  // array of subtree sizes and subtree info
-  size_t subt_size[4] = {0,0,0,0};
+  // root is not all 1's: we have the standard structure and we need to do a real partition 
+  // if subtree info is available use it to partition more efficiently and pass the info at the lower levels
+  size_t subt_size[4] = {0,0,0,0};   // array of subtree sizes and subtree info
   uint64_t *subt_info[4] = {NULL,NULL,NULL,NULL}; 
   size_t subt_info_size[4] = {0,0,0,0};  
   // get number of children
@@ -537,14 +541,14 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     }
     #ifdef SIMPLEBACKPOINTERS
     // handling of the last child 
-    // assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
-    if(subt_size_tot +1 >= k2treesize(a)) { // +1 for the root, there must be a final subtree 
-      fprintf(stderr,"children: %zu k2split_k2: subsize_tot=%zu, treesize:%zu, size:%zu\n", 
-        nchildren,subt_size_tot, k2treesize(a), size);
-      for(int i=0;i<nchildren;i++) {
-        fprintf(stderr,"child %d: size=%zu, info_size=%zu\n", i, subt_size[i], subt_info_size[i]);
-      }
-    }
+    assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
+    // if(subt_size_tot +1 >= k2treesize(a)) { // +1 for the root, there must be a final subtree 
+    //   fprintf(stderr,"children: %zu k2split_k2: subsize_tot=%zu, treesize:%zu, size:%zu\n", 
+    //     nchildren,subt_size_tot, k2treesize(a), size);
+    //   for(int i=0;i<nchildren;i++) {
+    //     fprintf(stderr,"child %d: size=%zu, info_size=%zu\n", i, subt_size[i], subt_info_size[i]);
+    //   }
+    // }
     subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
     assert(nchildren-1+ subt_info_size_tot <= a->subtinfo_size);
@@ -563,7 +567,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   }
   // do the actual splitting 
   int child = 0;   // child index, used for subt_size[] subt_info[] 
-  size_t next=pos; //now pos==1 since we already read the root
+  size_t next=pos; //now pos==1 since we have already read the root
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
@@ -577,7 +581,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
-  assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix
+  assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix, but not if open ended
 }
 
 
@@ -605,14 +609,15 @@ size_t k2get_k2size(size_t msize)
 // compute and add the subtree info to a k2 matrix
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit)
 {
+  printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
   assert(a->subtinfo==NULL);
   size_t posa=0; vu64_t za;
-  vu64_init(&za);
-  size_t p = k2dfs_sizes_limit(size, a, &posa, &za,limit); // compute subtree sizes for tree larger than limit
+  vu64_init(&za); // 
+  size_t p =   k2dfs_sizes_limit(size, a, &posa, &za,0); // compute subtree sizes for tree larger than limit
   assert((p&TSIZEMASK)==posa);
   if(a->open_ended) {
-    a->pos = posa;  // use visit to init matrix size
-    a->open_ended = false;
+    a->pos = posa;           // use result of visit to init matrix size
+    a->open_ended = false;   // no longer open ended
   }  
   else assert(posa==k2treesize(a)); // we should have read the whole matrix
   a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo

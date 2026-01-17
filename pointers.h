@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include "vu64.h"
 
-// #define SIMPLEBACKPOINTERS  // use simple backpointers, not the full ones
 
 // type to represent the position of a node in a k2_tree
 #ifdef SIMPLEBACKPOINTERS

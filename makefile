@@ -3,13 +3,11 @@ CFLAGS=-O2 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fs
 LDFLAGS=-fsanitize=undefined
 CC=gcc
 
-# option for using simple pointers 
-EXTRA=-DSIMPLEBACKPOINTERS
 
 # main executables 
-K2EXECS=k2bbm.x k2sparse.x k2mult.x k2showinfo.x k2pagerank.x k2bpagerank.x k2subtinfo.x k2cpdf.x
+K2EXECS=k2bbm.x k2sparse.x k2mult.x k2showinfo.x k2subtinfo.x k2cpdf.x
 B128EXECS=b128bbm.x b128sparse.x b128mult.x b128showinfo.x
-EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x  matrixcmp.x 
+EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x matrixcmp.x 
 
 
 
@@ -85,17 +83,6 @@ matrixcmp.x: matrixcmp.c
 release: CFLAGS = -O3 -Wall -std=c11 -DNDEBUG
 release: clean
 release: $(EXECS)  
-
-# compile version with enriched backward pointers 
-ebp: EXTRA= 
-ebp: clean
-ebp: $(EXECS)
-
-# as before but release version
-ebprelease: CFLAGS = -O3 -Wall -std=c11 -DNDEBUG
-ebprelease: EXTRA=
-ebprelease: clean
-ebprelease: $(EXECS)
 
 clean:
 	rm -f $(EXECS) *.o 

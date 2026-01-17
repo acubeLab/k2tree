@@ -327,7 +327,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
   assert(nchildren>0 && nchildren<=4);
 
   size_t zn_save = z->n; // save starting position in size_array[]
-  vu64_grow(z,nchildren-1);
+  vu64_grow(z,nchildren-1);    // reserve space for children
   size_t subtree_size = 1;     // account for root node
   size_t child_size = 0;       // size/esize of a child subtrees
   size_t csize[4];             // sizes/esizes of the children subtrees
@@ -336,9 +336,9 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
     if(root & (1<<i)) {
       if(size==2*MMsize)  // end of recursion
         *pos += (child_size = Minimat_node_ratio);
-      else { // recurse on submatrix
+      else  // recurse on submatrix
         child_size =  k2dfs_sizes_limit(size/2,m,pos,z,limit); // read submatrix and advance pos
-      }
+      assert(child_size>0);
       // save size and esize for possible later storage in z
       csize[cpos++] = child_size;
       // add sizes and esizes to subtree_size, check for possible overflow    

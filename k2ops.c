@@ -46,6 +46,15 @@
     Proposal: add a use_backp flag if it is not set, then 0000 is an all 1s submatrix
     Proposal: add a transpose flag and a main_diag flag.
 
+    TODO:
+
+    The input matrices can be in format PDF EDF and CFD. In no backpointers
+    are used (PDF and EDF formats) the node 0000 denotes a submatrix of all 1's.
+    The input matrices can have the flags main_diag and transpose set to true
+
+    The output matrices are always in the PDF format; the node 0000 denotes an
+    all 1 submatrix and the flags main_diag and transpose are always set to flase. 
+
 
 */
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
@@ -139,7 +148,7 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
     node_t n = k2read_node(a,pos);
     k2add_node(b,n);
   }
-  // old version based on recursion, could work if a is open-ended
+  // old version based on recursion, could be an option if a is open-ended
   //size_t pos = 0;
   // k2copy_rec(size,a,&pos,b);
  }
@@ -461,6 +470,8 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
+  // DEBUG
+  if(a->subtinfo==NULL) {printf("Size:%zd, nodes:%zd\n",size,k2treesize(a));}
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
   // copy *a and *b to local vars, taking care of possible back pointres
@@ -471,12 +482,12 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   else btmp = *b;
   // add subtree info if requested on-the-fly construction
   bool subinfo_added_a = false, subinfo_added_b = false;
-  if(Extended_edf && a->subtinfo==NULL) {
-    k2add_subtinfo_limit(size,&atmp,17);
+  if(Extended_edf && atmp.subtinfo==NULL) {
+    k2add_subtinfo_limit(size,&atmp,1+0*Minimat_node_ratio); // ensure info not stored for last level
     subinfo_added_a = true;
   }
-  if(Extended_edf && b->subtinfo==NULL) {
-    k2add_subtinfo_limit(size,&btmp,17);
+  if(Extended_edf && btmp.subtinfo==NULL) {
+    k2add_subtinfo_limit(size,&btmp,1+0*Minimat_node_ratio); // ensure info not stored for last level
     subinfo_added_b = true;
   }
 
@@ -526,6 +537,9 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   // all computation done, deallocate temporary matrices
   k2_free(&v1);
   k2_free(&v2);
+  // deallocate subtree information if previously added
+  if(subinfo_added_a) free(atmp.subtinfo);
+  if(subinfo_added_b) free(btmp.subtinfo);
   
   // final normalization of c
   if(rootc==NO_CHILDREN) {    // case c is all 0's
@@ -547,9 +561,6 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
     // no all 0's or all 1's, just write the correct root 
     k2write_node(c,rootpos,rootc); // fix root
   }
-  // all done: deallocate subtree information if previously added
-  if(subinfo_added_a) free(atmp.subtinfo);
-  if(subinfo_added_b) free(btmp.subtinfo);
 }
 
 // base case of matrix vector multiplication: matrix of size 2*MMmin

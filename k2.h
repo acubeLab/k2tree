@@ -15,9 +15,10 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include "rank_0000.h"
+
+#define SIMPLEBACKPOINTERS  // use simple backpointers, not the full ones
 #include "pointers.h" 
-// #include "vu64.h"
+#include "rank_0000.h"
 
 
 // node constants (depend on node arity, here 4 and not likely to change) 
@@ -65,7 +66,7 @@ typedef struct k2mat {
   // and usually defines a submatrix of the other matrix, using offset,pos, and subtinfo 
   // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are read only  
   bool read_only;   // if true write and add operations are not allowed
-  bool open_ended;  // pos does not mark the end of the matrix: only for read_only matrices      
+  bool open_ended;  // pos strictly greater that the end of the matrix: only for read_only matrices      
 } k2mat_t;
 // initialize to an empty writable matrix 
 #define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false}
