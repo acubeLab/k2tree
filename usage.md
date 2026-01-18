@@ -8,18 +8,18 @@ Plain Depth First representation with compression of all 1 submatrices
 ### compression
 
 ```
-k2sparse.x m.txt -1 -o m.k2
+./k2sparse.x m.txt -1 -o m.k2
 ```
 
 ### squaring
 
 ```
-k2mult.x -q m.k2 -o msquare.k2
+./k2mult.x -q m.k2 -o msquare.k2
 ```
 
 ### multiplication
 ```
-k2mult.x m1.k2 m2.k2 -o m3.k2
+./k2mult.x m1.k2 m2.k2 -o m3.k2
 ```
 
 
@@ -37,25 +37,25 @@ As above but uses subtree size information for the upper levels
 ### squaring
 
 ```
-k2mult.x -q m.k2 -i m.k2.sinfo -o msquare.k2
+./k2mult.x -q m.k2 -i m.k2.sinfo -o msquare.k2
 ```
 
 ### multiplication
 ```
-k2mult.x m1.k2 m2.k2 -i m1.k2.sinfo -j m2.k2.sinfo -o m3.k2
+./k2mult.x m1.k2 m2.k2 -i m1.k2.sinfo -j m2.k2.sinfo -o m3.k2
 ```
 
 ### squaring/multiplication with dynamic subtree info
 
 To compute the subtree info on the fly for small subtrees use option `-e`; for example
 ```
-k2mult.x -e -q m.k2 -i m.k2.sinfo -o msquare.k2
+./k2mult.x -e -q m.k2 -i m.k2.sinfo -o msquare.k2
 ```
 
 
 ## Compressed Depth First 
 
-Compress the $k^2$ tree by detecting identical subtrees. No authomatic compression of submatrices of all 1s.
+Compress the $k^2$ tree by detecting identical subtrees. No automathic compression of submatrices of all 1s.
 
 ###  Compression
 
@@ -69,19 +69,19 @@ Compress the $k^2$ tree by detecting identical subtrees. No authomatic compressi
 ### squaring
 
 ```
-k2mult.x -q m.ck2 -i m.ck2.sinfo -I m.ck2.p -o msquare.k2
+./k2mult.x -q m.ck2 -i m.ck2.sinfo -I m.ck2.p -o msquare.k2
 ```
 
 ### multiplication
 ```
-k2mult.x m1.k2 m2.k2 -i m1.k2.sinfo -I m1.ck2.p -j m2.k2.sinfo -J m2.ck2.p -o m3.k2
+./k2mult.x m1.k2 m2.k2 -i m1.k2.sinfo -I m1.ck2.p -j m2.k2.sinfo -J m2.ck2.p -o m3.k2
 ```
 
 ### squaring/multiplication with dynamic subtree info
 
 AS above, to compute the subtree info on the fly for small subtrees use option `-e`; for example
 ```
-k2mult.x -e -q m.ck2 -i m.ck2.sinfo -I m.ck2.p -o msquare.k2
+./k2mult.x -e -q m.ck2 -i m.ck2.sinfo -I m.ck2.p -o msquare.k2
 ```
 
 

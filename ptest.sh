@@ -57,7 +57,7 @@ do
   echo "====== squaring with compressed subtrees + subtree info: $f"
   $timecmd -f"$tf" ./k2mult.x -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
   sha1sum --ignore-missing -c $dir/prod.sha1sum
-  echo "====== squaring with compressed subtrees + subtree info +dynamic $f"
+  echo "====== squaring with compressed subtrees + subtree info + dynamic subtrees:$f"
   $timecmd -f"$tf" ./k2mult.x -e -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
   sha1sum --ignore-missing -c $dir/prod.sha1sum
 

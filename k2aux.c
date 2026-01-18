@@ -664,7 +664,7 @@ void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit)
   size_t p =   k2dfs_sizes_limit(size, a, &posa, &za,0); // compute subtree sizes for tree larger than limit
   assert((p&TSIZEMASK)==posa);
   if(a->open_ended) {
-    a->pos = posa+a->offset;           // use result of visit to init matrix size
+    a->pos = posa+a->offset;           // use visit to correctly init matrix size
     a->open_ended = false;             // no longer open ended
   }  
   assert(posa==k2treesize(a));         // we should have read the whole matrix
