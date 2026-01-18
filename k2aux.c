@@ -393,6 +393,7 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 //   2. if we only have to split the matrix for recursion, the ending position is
 //      not necessary and it is not computed 
 // return a read-only matrix, open ended because we do not know the size of the submatrix 
+// TODO: change to accept a non const pointer and return void? 
 #ifdef SIMPLEBACKPOINTERS
 k2mat_t k2jump(size_t size, const k2mat_t *a) 
 {
@@ -633,7 +634,7 @@ size_t k2get_k2size(size_t msize)
 // compute and add the subtree info to a k2 matrix
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit)
 {
-  // printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
+  printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
   assert(a->subtinfo==NULL);
   size_t posa=0; vu64_t za;
   vu64_init(&za); // 

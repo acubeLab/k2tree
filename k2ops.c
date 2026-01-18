@@ -470,11 +470,10 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  // !!DEBUG
-  // if(a->subtinfo==NULL) {printf("Size:%zd, nodes:%zd\n",size,k2treesize(a));}
+  // if(a->subtinfo==NULL && k2get_root_nchildren(a)>1) {printf("Size:%zd, nodes:%zd\n",size,k2treesize(a));} // !!DEBUG
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
-  // copy *a and *b to local vars, taking care of possible back pointres
+  // copy *a and *b to local vars, taking care of possible back pointers
   k2mat_t atmp, btmp;
   if(a->backp!=NULL && k2read_node(a,0)==POINTER) atmp = k2jump(size,a); 
   else atmp = *a;
@@ -482,12 +481,12 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   else btmp = *b;
   // add subtree info if requested on-the-fly construction
   bool subinfo_added_a = false, subinfo_added_b = false;
-  if(Extended_edf && atmp.subtinfo==NULL) {
-    k2add_subtinfo_limit(size,&atmp,1+0*Minimat_node_ratio); // ensure info not stored for last level
+  if(Extended_edf && atmp.subtinfo==NULL && k2get_root_nchildren(&atmp)>1) {
+    k2add_subtinfo_limit(size,&atmp,1); // ensure info not stored for last level
     subinfo_added_a = true;
   }
-  if(Extended_edf && btmp.subtinfo==NULL) {
-    k2add_subtinfo_limit(size,&btmp,1+0*Minimat_node_ratio); // ensure info not stored for last level
+  if(Extended_edf && btmp.subtinfo==NULL && k2get_root_nchildren(&btmp)>1) {
+    k2add_subtinfo_limit(size,&btmp,1); // ensure info not stored for last level
     subinfo_added_b = true;
   }
 
