@@ -135,6 +135,13 @@ node_t k2read_node(const k2mat_t *m, size_t p)
     return  (m->b[p/2] >> 4) & 0xF;
 }
 
+// return number of children of root node
+// does not work for POINTER and ALL_ONES roots
+int k2get_root_nchildren(const k2mat_t *m)
+{
+  return __builtin_popcountll(k2read_node(m,0));
+}
+
 // write node n at (existing) position p
 void k2write_node(k2mat_t *m, size_t p, node_t n)
 {
@@ -517,7 +524,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   assert(nchildren>0 && nchildren<=4);
 
   // if we have subtree info fill subt_size[] subt_info[] subt_info_size[] 
-  if(a->subtinfo!=NULL) {
+  if(a->subtinfo!=NULL || nchildren==1) {
     // start of subtree information
     size_t subt_size_tot = 0, subt_info_size_tot =0;
     #ifdef SIMPLEBACKPOINTERS
@@ -571,11 +578,11 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   for(int k=0;k<4;k++) {
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
-      if(a->subtinfo) next = pos + subt_size[child]; // jump to end of submatrix
+      if(a->subtinfo || nchildren==1) next = pos + subt_size[child]; // jump to end of submatrix
       else k2dfs_visit_fast(size/2,a,&next);         // move to end of submatrix
       k2clone(a, pos, next, &b[i][j]);        // create pointer to submatrix
       pos = next;                             // advance to next item
-      if(a->subtinfo) {
+      if(a->subtinfo || nchildren==1) {
         b[i][j].subtinfo = subt_info[child];    // save subtinfo if available
         b[i][j].subtinfo_size = subt_info_size[child++];  // save subtinfo_size and advance child
       }
@@ -609,7 +616,7 @@ size_t k2get_k2size(size_t msize)
 // compute and add the subtree info to a k2 matrix
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit)
 {
-  printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
+  // printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
   assert(a->subtinfo==NULL);
   size_t posa=0; vu64_t za;
   vu64_init(&za); // 

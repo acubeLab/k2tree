@@ -40,7 +40,7 @@ static uint32_t MMsize = 0;  // a certainly incorrect value
 // since nodes have 4 bits (not likely to change)
 // this amounts to how many nibbles takes a minimat 
 // eg for a 2x2 binary matrix takes one nibble so the constant is 1
-static uint32_t Minimat_node_ratio = 0;  // certainly incorrect value
+uint32_t Minimat_node_ratio = 0;  // certainly incorrect value
 
 // global variable determining whether during construction we use the 
 // ALL_ONES node to denote a submatrix of all 1's.

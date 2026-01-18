@@ -63,6 +63,8 @@
 #pragma message "Compiling with FULL 64bit BACKPOINTERS and subtree information for all children"
 #endif
 
+// global from minimats.c
+extern uint32_t Minimat_node_ratio;
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
@@ -169,7 +171,8 @@ int main (int argc, char **argv) {
   else {
     if(node_limit==0) node_limit = intsqrt(a.pos);
     node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
-    if(node_limit < 17) node_limit = 17; // minimum node limit (ensure at least 2 levels)
+    size_t min_node_limit = 1 + 4*Minimat_node_ratio;
+    if(node_limit < min_node_limit) node_limit = min_node_limit; // minimum node limit (ensure at least 2 levels)
     if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
     // visit tree, compute and save subtree sizes in z  
     p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);

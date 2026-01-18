@@ -470,8 +470,8 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  // DEBUG
-  if(a->subtinfo==NULL) {printf("Size:%zd, nodes:%zd\n",size,k2treesize(a));}
+  // !!DEBUG
+  // if(a->subtinfo==NULL) {printf("Size:%zd, nodes:%zd\n",size,k2treesize(a));}
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
   // copy *a and *b to local vars, taking care of possible back pointres
