@@ -29,7 +29,7 @@ make
 for f in "$@"
 do 
   echo "====== executing product with on the fly computation for file $f"
-  ./k2mult.x -e $dir/$f.k2  $dir/$f.k2 
+  ./k2mult.x $dir/$f.k2  $dir/$f.k2 
   sha1sum --ignore-missing -c $dir/prod.sha1sum
   echo "==== adding subtree information ==="
   ./k2subtinfo.x $dir/$f.k2

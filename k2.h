@@ -67,9 +67,11 @@ typedef struct k2mat {
   // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are read only  
   bool read_only;   // if true write and add operations are not allowed
   bool open_ended;  // pos strictly greater that the end of the matrix: only for read_only matrices      
+  // flags to denote if the matrix is transposed or has 1s in the main diagonal 
+  bool transpose, main_diag_1;
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false}
+#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false, false, false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)

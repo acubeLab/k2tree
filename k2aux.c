@@ -212,6 +212,13 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) ax[i/2][i%2] = k2read_minimat(a,posa); // k2read_minimat advances posa
     else               ax[i/2][i%2] = MINIMAT0s;  // note all 0s minimats are not stored
+  // take care of of main_diag and transpose flags
+  if(a->main_diag_1) {
+    ax[0][0] |= MINIMAT_Id; ax[1][1] |= MINIMAT_Id;
+  }
+  if(a->transpose) {
+    minimat_t tmp = ax[1][0]; ax[1][0]=ax[0][1]; ax[0][1]=tmp;
+  }
 }
 
 
@@ -345,10 +352,12 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   c->subtinfo_size = 0;         // if necessary will be initialized later 
   c->read_only = true;          // c is read only
   c->open_ended = false;        // c not open ended since c->pos is correct
+  c->transpose = c->main_diag_1 = false;
 }
 
 // make c an identical read-only image of matrix a
 // the previous content of c is freed and lost 
+// used only by k2jump  
 static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
@@ -395,7 +404,7 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
   k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
   k2make_pointer(a, &tmp); // make tmp a shallow copy of a
   tmp.offset = destp;      // set offset to the node where the subtree starts
-  tmp.subtinfo =  NULL;    // set subtree info if available
+  tmp.subtinfo =  NULL;    // set subtree info not available
   tmp.subtinfo_size = 0; 
   tmp.open_ended = true;  // open ended: tmp.pos=a->pos is larger than the actual end position
   return tmp;
@@ -511,7 +520,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
     // even if :a had subtree information, with cloning the info is lost not a problem because there are no actual subtrees. 
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
-      k2clone(a, pos-1, pos, &b[i][j]); 
+      k2clone(a, pos-1, pos, &b[i][j]); // transpose and main diagonal not relevant
     return;    
   }
   // root is not all 1's: we have the standard structure and we need to do a real partition 
@@ -524,7 +533,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   assert(nchildren>0 && nchildren<=4);
 
   // if we have subtree info fill subt_size[] subt_info[] subt_info_size[] 
-  if(a->subtinfo!=NULL || nchildren==1) {
+  if(a->subtinfo!=NULL) {
     // start of subtree information
     size_t subt_size_tot = 0, subt_info_size_tot =0;
     #ifdef SIMPLEBACKPOINTERS
@@ -549,13 +558,6 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     #ifdef SIMPLEBACKPOINTERS
     // handling of the last child 
     assert(subt_size_tot +1 < k2treesize(a)); // +1 for the root, there must be a final subtree 
-    // if(subt_size_tot +1 >= k2treesize(a)) { // +1 for the root, there must be a final subtree 
-    //   fprintf(stderr,"children: %zu k2split_k2: subsize_tot=%zu, treesize:%zu, size:%zu\n", 
-    //     nchildren,subt_size_tot, k2treesize(a), size);
-    //   for(int i=0;i<nchildren;i++) {
-    //     fprintf(stderr,"child %d: size=%zu, info_size=%zu\n", i, subt_size[i], subt_info_size[i]);
-    //   }
-    // }
     subt_size[nchildren-1] = k2treesize(a) - subt_size_tot -1; // get size of final subtree
     // consumed information cannot be more than a->subtinfo_size 
     assert(nchildren-1+ subt_info_size_tot <= a->subtinfo_size);
@@ -572,6 +574,16 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     assert(subt_info_size_tot + nchildren == a->subtinfo_size);
     #endif
   }
+  else if(nchildren==1) {
+    // if single child: subtree size = size(tree)-1;
+    if(!a->open_ended) 
+      subt_size[0] = k2treesize(a)-1;
+    else { // if treesize not available compute subtree size with a visit 
+      size_t next=pos;
+      k2dfs_visit_fast(size/2,a,&next);
+      subt_size[0] = next - pos;
+    }    
+  }
   // do the actual splitting 
   int child = 0;   // child index, used for subt_size[] subt_info[] 
   size_t next=pos; //now pos==1 since we have already read the root
@@ -579,14 +591,19 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
       if(a->subtinfo || nchildren==1) next = pos + subt_size[child]; // jump to end of submatrix
-      else k2dfs_visit_fast(size/2,a,&next);         // move to end of submatrix
+      else k2dfs_visit_fast(size/2,a,&next);  // move to end of submatrix
       k2clone(a, pos, next, &b[i][j]);        // create pointer to submatrix
       pos = next;                             // advance to next item
-      if(a->subtinfo || nchildren==1) {
+      if(a->subtinfo) {
         b[i][j].subtinfo = subt_info[child];    // save subtinfo if available
         b[i][j].subtinfo_size = subt_info_size[child++];  // save subtinfo_size and advance child
       }
     }
+  }
+  // update transpose and main diag
+  if(a->main_diag_1) b[0][0].main_diag_1 = b[1][1].main_diag_1 = true;
+  if(a->transpose) {
+    k2mat_t tmp = b[0][1]; b[0][1]=b[1][0]; b[1][0] = tmp;//swap off-diagonal blocks
   }
   assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix, but not if open ended
 }
