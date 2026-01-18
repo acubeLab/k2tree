@@ -323,7 +323,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     return;
   }
   // TODO: insert possible code for case when one matrix is all 1s and the other is not
-  // split a and b
+  // split a and b, taking care also of transpose and main_diag
   size_t posa=1,posb=1; // we have already read the root node
   if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above
     k2split_minimats(a,&posa,roota,ax);
@@ -470,7 +470,8 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  // if(a->subtinfo==NULL && k2get_root_nchildren(a)>1) {printf("Size:%zd, nodes:%zd\n",size,k2treesize(a));} // !!DEBUG
+  // if(a->subtinfo==NULL && k2get_root_nchildren(a)>1) {printf("A: Size:%zd, nodes:%zd\n",size,k2treesize(a));} // !!DEBUG
+  // if(b->subtinfo==NULL && k2get_root_nchildren(b)>1) {printf("B: Size:%zd, nodes:%zd\n",size,k2treesize(b));} // !!DEBUG
   // never called with an input empty matrix
   assert(!k2is_empty(a) && !k2is_empty(b));
   // copy *a and *b to local vars, taking care of possible back pointers

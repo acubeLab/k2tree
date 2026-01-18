@@ -99,6 +99,12 @@ void minimat_reset();
 void k2read_subtinfo(k2mat_t *a, const char *infofile);
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit);
 size_t k2treesize(const k2mat_t *m);
+// transpose matrix a
+void k2transpose(k2mat_t *a);
+// add indentity matrix to a
+void k2add_identity(k2mat_t *a);
+// print some info about a k2mat
+void k2print(const k2mat_t *m, FILE *f);
 
 // from k2io.c
 // save a k2-matrix to file

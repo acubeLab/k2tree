@@ -124,11 +124,22 @@ size_t k2add_node(k2mat_t *m, node_t n)
   return m->pos++; 
 }
 
+// print some info about a k2mat
+void k2print(const k2mat_t *m, FILE *f)
+{
+  fprintf(f, "k2mat: offset: %zu, pos: %zu, lenb: %zu\n", m->offset, m->pos, m->lenb);
+}
+
 // get node at position p 
 node_t k2read_node(const k2mat_t *m, size_t p)
 {
   p+=m->offset;
-  assert(p<m->pos && p<m->lenb);
+  // assert(p<m->pos);
+  if(p>=m->pos) {
+    k2print(m,stderr);
+    quit("k2read_node: position out of bounds",__LINE__,__FILE__);
+  }
+  assert(p<m->lenb);
   if(p%2==0)
     return m->b[p/2] & 0xF;
   else 
@@ -221,7 +232,17 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
   }
 }
 
+// transpose matrix a
+void k2transpose(k2mat_t *a)
+{
+  a->transpose = !a->transpose;
+}
 
+// add indentity matrix to a
+void k2add_identity(k2mat_t *a)
+{
+  a->main_diag_1 = true;
+}
 
 // --------------------------------------------------------------
 // complex operations on k2mat struct, operating on submatrices
@@ -403,9 +424,11 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
   // Warning: pointers are 32 bits
   k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree
   k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
-  k2make_pointer(a, &tmp); // make tmp a shallow copy of a
-  tmp.offset = destp;      // set offset to the node where the subtree starts
-  tmp.subtinfo =  NULL;    // set subtree info not available
+  k2make_pointer(a, &tmp);  // make tmp a shallow copy of a
+  assert(destp<tmp.offset); // make sure it is a backward pointer 
+  // printf("Jump, size=%zd, offset=%zd, pos:%zd endb:%zd destp=%zd\n",size,tmp.offset,tmp.pos,tmp.lenb,destp);
+  tmp.offset = destp;       // set offset to the node where the subtree starts
+  tmp.subtinfo =  NULL;     // set subtree info not available
   tmp.subtinfo_size = 0; 
   tmp.open_ended = true;  // open ended: tmp.pos=a->pos is larger than the actual end position
   return tmp;
@@ -634,17 +657,17 @@ size_t k2get_k2size(size_t msize)
 // compute and add the subtree info to a k2 matrix
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit)
 {
-  printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
+  // printf("Adding info for a matrix of size %zd, limit: %zd\n", size, limit);// DEBUG
   assert(a->subtinfo==NULL);
   size_t posa=0; vu64_t za;
   vu64_init(&za); // 
   size_t p =   k2dfs_sizes_limit(size, a, &posa, &za,0); // compute subtree sizes for tree larger than limit
   assert((p&TSIZEMASK)==posa);
   if(a->open_ended) {
-    a->pos = posa;           // use result of visit to init matrix size
-    a->open_ended = false;   // no longer open ended
+    a->pos = posa+a->offset;           // use result of visit to init matrix size
+    a->open_ended = false;             // no longer open ended
   }  
-  else assert(posa==k2treesize(a)); // we should have read the whole matrix
+  assert(posa==k2treesize(a));         // we should have read the whole matrix
   a->subtinfo = za.v; a->subtinfo_size = za.n; // now za contains the subtree sizes, save in a->subtinfo
   (void) p; // subtree info added
 }
