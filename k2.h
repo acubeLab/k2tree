@@ -111,6 +111,8 @@ void k2print(const k2mat_t *m, FILE *f);
 void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
 size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename);
+// load a k2-matrix from file, possibly with subtree info and backpointers
+size_t mload_extended(size_t *asize, k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size);
 // write the content of a k2 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 

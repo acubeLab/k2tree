@@ -18,16 +18,16 @@
 #include <time.h>
 #include <limits.h>
 // definitions to be used for b128 vs k2-encoded matrices 
-#ifdef B128MAT
+#ifdef K2MAT
+#include "k2.h"
+#define default_cext ".k2"
+extern bool Use_all_ones_node; // use the special ALL_ONES node?
+#else
 #include "b128.h"
 #define default_cext ".b128"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
 bool Use_all_ones_node; // not used: added for compatibility with k2mat 
-#else // k2mat
-#include "k2.h"
-#define default_cext ".k2"
-extern bool Use_all_ones_node; // use the special ALL_ONES node?
 #endif
 // used by both matrix type 
 #include "bbm.h"
@@ -143,7 +143,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: infile%s)\n",
                    default_cext, default_dext);
-    #ifndef B128MAT
+    #ifdef K2MAT
     fprintf(stderr,"\t-m M    minimatrix size (def. 2) [compression only]\n");
     fprintf(stderr,"\t-1      compact all 1's submatrices [compression only]\n");
     #endif  

@@ -13,7 +13,7 @@
       "label": "make single",
       "type": "shell",
       "command": "make",
-      "args": ["${fileBasenameNoExtension}.x"],
+      "args": ["${fileBasenameNoExtension}.x", "-D K2MAT"],
       "group": {
         "kind": "build",
         "isDefault": true

@@ -27,16 +27,16 @@ k2%.x: k2%.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
 
 # rule for k2mult.o k2sparse.o
 k2%.o: k2%.c k2.h bbm.h
-	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $<
+	$(CC) $(CFLAGS) -DK2MAT -c -o $@ $< 
 
 k2cpdf.o: k2cpdf.c k2.h bbm.h extra/xerrors.h libsais/liblibsais.a
 	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $< 
 
 k2pagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
-	$(CC) $(CFLAGS) -c -o $@ $< 
+	$(CC) $(CFLAGS) -DK2MAT -c -o $@ $< 
 
 k2bpagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
-	$(CC) $(CFLAGS) -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
+	$(CC) $(CFLAGS) -DK2MAT -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
 
 k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o  pointers.o rank_0000.o libsais/liblibsais.a
 	$(CC) $(LDFLAGS) -o $@ $^ 
@@ -62,7 +62,7 @@ b128ops.o: b128ops.c b128.h bbm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 b128%.o: k2%.c bbm.h b128.h
-	$(CC) $(CFLAGS) -c -o $@ $< -DB128MAT
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 
 # uncompressed matrix multiplication using openmp 

@@ -87,12 +87,12 @@
 #include <semaphore.h>
 #include <sys/times.h>
 // definitions to be used for b128 vs k2-encoded matrices 
-#ifdef B128MAT
+#ifdef K2MAT
+#include "k2.h"
+#else 
 #include "b128.h"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
-#else // k2mat
-#include "k2.h"
 #endif
 // used by both matrix type
 #include "bbm.h"

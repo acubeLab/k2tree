@@ -18,6 +18,9 @@
 static void mdecode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, k2mat_t *c);
 
+
+
+
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a)
@@ -34,7 +37,7 @@ void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a)
 }
 
 
-// compress the matrix *m of size msize into the k2mat_t structure *a 
+// compress the matrix *m of size :msize into the k2mat_t structure *a 
 // m should be an array of size msize*msize 
 // the old content of :a is lost
 // return the size of the k2 matrix (which has the form 2**k*MMsize)
@@ -62,7 +65,7 @@ static int mstats(size_t asize, const k2mat_t *a, size_t *pos, size_t *nodes, si
   return -eq;
 }
 
-// return number of nonzero elements in matrix a
+// return number of nonzero elements in matrix :a
 size_t mget_nonzeros(size_t asize, const k2mat_t *a) {
   size_t pos, nodes, minimats, nz, all1;
   mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
@@ -95,10 +98,6 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
       pos * 4 + bits_r + bits_p, (double) (pos * 4 + bits_r + bits_p) / (double) nz);
   return nz;
 }
-
-
-
-
 
 // save the matrix :a to file :filename
 // the format is
@@ -151,7 +150,7 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
   if(MMsize==0)
     minimat_init(mmsize); // initialize minimat library if not already done
   else 
-    if(mmsize!=MMsize) quit("mload_from_file: wrong minimatrix size",__LINE__,__FILE__);
+    if(mmsize!=MMsize) quit("mload_from_file: minimatrix size mismatch",__LINE__,__FILE__);
   e = fread(asize, sizeof(*asize),1,f);
   if(e!=1) quit("mload_from_file: cannot read k2 matrix size",__LINE__,__FILE__);
   if(*asize<2*MMsize)
@@ -172,6 +171,25 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
   return size;
 }
 
+
+// load a k2 matrix, stored in file :fname, into the k2mat_t structure :a
+// possibly read also the subtree info from file :subtname and the backpointers from file :backpname
+// if backpname is present, rank_block_size must be provided as it is used to initialize the rank structure
+// the old content of :a is discarded
+// return the actual size of the matrix and store to *asize the internal (power of 2)
+// size of the k2 matrix, see msave_to_file() for details of the file format
+size_t mload_extended(size_t *asize, k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size)
+{
+  size_t size = mload_from_file(asize,a,fname);
+  // try to load subtinfo if present
+  if(subtname!=NULL)  k2read_subtinfo(a,subtname);
+  if(backpname!=NULL) {
+    a->backp = pointers_load_from_file(backpname);
+    assert(rank_block_size>0 && rank_block_size%4==0);  
+    rank_init(&(a->r),rank_block_size,a);
+  }
+  return size;
+}
 
 // give non-k2 names to two useful functions
 // for compatibility with bitarray representation

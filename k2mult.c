@@ -17,17 +17,17 @@
 #include <assert.h>
 #include <time.h>
 #include <limits.h>
-// definitions to be used for b128 vs k2-encoded matrices 
-#ifdef B128MAT
+// definitions to be used for b128 vs k2t-encoded matrices 
+#ifdef K2MAT
+ #include "k2.h"
+ extern bool Use_all_ones_node; // use the special ALL_ONES node in the result
+ extern bool Extended_edf;      // compute subtree info on the fly 
+#else // definitions for b128 matrices
  #include "b128.h"
  #define K2MAT_INITIALIZER B128MAT_INITIALIZER
  typedef b128mat_t k2mat_t;
  bool Use_all_ones_node; // not used: added for compatibility with k2mat
  bool Extended_edf;      // not used: added for compatibility with k2mat
-#else // k2mat
- #include "k2.h"
- extern bool Use_all_ones_node; // use the special ALL_ONES node in the result
- extern bool Extended_edf;      // compute subtree info on the fly 
 #endif
 // used by both matrix types
 #include "bbm.h"
@@ -45,7 +45,7 @@ int main (int argc, char **argv) {
   int verbose=0;
   int c;
   char iname1[PATH_MAX], iname2[PATH_MAX], oname[PATH_MAX];
-  #ifndef B128MAT
+  #ifdef K2MAT
   char *infofile1=NULL, *infofile2=NULL;
   char *backpfile1=NULL, *backpfile2=NULL; // file with backpointers
   uint32_t rank_block_size = 64; // block size for rank DS  
@@ -58,12 +58,12 @@ int main (int argc, char **argv) {
   char *outfile = NULL;
   Use_all_ones_node = false; Extended_edf = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:t:I:J:o:qhcnv1e")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:r:I:J:o:qhcnv1e")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;                 
-      #ifndef B128MAT
+      #ifdef K2MAT
       case 'I':
         backpfile1 = optarg; break;                 
       case 'i':
@@ -76,7 +76,7 @@ int main (int argc, char **argv) {
         Extended_edf = true; break; // compute subtree info on the fly                 
       case '1':
         Use_all_ones_node = true; break;
-      case 't':
+      case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif
       case 'c':
@@ -111,7 +111,7 @@ int main (int argc, char **argv) {
     fprintf(stderr,"Option -q is allowed only when the input matrices are equal\n");
     exit(2);
   }
-  #ifndef B128MAT
+  #ifdef K2MAT
   if(optimize_squaring && (infofile2!=NULL || backpfile2!=NULL)) {
     fprintf(stderr,"Options -q and -j/-J are incompatible (second matrix uses the same info as first)\n");
     exit(3);
@@ -131,22 +131,15 @@ int main (int argc, char **argv) {
   if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
 
-  // init k2 variables
+  // init matrix variables (valid for b128 and k2t)
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
   size_t size, asize;
 
-  // load first matrix
-  size = mload_from_file(&asize, &a, iname1); // also init k2 library
-  #ifndef B128MAT
-  // possibly load subtree info
-  if(infofile1) k2read_subtinfo(&a,infofile1);
-  // possibly load backpointers info
-  if(backpfile1) {
-    a.backp = pointers_load_from_file(backpfile1);
-    if(a.backp==NULL) quit("Error loading backpointers for first operand",__LINE__,__FILE__);
-    assert(rank_block_size>0 && rank_block_size%4==0);  
-    rank_init(&(a.r),rank_block_size,&a);
-  } 
+  // load first matrix possibly initializing k2 library
+  #ifdef K2MAT
+  size = mload_extended(&asize, &a, iname1, infofile1, backpfile1, rank_block_size);
+  #else
+  size = mload_from_file(&asize, &a, iname1);
   #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
@@ -158,7 +151,7 @@ int main (int argc, char **argv) {
   else {
     size_t bsize, size1 = mload_from_file(&bsize, &b, iname2);
     // possibly load subtree info
-    #ifndef B128MAT
+    #ifdef K2MAT
     if(infofile2) k2read_subtinfo(&b,infofile2);
     if(backpfile2) {
       b.backp = pointers_load_from_file(backpfile2);
@@ -228,7 +221,7 @@ static void usage_and_exit(char *name)
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out    outfile name (def. infile1%s)\n",default_ext);
-    #ifndef B128MAT
+    #ifdef K2MAT
     fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
     fprintf(stderr,"\t-i info   infile1 subtree info file\n");
     fprintf(stderr,"\t-j info   infile2 subtree info file\n");

@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <libgen.h>
 // definitions to be used for b128 vs k2-encoded matrices 
-#ifdef B128MAT
+#ifndef K2MAT
 #include "b128.h"
 #define default_cext ".b128"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
@@ -94,7 +94,7 @@ int main (int argc, char **argv) {
   }
   if(check  && decompress)
     quit("Options -c and -d are incompatible",__LINE__,__FILE__);
-  #ifdef B128MAT
+  #ifndef K2MAT
   if(xsize<=0)
     quit("-s parameter is mandatory and must be positive",__LINE__,__FILE__); 
   #else    
@@ -104,7 +104,7 @@ int main (int argc, char **argv) {
   // check we are within the hard limit of matrix size
   // note there can be other limitations not tested here
   if(xsize>MaxMatrixSize) 
-    #ifdef B128MAT
+    #ifndef K2MAT
     quit("Matrix size is too large: see b128.h for the hard limit on size",__LINE__,__FILE__);
     #else    
     quit("Matrix size is too large: see k2.h for the hard limit on size",__LINE__,__FILE__);
@@ -171,7 +171,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: infile%s)\n",
                    default_cext, default_dext);
-    #ifdef B128MAT
+    #ifndef K2MAT
     fprintf(stderr,"\t-s S    matrix actual size [compression only]\n");
     #else
     fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1) [compression only]\n");

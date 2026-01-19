@@ -60,8 +60,8 @@ Compress the $k^2$ tree by detecting identical subtrees. No automathic compressi
 ###  Compression
 
 ```
-./k2sparse.x m.txt -o m.k2
-./k2cpdf.x 
+./k2sparse.x m.txt -o mx.k2
+./k2cpdf.x m.k2
 ./k2subtinfo.x m.ck2 
 ```
 
@@ -86,3 +86,4 @@ AS above, to compute the subtree info on the fly for small subtrees use option `
 
 
 # Available C functions 
+

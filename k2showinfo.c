@@ -26,7 +26,7 @@
 #include <stdbool.h>
 #include <libgen.h>
 // definitions to be used for b128 vs k2-encoded matrices 
-#ifdef B128MAT
+#ifndef K2MAT
 #include "b128.h"
 #define default_cext ".b128"
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
@@ -44,7 +44,7 @@ static void usage_and_exit(char *name);
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
-  #ifndef B128MAT
+#ifdef K2MAT
   char *infofile1=NULL, *backpfile1=NULL; // file subtree info and backpointers
   uint32_t rank_block_size = 64; // block size for rank DS  
   #endif
@@ -56,7 +56,7 @@ int main (int argc, char **argv) {
   while ((c=getopt(argc, argv, "hi:I:t:")) != -1) {
     switch (c) 
       {
-      #ifndef B128MAT  
+    #ifdef K2MAT  
       case 'I':
         backpfile1 = optarg; break;                 
       case 'i':
@@ -81,7 +81,7 @@ int main (int argc, char **argv) {
   size_t size, asize, totnz=0;
   printf("Matrix file: %s\n",argv[1]);
   size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
-  #ifndef B128MAT
+#ifdef K2MAT
   if(infofile1) k2read_subtinfo(&a,infofile1);
   // possibly load backpointers info
   if(backpfile1) {
@@ -108,7 +108,7 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] file1\n\n",name);
     fputs("Options:\n",stderr);
-    #ifndef B128MAT
+  #ifdef K2MAT
     fprintf(stderr,"\t-i info   subtree info file\n");
     fprintf(stderr,"\t-I info   backpointers file\n");
     fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
