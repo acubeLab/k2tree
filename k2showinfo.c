@@ -80,18 +80,13 @@ int main (int argc, char **argv) {
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize, totnz=0;
   printf("Matrix file: %s\n",argv[1]);
+  #ifdef K2MAT
+  size = mload_extended(&asize, &a, argv[1], infofile1, backpfile1, rank_block_size);
+  #else
   size = mload_from_file(&asize, &a, argv[1]); // also init k2 library
-#ifdef K2MAT
-  if(infofile1) k2read_subtinfo(&a,infofile1);
-  // possibly load backpointers info
-  if(backpfile1) {
-    a.backp = pointers_load_from_file(backpfile1);
-    if(a.backp==NULL) { perror("Error loading backpointers"); exit(1); }
-    assert(rank_block_size>0 && rank_block_size%4==0);  
-    rank_init(&(a.r),rank_block_size,&a);
-  } 
   #endif
-  totnz += mshow_stats(size, asize,&a,basename(argv[1]),stdout);
+  fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
+  totnz = mshow_stats(size, asize,&a,basename(argv[1]),stdout);
   puts("");
   matrix_free(&a);
   minimat_reset();

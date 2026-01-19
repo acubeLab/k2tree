@@ -1,11 +1,11 @@
-/* Multiplication of boolean matrices represented as k2 trees
+/* Demo of unary operations onboolean matrices represented as k2 trees
 
    Note: internally matrix dimensions are always of the form 2^k times the size 
    of a minimatrix (those stored at the leaves of the tree), with k>0, 
    but the input can be also of a smaller size, and the matrix will be padded with 0's 
 
 
-   Copyright August 2023-today   ---  giovanni.manzini@unipi.it
+   Copyright August 2025-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -44,10 +44,10 @@ int main (int argc, char **argv) {
   extern int optind, opterr, optopt;
   int verbose=0;
   int c;
-  char iname1[PATH_MAX], iname2[PATH_MAX], oname[PATH_MAX];
+  char iname1[PATH_MAX], oname[PATH_MAX];
   #ifdef K2MAT
-  char *infofile1=NULL, *infofile2=NULL;
-  char *backpfile1=NULL, *backpfile2=NULL; // file with backpointers
+  char *infofile1=NULL;
+  char *backpfile1=NULL; // file with backpointers
   uint32_t rank_block_size = 64; // block size for rank DS  
   #endif
   time_t start_wc = time(NULL);
@@ -58,7 +58,7 @@ int main (int argc, char **argv) {
   char *outfile = NULL;
   Use_all_ones_node = false; Extended_edf = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:r:I:J:o:qhcnv1e")) != -1) {
+  while ((c=getopt(argc, argv, "i:r:I:o:qhcnv1e")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -68,10 +68,6 @@ int main (int argc, char **argv) {
         backpfile1 = optarg; break;                 
       case 'i':
         infofile1 = optarg; break;                 
-      case 'J':
-        backpfile2 = optarg; break;                 
-      case 'j':
-        infofile2 = optarg; break;
       case 'e':
         Extended_edf = true; break; // compute subtree info on the fly                 
       case '1':
@@ -103,36 +99,18 @@ int main (int argc, char **argv) {
 
   // virtually get rid of options from the command line 
   optind -=1;
-  if (argc-optind != 3) usage_and_exit(argv[0]); 
+  if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
   // check command line options
-  if(optimize_squaring && strcmp(argv[1],argv[2])!=0) {
-    fprintf(stderr,"Option -q is allowed only when the input matrices are equal\n");
-    exit(2);
-  }
-  #ifdef K2MAT
-  if(optimize_squaring && (infofile2!=NULL || backpfile2!=NULL)) {
-    fprintf(stderr,"Options -q and -j/-J are incompatible (second matrix uses the same info as first)\n");
-    exit(3);
-  }
-  #ifndef SIMPLEBACKPOINTERS
-  // When using singlebackpointers, -e works fine
-  if(Extended_edf && (backpfile1!=NULL || backpfile2!=NULL)) {
-    fprintf(stderr,"Option -e is incompatible with options -I/-J\n");
-    exit(4);
-  }
-  #endif
-  #endif
   
   // create file names
   sprintf(iname1,"%s",argv[1]);
-  sprintf(iname2,"%s",argv[2]);
   if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
 
   // init matrix variables (valid for b128 and k2t)
-  k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
+  k2mat_t a=K2MAT_INITIALIZER;
   size_t size, asize;
 
   // load first matrix possibly initializing k2 library
@@ -143,66 +121,19 @@ int main (int argc, char **argv) {
   #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
-  // copy or load second matrix
-  if(optimize_squaring) {
-    assert(strcmp(iname1,iname2)==0); 
-    mmake_pointer(&a,&b); // if b==a, use a pointer and save space
+  // transpose matrix
+  k2transpose(&a);
+  if (verbose) {
+    fputs("After transposition:\n", stdout);
+    mshow_stats(size, asize,&a,iname1,stdout);
   }
-  else {
-    size_t bsize, size1;
-    #ifdef K2MAT
-    // possibly load subtree info
-    size1 = mload_extended(&bsize, &b, iname1, infofile1, backpfile1, rank_block_size);
-    #else
-    size1 = mload_from_file(&bsize, &b, iname2);
-    #endif
-    // check sizes correpondds
-    if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
-    if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
-  }
-  if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
+  sprintf(oname,"%s.tr.txt",argv[1]);
+  mwrite_to_textfile(size,asize, &a, oname);
 
-  // do the multiplication show/save the result
-  mmult(asize,&a,&b,&ab);
-  if (verbose || !write) 
-    mshow_stats(size, asize,&ab,oname,stdout);
-  if(write) msave_to_file(size,asize,&ab,oname);
 
-  // check product if requested: use bbm matrix (n^2 bytes n^3 time) 
-  if(check) {
-    uint8_t *m2, *m1 = bbm_alloc(size), *m3 = bbm_alloc(size);
-    // read m1 
-    mwrite_to_bbm(m1,size,asize,&a);
-    if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
-    // read m2 if different from m2
-    if(strcmp(iname1,iname2)==0) m2=m1;
-    else {
-      m2 = bbm_alloc(size);
-      mwrite_to_bbm(m2,size,asize,&b);
-      if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
-    }
-    // compute product to m3 = m1 * m2
-    // consider using fast_mmult_bbm, but that would require opm
-    mmult_bbm(m1,size,m2,m3);
-    // uncompress product to m1
-    mwrite_to_bbm(m1,size,asize,&ab);
-    if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
-    ssize_t eq = mequals_bbm(m1,size,m3);
-    if(eq<0) fprintf(stdout,"Product matches the one computed using byte matrices!\n");
-    else {
-      ssize_t ssize = (ssize_t) size;
-      fprintf(stdout,"Product matrix differs at position (%zd,%zd) "
-      "prod+uncompr:%d vs uncompr+prod:%d\n",eq/ssize,eq%ssize, m1[eq], m3[eq]);
-    }
-    free(m1); free(m3);
-    if(strcmp(iname1,iname2)) free(m2);
-  }
 
-  // free and terminate
-  matrix_free(&a);
-  if(!optimize_squaring) 
-    matrix_free(&b); // b is distinct from a, deallocate it
-  matrix_free(&ab);    
+  // done
+  matrix_free(&a);    
   minimat_reset(); // reset the minimat library and free minimat product table
   // report running time
   fprintf(stderr,"Elapsed time: %.8lf secs\n", ((double) (time(NULL)-start_wc)));

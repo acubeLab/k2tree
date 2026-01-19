@@ -138,6 +138,15 @@ int main (int argc, char **argv) {
 static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+
+    fputs("Tool to compress boolean matrices in bbm format (one byte per entry)\n", stderr); 
+    #ifdef K2MAT
+    fputs("to k2 compressed Plain Depth First format\n\n",stderr);
+    #else
+    fputs("to B128 (one bit per entry) format\n\n",stderr);
+    #endif
+
+
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-d      decompress\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");

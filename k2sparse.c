@@ -92,6 +92,12 @@ int main (int argc, char **argv) {
      fprintf(stdout," %s",argv[i]);
     fputs("\n",stdout);  
   }
+
+  // virtually get rid of options from the command line 
+  optind -=1;
+  if (argc-optind != 2) usage_and_exit(argv[0]); 
+  argv += optind; argc -= optind;
+
   if(check  && decompress)
     quit("Options -c and -d are incompatible",__LINE__,__FILE__);
   #ifndef K2MAT
@@ -109,11 +115,6 @@ int main (int argc, char **argv) {
     #else    
     quit("Matrix size is too large: see k2.h for the hard limit on size",__LINE__,__FILE__);
     #endif
-
-  // virtually get rid of options from the command line 
-  optind -=1;
-  if (argc-optind != 2) usage_and_exit(argv[0]); 
-  argv += optind; argc -= optind;
 
   // assign default extension and create file names
   char *ext = decompress ? default_dext : default_cext;  
@@ -166,8 +167,16 @@ int main (int argc, char **argv) {
 static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+
+    fputs("Tool to compress boolean matrices in sparse text format (one line per entry)\n", stderr); 
+    #ifdef K2MAT
+    fputs("to k2 compressed Plain Depth First format\n\n",stderr);
+    #else
+    fputs("to B128 (one bit per entry) format\n\n",stderr);
+    #endif
+
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-d      decompress\n");
+    fprintf(stderr,"\t-d      decompress to text one line per entry format\n");
     fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
     fprintf(stderr,"\t-o out  outfile name (def. compr: infile%s, decompr: infile%s)\n",
                    default_cext, default_dext);

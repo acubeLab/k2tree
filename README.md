@@ -44,7 +44,7 @@ in textual form, one nonzero per row.
 
 ### The uncompressed matrix formats
 
-The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extension `.bbm`). In this format the input matrix must be square and represented using one byte per entry (so the `.bbm` file lenght is the square of the matrix dimension). Each entry should be a 0 or 1 value (ie `\x00` or `\x01`). The file `t8.bbm` contains an 8x8 matrix in this format, type `od -td1 -w8 -An -v t8.bbm` to see its content:
+The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extension `.bbm`). In this format the input matrix must be square and represented using one byte per entry (so the `.bbm` file length is the square of the matrix dimension). Each entry should be a 0 or 1 value (ie `\x00` or `\x01`). The file `t8.bbm` contains an 8x8 matrix in this format, type `od -td1 -w8 -An -v t8.bbm` to see its content:
 ```
     0    0    0    0    0    1    1    1
     0    0    0    0    0    0    1    0
