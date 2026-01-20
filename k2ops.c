@@ -295,37 +295,32 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
   assert(!c->read_only);
-  // c is always an empty matrix because a partial product is never 
-  // written directly to a result matrix 
+  // c is always an empty matrix because a partial product is never written directly to a result matrix 
   assert(k2is_empty(c));
   // initialize ax[][] and bx[][] to cover the case when the matrix a/b is all 1s                       
   minimat_t ax[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
   minimat_t bx[2][2] = {{MINIMAT1s,MINIMAT1s},{MINIMAT1s,MINIMAT1s}};
-  node_t roota = k2read_node(a,0);
-  node_t rootb = k2read_node(b,0);
+  node_t roota = k2read_root(a);
+  node_t rootb = k2read_root(b);
   //both matrices are all 1s ?
   if(roota==ALL_ONES && rootb == ALL_ONES) {
     #ifndef NDEBUG
-    if(a->backp!=NULL)
-      quit("Illegal left operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
-    if(b->backp!=NULL)
-      quit("Illegal right operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
+    if(a->backp!=NULL) quit("Illegal left operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
+    if(b->backp!=NULL) quit("Illegal right operand: compressed and with an ALL_ONES node",__LINE__,__FILE__);
     #endif
-    if(Use_all_ones_node) k2add_node(c,ALL_ONES); // remove this 
+    if(Use_all_ones_node) k2add_node(c,ALL_ONES); // we usually want this 
     else {
-      // if Use_all_ones_node is false we write a 2x2 matrix of all 1s
-      k2add_node(c,ALL_CHILDREN); // write root node
-      k2add_minimat(c,MINIMAT1s); // write 4 submatrices matrix of all 1s
-      k2add_minimat(c,MINIMAT1s);
-      k2add_minimat(c,MINIMAT1s);
-      k2add_minimat(c,MINIMAT1s);
+      // if for some reason Use_all_ones_node is false we write a 2x2 matrix of all 1s
+      k2add_node(c,ALL_CHILDREN); // write root node and 4 submatrices matrix of all 1s
+      k2add_minimat(c,MINIMAT1s); k2add_minimat(c,MINIMAT1s);
+      k2add_minimat(c,MINIMAT1s); k2add_minimat(c,MINIMAT1s);
     }
     return;
   }
-  // TODO: insert possible code for case when one matrix is all 1s and the other is not
+  // TODO: insert possible code to speedup the case when one matrix is all 1s and the other is not
   // split a and b, taking care also of transpose and main_diag
   size_t posa=1,posb=1; // we have already read the root node
-  if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above
+  if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above, no need to call k2split_minimats
     k2split_minimats(a,&posa,roota,ax);
   else assert(a->backp==NULL); // if a is ALL_ONES it cannot have backp pointers 
   if(rootb!=ALL_ONES) 
@@ -333,7 +328,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   else assert(b->backp==NULL); // if b is ALL_ONES it cannot have backp pointers
 
   // split done, now multiply and store c 
-  // optimization on all 1's submatrices still missing 
+  // speed optimization on all 1's submatrices still missing 
   bool all_ones=true; // true if all c submatrices cx[i][j] are all 1's
   size_t rootpos = k2add_node(c,ALL_ONES);  // write ALL_NODES as root placeholder 
   node_t rootc=NO_CHILDREN;        // actual root node to be computed

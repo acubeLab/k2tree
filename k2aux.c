@@ -241,6 +241,8 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
   }
   if(a->transpose) {
     minimat_t tmp = ax[1][0]; ax[1][0]=ax[0][1]; ax[0][1]=tmp;
+    ax[0][0] = mtranspose[ax[0][0]];
+    ax[1][1] = mtranspose[ax[1][1]];
   }
 }
 
@@ -431,7 +433,7 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 k2mat_t k2jump(size_t size, const k2mat_t *a) 
 {
   // read root node
-  node_t root = k2read_node(a,0);  // read root of current tree
+  node_t root = k2read_root(a);   // read root of current tree
   assert(root==POINTER); 
   // Warning: pointers are 32 bits
   k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree

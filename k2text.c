@@ -912,6 +912,39 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
 // -----------------------------
 
 
+// decode to sparse text format a matrix of size 2*MMsize
+static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *a, size_t *pos) 
+{
+  assert(size==2*MMsize);
+  assert(a!=NULL);
+  assert(!k2is_empty(a)); // not sure, we should handle it here
+  minimat_t ax[2][2];
+
+  // read root of a
+  node_t roota = k2read_node(a,*pos); *pos += 1;
+  if(roota==ALL_ONES) {
+    #ifndef NDEBUG
+    if(a->backp!=NULL) quit("Illegal matrix: backpointers and an ALL_ONES node at last level",__LINE__,__FILE__);
+    #endif
+    // output all 1s submatrix, transpose and main_diag_1 irrelevant 
+    for(size_t ii=i; ii<i+size && ii < msize; ii++)
+      for(size_t jj=j; jj<j+size && jj < msize; jj++) {
+        int e = fprintf(outfile,"%zu %zu\n",ii,jj);
+        if(e<0) quit("mdecode_to_textfile_base: fprintf failed",__LINE__,__FILE__);
+      }
+  }
+  else {
+    // split :a taking care also of transpose and main_diag
+    k2split_minimats(a,pos,roota,ax);
+    for(size_t k=0;k<4;k++) {  
+      size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
+      minimat_to_text(outfile,msize,ii,jj,size/2, ax[k/2][k%2]); 
+    }
+  }
+}
+
+
+
 // recursively decode a k2 submatrix into a list of entries written to a text file
 // Parameters:
 //   f output file 
@@ -920,7 +953,8 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
+static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) 
+{
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
@@ -929,41 +963,52 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
     return; // empty matrix
   if(k2is_empty(c) && c->main_diag_1==true) {  // main diagonal ones only
     assert(i==j); // should be along the main diagonal
-    for(size_t ii=0; ii<msize; ii++) {
-      int e = fprintf(outfile,"%zu %zu\n",i+ii,i+ii);
+    for(size_t d=i; d<i+size && d<msize; d++) {
+      int e = fprintf(outfile,"%zu %zu\n",d,d);
       if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
     }
     return;
   }
-  // c contains some data: read c root
-  node_t rootc=k2read_node(c,*pos); *pos +=1;
-  if(c->backp==NULL && rootc==ALL_ONES) { // all 1s matrix
-    for(size_t ii=0; ii<size; ii++)
-      for(size_t jj=0; jj<size; jj++)
-        if(i+ii<msize && j+jj<msize) { 
-          int e = fprintf(outfile,"%zu %zu\n",i+ii,j+jj);
-          if(e<0) quit("mdecode_to_textfile_plain: fprintf failed",__LINE__,__FILE__);
-        }
+  if(size==2*MMsize) { // base case
+    mdecode_to_textfile_base(outfile,msize,i,j,size,c,pos);
     return;
   }
-  // is this a pointer node?
-  if(c->backp!=NULL && rootc==POINTER) { // recall POINTER=ALL_NODES=0000 
 
+  // size>2*MMsize and c contains some data: read c root
+  node_t rootc=k2read_node(c,*pos); *pos +=1;
+  if(c->backp==NULL && rootc==ALL_ONES) { // all 1s matrix
+    // output all 1s submatrix, transpose and main_diag_1 irrelevant 
+    for(size_t ii=i; ii<i+size && ii < msize; ii++)
+      for(size_t jj=j; jj<j+size && jj < msize; jj++) {
+        int e = fprintf(outfile,"%zu %zu\n",ii,jj);
+        if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
+      }
+    return;
   }
-
-
-
+  // if this is a pointer node follow it creating a target matrix 
+  k2mat_t tmp;
+  if(c->backp!=NULL && rootc==POINTER) { // recall POINTER=ALL_NODES=0000 
+    tmp = k2jump(size,c); 
+    size_t posp = 0;
+    mdecode_to_textfile(outfile,msize,i,j,size,&tmp,&posp);
+    return;
+  }
+  // general case: not a pointer node and there is at least one child
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(size_t k=0;k<4;k++) {  
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
-      if(size==2*MMsize) { // read a minimatrix
-        minimat_t cx = k2read_minimat(c,pos);
-        assert(cx!=MINIMAT0s); // should not happen
-        minimat_to_text(outfile,msize,ii,jj,size/2,cx);
-      }
+      if(c->transpose) { // transpose submatrix
+        mdecode_to_textfile_plain(outfile,msize,jj,ii,size/2,c,pos);
+      }      
       else { // decode submatrix
         mdecode_to_textfile_plain(outfile,msize,ii,jj,size/2,c,pos);
+      }
+    }
+    else if(c->main_diag_1 && ii==jj) { // empty subm with main diagonal ones
+      for(size_t d=ii; d< ii + (size/2) && d<msize; d++) {
+        int e = fprintf(outfile,"%zu %zu\n",d,d);
+        if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
       }
     }
   }

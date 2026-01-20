@@ -96,6 +96,7 @@ uint32_t minimat_size();
 void minimat_reset();
 
 // from k2aux.c
+node_t k2read_node(const k2mat_t *m, size_t p);
 void k2read_subtinfo(k2mat_t *a, const char *infofile);
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit);
 size_t k2treesize(const k2mat_t *m);
@@ -105,6 +106,8 @@ void k2transpose(k2mat_t *a);
 void k2add_identity(k2mat_t *a);
 // print some info about a k2mat
 void k2print(const k2mat_t *m, FILE *f);
+// follow a pointer node and returns the pointed submatrix
+k2mat_t k2jump(size_t size, const k2mat_t *a); 
 
 // from k2io.c
 // save a k2-matrix to file

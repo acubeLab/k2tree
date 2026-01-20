@@ -56,6 +56,8 @@ static minimat_t MINIMAT_Id;   // identity minimat initialized in minimats_init
 // global variable containing the product of every pair of possible minimatrices
 // to be initialized in minimats_init();
 static minimat_t *mprods2x2 = NULL; // will contain 256 entries
+static minimat_t mtranspose2x2[16]; // transpose of each 2x2 minimat
+static minimat_t *mtranspose=NULL;  // transpose of minimats, must be initialized in minimats_init
 
 // multiply two minimat matrices of size 2*2
 minimat_t mmult2x2(minimat_t a, minimat_t b) {
@@ -94,8 +96,8 @@ static void init_mprods2x2(void) {
   if(mprods2x2==NULL) quit("init_mprods2x2: malloc failed",__LINE__,__FILE__);
   // fill with products
   minimat_t arow[2], bcol[2],c;
-  for(minimat_t a=0; a<16; a++) 
-    for(minimat_t b=0; b<16;b++) {
+  for(minimat_t a=0; a<16; a++) {
+    for(minimat_t b=0; b<16;b++) { // init products times b
       arow[0] = a&3; arow[1] = a>>2;
       bcol[0] = (b&1) | (b&4)>>1; 
       bcol[1] = (b&2)>>1 | (b&8)>>2;
@@ -105,6 +107,9 @@ static void init_mprods2x2(void) {
       c |= (arow[1] & bcol[1]) ? 8 : 0; // c[1][1] = a[1]*b[1]
       mprods2x2[a<<4 | b] = c;
     }
+    // init transpose array
+    mtranspose2x2[a] = ( (a&1) | ((a&2)<<1) | ((a&4)>>1) | (a&8) );
+  }
 }
 
 // init array of transpose
@@ -150,10 +155,12 @@ void minimat_init(int msize) {
   // so far only size 2 or 4 are allowed
   if(MMsize==2) {
     init_mprods2x2();
+    mtranspose = mtranspose2x2;
     MINIMAT_Id = 0xA; // TODO check this!
   }
   else if (MMsize==4) {
     init_mtranspose4x4();
+    mtranspose = mtranspose4x4;
     MINIMAT_Id = 0x8421;
   }
   else quit("minimats_init: MMsize!=2,4",__LINE__,__FILE__); 
@@ -171,6 +178,7 @@ uint32_t minimat_size() {
 void minimat_reset() {
   MMsize=0;
   Minimat_node_ratio=0;
+  mtranspose = NULL;
   if(mprods2x2!=NULL) {
     free(mprods2x2);
     mprods2x2=NULL;
