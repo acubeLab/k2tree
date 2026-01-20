@@ -54,6 +54,12 @@ bool k2is_empty(const k2mat_t *m)
   return m->pos == 0;
 }
 
+// check is a matrix is zero (all 0 entries)
+bool k2is_zero(const k2mat_t *m)
+{
+  return m->main_diag_1==false && k2is_empty(m);
+}
+
 // check if the submatrix starting at pos is empty
 bool k2submatrix_empty(const k2mat_t *m, size_t pos)
 {
@@ -144,6 +150,12 @@ node_t k2read_node(const k2mat_t *m, size_t p)
     return m->b[p/2] & 0xF;
   else 
     return  (m->b[p/2] >> 4) & 0xF;
+}
+
+// special case of tree root
+node_t k2read_root(const k2mat_t *m)
+{
+  return k2read_node(m,0);
 }
 
 // return number of children of root node

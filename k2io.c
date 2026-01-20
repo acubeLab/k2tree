@@ -20,7 +20,7 @@ static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 
 
 
-
+// BBM support will be removed in future versions
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a)

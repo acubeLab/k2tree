@@ -54,7 +54,7 @@
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat_t *c);
-static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
+static void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
 static inline bool a_eq_b2(uint64_t a, uint64_t b);
 static inline bool a_lt_b2(uint64_t a, uint64_t b);
@@ -101,7 +101,7 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
     return;
   }
   size_t pos = 0;
-  mdecode_to_textfile(f,msize,0,0,asize,a,&pos);
+  mdecode_to_textfile_plain(f,msize,0,0,asize,a,&pos);
   fclose(f);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
@@ -911,8 +911,8 @@ static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize)
 
 // -----------------------------
 
-// recursively decode a k2 submatrix into a list of entries
-// written to a text file
+
+// recursively decode a k2 submatrix into a list of entries written to a text file
 // Parameters:
 //   f output file 
 //   msize actual file of the matrix
@@ -924,6 +924,71 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
+
+  if(k2is_empty(c) && c->main_diag_1==false)  
+    return; // empty matrix
+  if(k2is_empty(c) && c->main_diag_1==true) {  // main diagonal ones only
+    assert(i==j); // should be along the main diagonal
+    for(size_t ii=0; ii<msize; ii++) {
+      int e = fprintf(outfile,"%zu %zu\n",i+ii,i+ii);
+      if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
+    }
+    return;
+  }
+  // c contains some data: read c root
+  node_t rootc=k2read_node(c,*pos); *pos +=1;
+  if(c->backp==NULL && rootc==ALL_ONES) { // all 1s matrix
+    for(size_t ii=0; ii<size; ii++)
+      for(size_t jj=0; jj<size; jj++)
+        if(i+ii<msize && j+jj<msize) { 
+          int e = fprintf(outfile,"%zu %zu\n",i+ii,j+jj);
+          if(e<0) quit("mdecode_to_textfile_plain: fprintf failed",__LINE__,__FILE__);
+        }
+    return;
+  }
+  // is this a pointer node?
+  if(c->backp!=NULL && rootc==POINTER) { // recall POINTER=ALL_NODES=0000 
+
+  }
+
+
+
+  // here we are assuming that the submatrices are in the order 00,01,10,11
+  for(size_t k=0;k<4;k++) {  
+    size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
+    if(rootc & (1<<k)) { // read a submatrix
+      if(size==2*MMsize) { // read a minimatrix
+        minimat_t cx = k2read_minimat(c,pos);
+        assert(cx!=MINIMAT0s); // should not happen
+        minimat_to_text(outfile,msize,ii,jj,size/2,cx);
+      }
+      else { // decode submatrix
+        mdecode_to_textfile_plain(outfile,msize,ii,jj,size/2,c,pos);
+      }
+    }
+  }
+}
+
+
+
+
+// recursively decode a k2 submatrix into a list of entries written to a text file
+// only work for plain k2 matrices (no backpointers, transpose, or main_diagonal)
+// Parameters:
+//   f output file 
+//   msize actual file of the matrix
+//   i,j submatrix top left corner
+//   size k^2 submatrix size (has the form 2^k*MMsize)
+//   *c input k2mat_t structure
+//   *pos position in *c where the submatrix starts
+static void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
+  assert(size%2==0 && size>=2*MMsize);
+  assert(i%MMsize==0 && j%MMsize==0);
+  assert(i<msize+2*size && j<msize+2*size);
+  if(c->backp!=NULL) 
+    quit("mdecode_to_textfile_plain: cannot handle k2 matrices with backpointers",__LINE__,__FILE__);
+  if(c->transpose || c->main_diag_1) 
+    quit("mdecode_to_textfile_plain: cannot handle k2 matrices with transpose or main_diagonal on",__LINE__,__FILE__); 
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(rootc==ALL_ONES) { // all 1s matrix
@@ -931,7 +996,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
       for(size_t jj=0; jj<size; jj++)
         if(i+ii<msize && j+jj<msize) { 
           int e = fprintf(outfile,"%zu %zu\n",i+ii,j+jj);
-          if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
+          if(e<0) quit("mdecode_to_textfile_plain: fprintf failed",__LINE__,__FILE__);
         }
     return;
   }
@@ -945,7 +1010,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
         minimat_to_text(outfile,msize,ii,jj,size/2,cx);
       }
       else { // decode submatrix
-        mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
+        mdecode_to_textfile_plain(outfile,msize,ii,jj,size/2,c,pos);
       }
     }
   }

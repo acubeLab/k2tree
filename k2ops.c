@@ -474,9 +474,9 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   assert(!k2is_empty(a) && !k2is_empty(b));
   // copy *a and *b to local vars, taking care of possible back pointers
   k2mat_t atmp, btmp;
-  if(a->backp!=NULL && k2read_node(a,0)==POINTER) atmp = k2jump(size,a); 
+  if(a->backp!=NULL && k2read_root(a)==POINTER) atmp = k2jump(size,a); 
   else atmp = *a;
-  if(b->backp!=NULL && k2read_node(b,0)==POINTER) btmp = k2jump(size,b); 
+  if(b->backp!=NULL && k2read_root(b)==POINTER) btmp = k2jump(size,b); 
   else btmp = *b;
   // add subtree info if requested on-the-fly construction
   bool subinfo_added_a = false, subinfo_added_b = false;
