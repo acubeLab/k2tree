@@ -953,11 +953,15 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
+// Note: subtinfo is not used here. if backp!=NULL and a POINTER/ALL_ONES node is found it is followed
+// creating a target matrix; if backp==NULL ALL_ONES nodes are treated as full 1s submatrices
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) 
 {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
+  assert(!c->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
+  assert(!c->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
 
   if(k2is_empty(c) && c->main_diag_1==false)  
     return; // empty matrix
