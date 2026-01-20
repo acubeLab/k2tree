@@ -16,11 +16,21 @@ jobs:
 
     - name: Compile libsais
       run:
-        cd libsais; cmake .; make; cd ..  
+        cd libsais; cmake .; make; cd ..
+
+    - name: make
+      run: make  
         
     - name: run
       run: ./ptest.sh web cnr80k
-    # - name: configure
+
+    - name: check
+      run:
+        ./k2sparse.x web/cnr80k.k2 -d -o sparsek2.txt   
+        ./k2sparse.x web/cnr80k.ck2 -d -o sparseck2.txt
+        ./matrixcmp.x sparsek2.txt sparseck2.txt 
+
+        # - name: configure
     #   run: ./configure
     # - name: make
     #   run: make

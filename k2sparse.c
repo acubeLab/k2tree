@@ -51,6 +51,11 @@ int main (int argc, char **argv) {
   int verbose=0;
   int c;
   char iname[PATH_MAX], oname[PATH_MAX];
+  #ifdef K2MAT
+  char *infofile1=NULL;
+  char *backpfile1=NULL; // file with backpointers
+  uint32_t rank_block_size = 64; // block size for rank DS  
+  #endif
   time_t start_wc = time(NULL);
 
   /* ------------- read options from command line ----------- */
@@ -60,7 +65,7 @@ int main (int argc, char **argv) {
   int64_t xsize = 0;
   char *outfile = NULL;
   Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "o:m:s:dcnhv1")) != -1) {
+  while ((c=getopt(argc, argv, "o:m:s:di:I:r:cnhv1")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -73,10 +78,18 @@ int main (int argc, char **argv) {
         check = true; break;
       case 'n':
         write = false; break;
+      #ifdef K2MAT
       case 'm':
         mmsize = atoi(optarg); break;
+      case 'I':
+        backpfile1 = optarg; break;                 
+      case 'i':
+        infofile1 = optarg; break;                                 
       case '1':
         Use_all_ones_node = true; break;
+      case 'r':
+        rank_block_size = atoi(optarg); break; // block size of rank structure
+      #endif
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -125,7 +138,11 @@ int main (int argc, char **argv) {
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize; // size the actual matrix size, asize the internal size 2^k * MMsize
   if(decompress) {
-    size = mload_from_file(&asize, &a, iname); // also init k2 library
+    #ifdef K2MAT
+    size = mload_extended(&asize, &a, iname, infofile1, backpfile1, rank_block_size);
+    #else
+    size = mload_from_file(&asize, &a, iname);
+    #endif
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     if(write) mwrite_to_textfile(size,asize, &a, oname);
@@ -186,6 +203,9 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1) [compression only]\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2) [compression only]\n");
     fprintf(stderr,"\t-1      compact all 1's submatrices [compression only]\n");
+    fprintf(stderr,"\t-i info infile subtree info file\n");
+    fprintf(stderr,"\t-I info infile backpointers file\n");
+    fprintf(stderr,"\t-r size rank block size for k2 compression (def. 64)\n");
     #endif  
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    

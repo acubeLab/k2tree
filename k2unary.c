@@ -38,7 +38,6 @@ static void usage_and_exit(char *name);
 static void quit(const char *msg, int line, char *file);
 
 
-
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
@@ -54,10 +53,8 @@ int main (int argc, char **argv) {
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
-  bool check = false, write = true;
   char *outfile = NULL;
   Use_all_ones_node = false; Extended_edf = false;
-  bool optimize_squaring = false;    // use a single copy of M to compute M^2
   while ((c=getopt(argc, argv, "i:r:I:o:qhcnv1e")) != -1) {
     switch (c) 
       {
@@ -74,13 +71,7 @@ int main (int argc, char **argv) {
         Use_all_ones_node = true; break;
       case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
-      #endif
-      case 'c':
-        check = true; break;      
-      case 'n':
-        write = false; break;       
-      case 'q':
-        optimize_squaring = true; break;       
+      #endif          
       case 'h':
         usage_and_exit(argv[0]); break;        
       case 'v':
@@ -144,24 +135,21 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] infile1 infile2\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
+    fprintf(stderr,"Demo of unary operations on the compressed matrices stored in infile\n\n");
     fputs("Options:\n",stderr);
     fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out    outfile name (def. infile1%s)\n",default_ext);
     #ifdef K2MAT
     fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
-    fprintf(stderr,"\t-i info   infile1 subtree info file\n");
-    fprintf(stderr,"\t-j info   infile2 subtree info file\n");
-    fprintf(stderr,"\t-I info   infile1 backpointers file\n");
-    fprintf(stderr,"\t-J info   infile2 backpointers file\n");
-    fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-i info   infile subtree info file\n");
+    fprintf(stderr,"\t-I info   infile backpointers file\n");
+    fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
     #endif  
     fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
-    fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");
     fprintf(stderr,"\t-h        show this help message\n");    
     fprintf(stderr,"\t-v        verbose\n\n");
-    fprintf(stderr,"Multiply two compressed matrices stored in infile1 and infile2\n\n");
     exit(1);
 }
 
