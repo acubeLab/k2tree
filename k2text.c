@@ -998,11 +998,15 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   for(size_t k=0;k<4;k++) {  
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
     if(rootc & (1<<k)) { // read a submatrix
-      if(c->transpose) { // transpose submatrix
-        mdecode_to_textfile_plain(outfile,msize,jj,ii,size/2,c,pos);
-      }      
-      else { // decode submatrix
-        mdecode_to_textfile_plain(outfile,msize,ii,jj,size/2,c,pos);
+      if(ii==jj) { // we are on a diagonal submatrix: keep main_diag_1 and transpose
+        mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
+      }
+      else { // off diagonal block 
+        tmp = *c;
+        tmp.transpose = false;     // do not propagate transpose outside the diagonal
+        tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
+        if(c->transpose)  mdecode_to_textfile(outfile,msize,jj,ii,size/2,&tmp,pos); // swap ii and jj
+        else mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos);
       }
     }
     else if(c->main_diag_1 && ii==jj) { // empty subm with main diagonal ones
