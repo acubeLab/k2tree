@@ -272,7 +272,7 @@ void minimat_to_text(FILE *f, size_t msize, size_t i, size_t j, size_t size, min
           if(e<0) quit("minimat_to_text: fprintf failed",__LINE__,__FILE__);
         }
       }
-      else assert( (a & (1<<(ii*size+jj))) ==0); // no entry outside msize
+      // else assert((i==j && ii==jj) ||  ((a & (1<<(ii*size+jj))) ==0) ); // no entry outside msize
 }
 
 

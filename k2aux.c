@@ -240,7 +240,7 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
     ax[0][0] |= MINIMAT_Id; ax[1][1] |= MINIMAT_Id;
   }
   if(a->transpose) {
-    minimat_t tmp = ax[1][0]; ax[1][0]=ax[0][1]; ax[0][1]=tmp;
+    minimat_t tmp = ax[1][0]; ax[1][0]=mtranspose[ax[0][1]]; ax[0][1]=mtranspose[tmp];
     ax[0][0] = mtranspose[ax[0][0]];
     ax[1][1] = mtranspose[ax[1][1]];
   }

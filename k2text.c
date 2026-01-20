@@ -924,7 +924,7 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
   assert(size==2*MMsize);
   assert(a!=NULL);
   assert(!k2is_empty(a)); // not sure, we should handle it here
-  assert(!a->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
+  // assert(!a->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
   assert(!a->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
   minimat_t ax[2][2];
 
@@ -967,7 +967,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
-  assert(!c->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
+  // assert(!c->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
   assert(!c->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
 
   if(size==2*MMsize) { // base case
@@ -1003,7 +1003,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
       }
       else { // off diagonal block 
         k2mat_t tmp = *c;
-        tmp.transpose = false;     // do not propagate transpose outside the diagonal
+        // tmp.transpose = false;     // do not propagate transpose outside the diagonal
         tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
         if(c->transpose)  mdecode_to_textfile(outfile,msize,jj,ii,size/2,&tmp,pos); // swap ii and jj
         else mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos);
