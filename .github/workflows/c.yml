@@ -25,9 +25,9 @@ jobs:
       run: ./ptest.sh web cnr80k
 
     - name: check
-      run: ./k2sparse.x web/cnr80k.k2 -d -o sparsek2.txt   
-      run: ./k2sparse.x web/cnr80k.ck2 -d -o sparseck2.txt
-      run: ./matrixcmp.x sparsek2.txt sparseck2.txt 
+      run: ./k2sparse.x web/cnr80k.k2 -d -o sparsek2.txt;   
+           ./k2sparse.x web/cnr80k.ck2 -d -o sparseck2.txt;
+           ./matrixcmp.x sparsek2.txt sparseck2.txt 
 
         # - name: configure
     #   run: ./configure
