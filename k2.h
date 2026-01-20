@@ -108,6 +108,7 @@ void k2add_identity(k2mat_t *a);
 void k2print(const k2mat_t *m, FILE *f);
 // follow a pointer node and returns the pointed submatrix
 k2mat_t k2jump(size_t size, const k2mat_t *a); 
+k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos);
 
 // from k2io.c
 // save a k2-matrix to file

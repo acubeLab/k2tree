@@ -54,7 +54,7 @@
 static uint64_t *create_ia(FILE *f, size_t *n, size_t *msize, size_t xsize);
 static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a);
 static void mencode_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size, k2mat_t *c);
-static void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
+static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos);
 static size_t binsearch(uint64_t *ia, size_t n, uint64_t x);
 static inline bool a_eq_b2(uint64_t a, uint64_t b);
 static inline bool a_lt_b2(uint64_t a, uint64_t b);
@@ -97,11 +97,17 @@ void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outn
   if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
 
   if(k2is_empty(a)) {  // an empty k2 matrix has no entries
+    if(a->main_diag_1) { // but if main_diag_1 is on we have the diagonal entries
+      for(size_t i=0;i<msize;i++) {
+        int e = fprintf(f,"%zu %zu\n",i,i);
+        if(e<0) quit("mwrite_to_textfile: error writing to output file",__LINE__,__FILE__);
+      }
+    }
     fclose(f);
     return;
   }
   size_t pos = 0;
-  mdecode_to_textfile_plain(f,msize,0,0,asize,a,&pos);
+  mdecode_to_textfile(f,msize,0,0,asize,a,&pos);
   fclose(f);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
@@ -918,14 +924,14 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
   assert(size==2*MMsize);
   assert(a!=NULL);
   assert(!k2is_empty(a)); // not sure, we should handle it here
+  assert(!a->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
+  assert(!a->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
   minimat_t ax[2][2];
 
   // read root of a
   node_t roota = k2read_node(a,*pos); *pos += 1;
   if(roota==ALL_ONES) {
-    #ifndef NDEBUG
-    if(a->backp!=NULL) quit("Illegal matrix: backpointers and an ALL_ONES node at last level",__LINE__,__FILE__);
-    #endif
+    if(a->backp!=NULL) quit("Illegal matrix: has backpointers and an ALL_ONES node at last level",__LINE__,__FILE__);
     // output all 1s submatrix, transpose and main_diag_1 irrelevant 
     for(size_t ii=i; ii<i+size && ii < msize; ii++)
       for(size_t jj=j; jj<j+size && jj < msize; jj++) {
@@ -935,7 +941,7 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
   }
   else {
     // split :a taking care also of transpose and main_diag
-    k2split_minimats(a,pos,roota,ax);
+    k2split_minimats(a,pos,roota,ax); // not we cannot pass here i,j
     for(size_t k=0;k<4;k++) {  
       size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
       minimat_to_text(outfile,msize,ii,jj,size/2, ax[k/2][k%2]); 
@@ -957,27 +963,17 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
 // creating a target matrix; if backp==NULL ALL_ONES nodes are treated as full 1s submatrices
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) 
 {
+  assert(!k2is_empty(c)); // necer called on an empty matrix
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
   assert(!c->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
   assert(!c->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
 
-  if(k2is_empty(c) && c->main_diag_1==false)  
-    return; // empty matrix
-  if(k2is_empty(c) && c->main_diag_1==true) {  // main diagonal ones only
-    assert(i==j); // should be along the main diagonal
-    for(size_t d=i; d<i+size && d<msize; d++) {
-      int e = fprintf(outfile,"%zu %zu\n",d,d);
-      if(e<0) quit("mdecode_to_textfile: fprintf failed",__LINE__,__FILE__);
-    }
-    return;
-  }
   if(size==2*MMsize) { // base case
     mdecode_to_textfile_base(outfile,msize,i,j,size,c,pos);
     return;
   }
-
   // size>2*MMsize and c contains some data: read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(c->backp==NULL && rootc==ALL_ONES) { // all 1s matrix
@@ -990,11 +986,11 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
     return;
   }
   // if this is a pointer node follow it creating a target matrix 
-  k2mat_t tmp;
+  // k2mat_t tmp = *c;
   if(c->backp!=NULL && rootc==POINTER) { // recall POINTER=ALL_NODES=0000 
-    tmp = k2jump(size,c); 
-    size_t posp = 0;
-    mdecode_to_textfile(outfile,msize,i,j,size,&tmp,&posp);
+    k2pointer_t destp = k2get_backpointer(c,*pos-1); // -1 because we have already advanced pos
+    size_t posp = destp; // move position to the target subtree
+    mdecode_to_textfile(outfile,msize,i,j,size,c,&posp);
     return;
   }
   // general case: not a pointer node and there is at least one child
@@ -1006,7 +1002,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
       }
       else { // off diagonal block 
-        tmp = *c;
+        k2mat_t tmp = *c;
         tmp.transpose = false;     // do not propagate transpose outside the diagonal
         tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
         if(c->transpose)  mdecode_to_textfile(outfile,msize,jj,ii,size/2,&tmp,pos); // swap ii and jj
@@ -1034,7 +1030,9 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-static void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
+// Note: it is currentrly not used, but it works fine for the results of operations
+// which are always plain k2 matrices
+void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);

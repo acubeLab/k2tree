@@ -56,8 +56,8 @@ static minimat_t MINIMAT_Id;   // identity minimat initialized in minimats_init
 // global variable containing the product of every pair of possible minimatrices
 // to be initialized in minimats_init();
 static minimat_t *mprods2x2 = NULL; // will contain 256 entries
-static minimat_t mtranspose2x2[16]; // transpose of each 2x2 minimat
-static minimat_t *mtranspose=NULL;  // transpose of minimats, must be initialized in minimats_init
+static uint16_t mtranspose2x2[16]; // transpose of each 2x2 minimat
+static uint16_t *mtranspose=NULL;  // transpose of minimats, must be initialized in minimats_init
 
 // multiply two minimat matrices of size 2*2
 minimat_t mmult2x2(minimat_t a, minimat_t b) {
@@ -108,7 +108,7 @@ static void init_mprods2x2(void) {
       mprods2x2[a<<4 | b] = c;
     }
     // init transpose array
-    mtranspose2x2[a] = ( (a&1) | ((a&2)<<1) | ((a&4)>>1) | (a&8) );
+    mtranspose2x2[a] = (uint16_t) ( (a&1) | ((a&2)<<1) | ((a&4)>>1) | (a&8) );
   }
 }
 
