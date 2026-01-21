@@ -114,13 +114,20 @@ int main (int argc, char **argv) {
 
   // transpose matrix
   k2transpose(&a);
-  if (verbose) {
-    fputs("After transposition:\n", stdout);
-    mshow_stats(size, asize,&a,iname1,stdout);
-  }
-  sprintf(oname,"%s.tr.txt",argv[1]);
+  sprintf(oname,"%s.tr.txt",outfile);
   mwrite_to_textfile(size,asize, &a, oname);
-
+  // add main diagonal 1's
+  k2add_identity(&a);
+  sprintf(oname,"%s.tr1.txt",outfile);
+  mwrite_to_textfile(size,asize, &a, oname);
+  // squaring 
+  // do the multiplication show/save the result
+  Use_all_ones_node = true;
+  k2mat_t asq = K2MAT_INITIALIZER;
+  mmult(asize,&a,&a,&asq);
+  mshow_stats(size, asize,&asq,"(At+I)^2",stdout);
+  sprintf(oname,"%s.tr1sq.txt",outfile);
+  msave_to_file(size,asize,&asq,oname);
 
 
   // done

@@ -376,15 +376,27 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(size>MMsize); // inputs cannot be minimats 
   assert(size%2==0);
-  
   k2_free(c); // free old content and initialize as empty
-  if(k2is_zero(a) ||  k2is_iszero(b))
+  // case :a or b: is empty (all  0's or Identity)
+  if(k2is_zero(a) ||  k2is_zero(b))
     return;  //if one matrix is all 0s the result is all 0's: nothing to be done
-  
-    
-  // case matrix 0 and main_diag_1 true: result is identity matrix
-  // use mcopy_full to write identity matrix as k2 matrix
-
+  else if(k2is_empty(a) &&  k2is_empty(b) ) {
+    assert(a->main_diag_1 && b->main_diag_1 );
+    c->main_diag_1 = true;  // Id x Id = Id
+    return;
+  }
+  else if(k2is_empty(a)) {
+    assert(a->main_diag_1);
+    assert(!k2is_empty(b));
+    mcopy_full(size,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
+    return;
+  }
+  else if(k2is_empty(b)) {
+    assert(b->main_diag_1);
+    assert(!k2is_empty(a));
+    mcopy_full(size,a,c);
+    return;
+  }
 
   // recursion base step
   if(size==2*MMsize) {
@@ -463,7 +475,10 @@ void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double 
 
 // split input matrices and recurse matrix multiplication  
 //   the input matrices are not all 0's
-//   an output 0 matrix is represented as an empty matrix (no root node)   
+//   an output 0 matrix is represented as an empty matrix (no root node)
+// the case in which :a or b: are empty (all 0's or Identity) is handled in the caller
+// the case size==2*MMsize is handled in the caller 
+// transpose and main_diag_1 flags are by k2split_k2() 
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>2*MMsize);
@@ -492,7 +507,7 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
   k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
-  k2split_k2(size,&atmp,ax);  
+  k2split_k2(size,&atmp,ax);  // note: atmp and btmp can be open ended 
   k2split_k2(size,&btmp,bx);
 
   // temporary matrices for products
@@ -533,7 +548,7 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   // all computation done, deallocate temporary matrices
   k2_free(&v1);
   k2_free(&v2);
-  // deallocate subtree information if previously added
+  // deallocate subtree information if previously added by k2add_subtinfo_limit()
   if(subinfo_added_a) free(atmp.subtinfo);
   if(subinfo_added_b) free(btmp.subtinfo);
   

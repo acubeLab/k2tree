@@ -613,7 +613,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     assert(subt_info_size_tot + nchildren == a->subtinfo_size);
     #endif
   }
-  else if(nchildren==1) {
+  else if(nchildren==1) { //case of single child without subtree info
     // if single child: subtree size = size(tree)-1;
     if(!a->open_ended) 
       subt_size[0] = k2treesize(a)-1;
@@ -639,6 +639,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
+  // note: pos is the ending position of :a we could set a->open_ended = false but :a is const 
   // update transpose and main diag
   if(a->main_diag_1) b[0][0].main_diag_1 = b[1][1].main_diag_1 = true;
   if(a->transpose) {
