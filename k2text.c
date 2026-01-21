@@ -1002,7 +1002,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
         k2mat_t tmp = *c;
         tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
         if(c->transpose) {
-          ii = i + (size/2)*((k^3)/2); jj= j + (size/2)*((k^3)%2); // 01-->10 and 10-->01
+          ii = i + (size/2)*((k^3)/2); jj= j + (size/2)*((k^3)%2); // k^ means: 01-->10 and 10-->01
         }
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos); // swap ii and jj
       }

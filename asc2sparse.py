@@ -11,8 +11,9 @@ Each line of the input file is processed sequentially and represent a matrix row
 def main():
   parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('input', help='input matrix file name', type=str)
-  parser.add_argument("-r", help="reverse conversion", action="store_true")
+  parser.add_argument("-r", help="reverse conversion: sparse->full", action="store_true")
   parser.add_argument("-t", help="transpose matrix", action="store_true")
+  parser.add_argument("-d", help="set to 1 the diagonal entries (only sparse->dense)", action="store_true")
   parser.add_argument('-o', metavar='outfile', help='output file name (def. input.sparse/output.full)',type=str,default="" )
   args = parser.parse_args()
 
@@ -83,6 +84,9 @@ def reverse_conversion(args):
         row = ""
         for c in range(maxcindex+1):
           if r in nonzeros and c in nonzeros[r]:
+            row += '1'
+            totnz += 1
+          elif args.d and r==c:
             row += '1'
             totnz += 1
           else:

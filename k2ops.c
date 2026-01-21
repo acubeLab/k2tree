@@ -43,9 +43,6 @@
     is used in the output matrix. 
 
 
-    Proposal: add a use_backp flag if it is not set, then 0000 is an all 1s submatrix
-    Proposal: add a transpose flag and a main_diag flag.
-
     TODO:
 
     The input matrices can be in format PDF EDF and CFD. In no backpointers
@@ -133,7 +130,6 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
-//??? TODO: Instead of using recursion, can we just copy the content of a (from offset to pos) to b?
 static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
@@ -278,8 +274,9 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 }
 
 // base case of matrix multiplication: matrices of size 2*MMmin
-// a and b must be not all 0s (ie empty)
-//   (if a or b is 0s this function is not called because the product is 0) 
+// a and b must be not empty:
+//   if a or b is 0s (main_diag_1=flase) this function is not called because the product is 0 
+//   if a or b are empty with main_diag_1=true this is handled in the caller
 // a and b can be all 1's 
 // the output matrix c is normalized as usual:
 //  if c is all 0s nothing is written
@@ -288,6 +285,7 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // Note, even if a or b are compressed, there cannot be pointers at this level (height=1)
 // Here is the only part where we call the base multiplication function
 // using the following macro, change it to support additional sizes
+// take care of traspose and main_diag_1 flags thanks to k2split_minimats
 #define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
 static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
@@ -363,7 +361,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 
 
 
-// main entry point for matrix multiplication. 
+// main entry point for matrix multiplication (but also called recursively)
 // multiply size x size k2 compressed matrices :a and :b storing
 // the result in :c, old content of :c is discarded
 // :a and :b must be of size at least 2*MMsize but their content can be 
@@ -371,7 +369,8 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 // at exit:
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
-//    otherwise c is a node + the recursive description of its subtree  
+//    otherwise c is a node + the recursive description of its subtree 
+// te be tested on transpose and main_diag cases 
 void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -379,9 +378,14 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(size%2==0);
   
   k2_free(c); // free old content and initialize as empty
-  if(k2is_empty(a) ||  k2is_empty(b))
+  if(k2is_zero(a) ||  k2is_iszero(b))
     return;  //if one matrix is all 0s the result is all 0's: nothing to be done
   
+    
+  // case matrix 0 and main_diag_1 true: result is identity matrix
+  // use mcopy_full to write identity matrix as k2 matrix
+
+
   // recursion base step
   if(size==2*MMsize) {
     mmult_base(size,a,b,c);
@@ -392,7 +396,6 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   // the product of two all 1's is all 1's, but now ALL_NODES could be a pointer 
-  // TODO: introduce flag for matrix using ALL_ONES
   if( (roota==ALL_ONES && a->backp==NULL) &&  (rootb==ALL_ONES && b->backp==NULL) ) {
     if(!Use_all_ones_node) //TODO: add the creation of a submatrix full of ones
       quit("Problem here: both matrices are ALL_ONES but Use_all_ones_node is false", __LINE__,__FILE__);

@@ -229,6 +229,7 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree.
 // Called by msum_rec, mequals_rec and mmult_base
+// take care of transpose and main_diag_1 flags
 void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax[2][2])
 {
   assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
@@ -642,6 +643,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
   if(a->main_diag_1) b[0][0].main_diag_1 = b[1][1].main_diag_1 = true;
   if(a->transpose) {
     k2mat_t tmp = b[0][1]; b[0][1]=b[1][0]; b[1][0] = tmp;//swap off-diagonal blocks
+    b[0][0].transpose = b[0][1].transpose = b[1][0].transpose = b[1][1].transpose = true;
   }
   assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix, but not if open ended
 }
