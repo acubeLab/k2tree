@@ -12,6 +12,7 @@ def main():
   parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('input', help='input matrix file name', type=str)
   parser.add_argument("-r", help="reverse conversion", action="store_true")
+  parser.add_argument("-t", help="transpose matrix", action="store_true")
   parser.add_argument('-o', metavar='outfile', help='output file name (def. input.sparse/output.full)',type=str,default="" )
   args = parser.parse_args()
 
@@ -35,7 +36,10 @@ def main():
           for c in line:
             if c=='0' or c=='1':
               if c=='1':
-                g.write(f"{rindex} {cindex}\n")
+                if args.t:
+                  g.write(f"{cindex} {rindex}\n") # transpose
+                else:
+                  g.write(f"{rindex} {cindex}\n")
                 totnz += 1
                 maxcindex = max(maxcindex,cindex)
               cindex += 1
@@ -65,6 +69,8 @@ def reverse_conversion(args):
           continue
         rindex = int(items[0])
         cindex = int(items[1])
+        if args.t:
+          rindex,cindex = cindex,rindex  # transpose
         maxrindex = max(maxrindex, rindex)
         maxcindex = max(maxcindex, cindex)
         if rindex not in nonzeros:

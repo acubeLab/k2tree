@@ -923,11 +923,9 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
 {
   assert(size==2*MMsize);
   assert(a!=NULL);
-  assert(!k2is_empty(a)); // not sure, we should handle it here
-  // assert(!a->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
+  assert(!k2is_empty(a)); 
   assert(!a->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
   minimat_t ax[2][2];
-
   // read root of a
   node_t roota = k2read_node(a,*pos); *pos += 1;
   if(roota==ALL_ONES) {
@@ -942,6 +940,7 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
   else {
     // split :a taking care also of transpose and main_diag
     k2split_minimats(a,pos,roota,ax); // not we cannot pass here i,j
+    // fprintf(stderr,"Decoding base submatrix i=%zu j=%zu %x %x %x %x\n",i,j,ax[0][0],ax[0][1],ax[1][0],ax[1][1]);
     for(size_t k=0;k<4;k++) {  
       size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
       minimat_to_text(outfile,msize,ii,jj,size/2, ax[k/2][k%2]); 
@@ -967,7 +966,6 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
-  // assert(!c->transpose || i==j); // if transpose is on we must be on a diagonal submatrix
   assert(!c->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
 
   if(size==2*MMsize) { // base case
@@ -985,8 +983,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
       }
     return;
   }
-  // if this is a pointer node follow it creating a target matrix 
-  // k2mat_t tmp = *c;
+  // if pointer node follow it by simply changing position 
   if(c->backp!=NULL && rootc==POINTER) { // recall POINTER=ALL_NODES=0000 
     k2pointer_t destp = k2get_backpointer(c,*pos-1); // -1 because we have already advanced pos
     size_t posp = destp; // move position to the target subtree
@@ -996,17 +993,18 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   // general case: not a pointer node and there is at least one child
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(size_t k=0;k<4;k++) {  
-    size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2);
+    size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2); // submatrix top left corner
     if(rootc & (1<<k)) { // read a submatrix
-      if(ii==jj) { // we are on a diagonal submatrix: keep main_diag_1 and transpose
+      if(k==0 || k==3) { // we are on a diagonal submatrix: keep main_diag_1 and transpose
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
       }
       else { // off diagonal block 
         k2mat_t tmp = *c;
-        // tmp.transpose = false;     // do not propagate transpose outside the diagonal
         tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
-        if(c->transpose)  mdecode_to_textfile(outfile,msize,jj,ii,size/2,&tmp,pos); // swap ii and jj
-        else mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos);
+        if(c->transpose) {
+          ii = i + (size/2)*((k^3)/2); jj= j + (size/2)*((k^3)%2); // 01-->10 and 10-->01
+        }
+        mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos); // swap ii and jj
       }
     }
     else if(c->main_diag_1 && ii==jj) { // empty subm with main diagonal ones

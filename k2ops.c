@@ -251,7 +251,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 // at exit:
 //    if the result is a zero matrix, c is left empty
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
-//    otherwise c is a node + the recursive description of its subtree (note Use_all_ones is ignored) 
+//    otherwise c is a node + the recursive description of its subtree 
 // Note: this function is called by matrix product, to sum partial products 
 // so the operands are never compressed  
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
