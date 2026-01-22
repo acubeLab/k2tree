@@ -38,11 +38,13 @@ jobs:
     - name: test transpose and add diag
       run: |
           ./sparsetr.py sparsek2.txt -td -o sparsek2.tr1.ok  # traspose the original matrix
+          echo "Unary operations on web/cnr80k.k2"
           ./k2unary.x web/cnr80k.k2  -o sparsek2             # creates sparsek2.tr.txt sparsek2.tr1.txt
+          echo "Compare trd matrices"
           ./matrixcmp.x sparsek2.tr1.txt sparsek2.tr1.ok
 
     - name: big traspose test 
-      run: ./trdtest.sh web cnr80k
+      run: ./trdtest.sh . sparsek2.txt
   
 
     # - name: configure
