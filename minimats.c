@@ -156,12 +156,12 @@ void minimat_init(int msize) {
   if(MMsize==2) {
     init_mprods2x2();
     mtranspose = mtranspose2x2;
-    MINIMAT_Id = 0xA; // TODO check this!
+    MINIMAT_Id = 0x9; // TODO check this!
   }
   else if (MMsize==4) {
     init_mtranspose4x4();
     mtranspose = mtranspose4x4;
-    MINIMAT_Id = 0x8421;
+    MINIMAT_Id = 0x8421; // TODO check this!
   }
   else quit("minimats_init: MMsize!=2,4",__LINE__,__FILE__); 
 }
