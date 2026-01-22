@@ -111,6 +111,7 @@ static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa,
 // :a and :b must be of size at least 2*MMsize but their content can be
 // arbitrary: all 0's, all 1's, or generic
 // note: here all 0's matrices are considered of depth 1 even if they are empty
+// TODO: consider subtree info and backpointers transpose and main diagonal flags
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);

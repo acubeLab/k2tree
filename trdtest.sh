@@ -8,8 +8,7 @@ then
   echo "Usage:"
   echo "         $0 dir file1 [file2 ...]"
   echo
-  echo "Test squaring for file1 file2 ... from dir"
-  echo  "Also compute sha1sums and compare with those in prod.sha1sum" 
+  echo "Test unary operations on sparse text files file1 file2 ... from dir"
   echo
   echo "Sample usage (better with nohup):"
   echo "         $0 web cnr80k"        
@@ -38,7 +37,7 @@ do
   $timecmd -f"$tf" ./sparsetr.py -t -o sparse.tr $dir/$f
   $timecmd -f"$tf" ./sparsetr.py -td -o sparse.tr1 $dir/$f
 
-  echo "====== compress matrix: $f"
+  echo "====== compress matrix: $f in formats k2 and k4"
   $timecmd -f"$tf" ./k2sparse.x -1 -o $dir/$f.k2  $dir/$f 
   $timecmd -f"$tf" ./k2sparse.x -1 -o $dir/$f.k4 -m4 $dir/$f 
 

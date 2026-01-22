@@ -58,7 +58,7 @@ def main():
           g.write(f"{i} {i}\n")
   print("Number of matrix entries written:", totnz)
   print("Actual matrix dimensions: ", maxrindex+1, "x", maxcindex+1)
-  print("==== Done")
+  return
 
 if __name__ == '__main__':
     main()

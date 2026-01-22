@@ -49,8 +49,7 @@ def main():
     cols = maxcindex+1
   print("Number of matrix entries written:", totnz)
   print("Matrix dimensions: ", rows, "x", cols)
-  print("==== Done")
-
+  return
 
 # reverse conversion: from sparse to full binary matrix
 # not very efficient 
