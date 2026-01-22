@@ -29,17 +29,21 @@ jobs:
            ./k2sparse.x web/cnr80k.ck2 -d -I web/cnr80k.ck2.p -o sparseck2.txt;
            ./matrixcmp.x sparsek2.txt sparseck2.txt 
     
-    - name: transpose
+    - name: test transpose
       run: |
           ./sparsetr.py sparsek2.txt -t -o sparsek2.tr.ok  # traspose the original matrix
           ./k2unary.x web/cnr80k.k2  -o sparsek2           # creates sparsek2.tr.txt sparsek2.tr1.txt
           ./matrixcmp.x sparsek2.tr.txt sparsek2.tr.ok
 
-- name: transpose
+    - name: test transpose and add diag
       run: |
           ./sparsetr.py sparsek2.txt -td -o sparsek2.tr1.ok  # traspose the original matrix
           ./k2unary.x web/cnr80k.k2  -o sparsek2             # creates sparsek2.tr.txt sparsek2.tr1.txt
           ./matrixcmp.x sparsek2.tr1.txt sparsek2.tr1.ok
+
+    - name: big traspose test 
+      run: ./trdtest.sh web cnr80k
+  
 
     # - name: configure
     #   run: ./configure

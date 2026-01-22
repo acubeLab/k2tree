@@ -185,7 +185,7 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
 
-    fputs("Tool to compress boolean matrices in sparse text format (one line per entry)\n", stderr); 
+    fputs("Tool to (de)compress boolean matrices in sparse text format (one line per entry)\n", stderr); 
     #ifdef K2MAT
     fputs("to k2 compressed Plain Depth First format\n\n",stderr);
     #else
@@ -203,9 +203,9 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-s S    matrix actual size (def. largest index+1) [compression only]\n");
     fprintf(stderr,"\t-m M    minimatrix size (def. 2) [compression only]\n");
     fprintf(stderr,"\t-1      compact all 1's submatrices [compression only]\n");
-    fprintf(stderr,"\t-i info infile subtree info file\n");
-    fprintf(stderr,"\t-I info infile backpointers file\n");
-    fprintf(stderr,"\t-r size rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-i info infile subtree info file [decompression only] (def. None)\n");
+    fprintf(stderr,"\t-I info infile backpointers file [decompression only] (def. None)\n");
+    fprintf(stderr,"\t-r size rank block size for backpointres (def. 64)\n");
     #endif  
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    
