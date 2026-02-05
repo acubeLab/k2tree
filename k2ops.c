@@ -70,6 +70,8 @@ static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa,
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
+  assert(a->backp==NULL && a->subtinfo==NULL);
+  assert(b->backp==NULL && b->subtinfo==NULL);
   // read root nodes of a and b
   node_t roota = k2read_node(a,*posa); *posa +=1;
   node_t rootb = k2read_node(b,*posb); *posb +=1;
@@ -139,6 +141,7 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   assert(!b->read_only);
   assert(!a->read_only);
   assert(!a->open_ended);
+  assert(a->backp==NULL);
   // new version in which the complete content of a from a->offset to a->pos is copied to b
   // ok since the size of the minimats is an integral multiple of the size of a node  
   for(size_t pos=a->offset;pos < a->pos; pos++) {
@@ -239,7 +242,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
   return; 
 }
 
-// main entry point for matrix addition
+// entry point for matrix addition
 // assume plain matrices: no subtreeinfo no backpointers
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
@@ -251,7 +254,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 //    otherwise c is a node + the recursive description of its subtree 
 // Note: this function is called by matrix product, to sum partial products 
 // so the operands are never compressed  
-void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -273,6 +276,78 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   }
   return;
 }
+
+// FIXME
+// entry point for matrix addition for matrices with subtree info and/or backpointers
+// sum size x size k2 compressed matrices :a and :b storing
+// the result in :c, the old content of :c is discarded
+// :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
+// arbitrary: all 0's, all 1's, or generic
+// at exit:
+//    if the result is a zero matrix, c is left empty
+//    if the result is an all one's matrix, c contains a single ALL_ONES node
+//    otherwise c is a node + the recursive description of its subtree 
+// void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+// {
+//   assert(size>=2*MMsize);
+//   assert(a!=NULL && b!=NULL && c!=NULL);
+
+//   k2_free(c); // free old content and initialize as empty
+
+//   // simple cases :a or b: is empty (all  0's or Identity)
+//   if(k2is_zero(a) &&  k2is_zero(b))
+//     return;  // if a==0 && b==0: c=0
+//   if(a->main_diag_1 || b->main_diag_1 )
+//     c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
+
+
+
+
+
+//   else if(k2is_zero(b))      
+//     mdup(size,a,c);        // if b==0: c=a
+//   else if(k2is_zero(a))    
+//     mdup(size,b,c);        // if a==0: c=b
+  
+
+
+
+//   else if(k2is_empty(a) &&  k2is_empty(b) ) {
+//     assert(a->main_diag_1 && b->main_diag_1 );
+//     c->main_diag_1 = true;  // Id x Id = Id
+//     return;
+//   }
+//   else if(k2is_empty(a)) {
+//     assert(a->main_diag_1);
+//     assert(!k2is_empty(b));
+//     mcopy_full(size,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
+//     return;
+//   }
+//   else if(k2is_empty(b)) {
+//     assert(b->main_diag_1);
+//     assert(!k2is_empty(a));
+//     mcopy_full(size,a,c);
+//     return;
+//   }
+
+
+
+
+//   if(k2is_empty(a) && k2is_empty(b)) 
+//     return;                 // if a==0 && b==0: c=0
+//   else if(k2is_empty(b))      
+//     mcopy_full(size,a,c);        // if b==0: c=a
+//   else if(k2is_empty(a))    
+//     mcopy_full(size,b,c);        // if a==0: c=b
+//   else { // a and b are both not empty, call msum_rec
+//     size_t posa=0,posb=0;
+//     msum_rec_plain(size,a,&posa,b,&posb,c);
+//     assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completeley read
+//     assert(!k2is_empty(c));  // implied by a+b!=0
+//   }
+//   return;
+// }
+
 
 // base case of matrix multiplication: matrices of size 2*MMmin
 // a and b must be not empty:

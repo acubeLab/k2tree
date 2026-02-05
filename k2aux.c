@@ -50,7 +50,7 @@ void k2setpos(k2mat_t *m, size_t p)
 // check if a matrix is empty (should it be m->pos == m->offset, to include submatrices?)
 bool k2is_empty(const k2mat_t *m)
 {
-  assert(!m->open_ended); 
+  assert(!m->open_ended);  // m->pos is larger than actual value in open_ended
   return m->pos == 0;
 }
 
@@ -63,7 +63,7 @@ bool k2is_zero(const k2mat_t *m)
 // check if the submatrix starting at pos is empty
 bool k2submatrix_empty(const k2mat_t *m, size_t pos)
 {
-  assert(!m->open_ended); 
+  assert(!m->open_ended); // m->pos is larger than actual value in open_ended
   return pos == m->pos;
 }
 
@@ -353,6 +353,7 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
+  assert(a->backp==NULL); // back pointers not supported
   assert(*posa<a->pos); // implies a is non-empty
   // copy root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
@@ -371,14 +372,56 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
   }
 }
 
+// copy the subtree of :a starting at *posa to :b
+// *posa should always point to the next item to be read
+// it is assumed :a is not all 0s and that there is a root node and size>MMsize
+// subtreeinfo infotmation is ignored, backpointers in :a are followed but 
+// they are never written to :b 
+// used when summing two matrices and a submatrix is all zeros 
+void k2copy_rec_backp(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
+{
+  assert(size>MMsize);
+  assert(*posa<a->pos); // implies a is non-empty
+
+  // get root node
+  node_t roota = k2read_node(a,*posa); *posa +=1;
+  if(roota==ALL_ONES) {
+    if(a->backp==NULL) k2add_node(b,roota); // all 1's matrix consists of root only
+    else {  // a->backp!=NULL
+      assert(roota==POINTER);  // ALL_ONES and POINTER are the save value
+      k2mat_t  atmp = k2jump(size,a);
+      size_t pos = 0;
+      k2copy_rec_backp(size,&atmp, &pos, b); 
+    }
+    return;
+  }
+  // root is not a special node
+  k2add_node(b,roota);
+  for(int i=0;i<4;i++) {
+    if((roota & (1<<i))!=0) {
+      if(size==2*MMsize) { // end of recursion
+        minimat_t m = k2read_minimat(a,posa);
+        k2add_minimat(b,m);
+      }
+      else { // recurse on submatrix
+        k2copy_rec_backp(size/2,a,posa,b);
+      }
+    }
+  }
+}
+
+
+
+
 // clone a k2 (sub)matrix of :a starting at position :start and ending at :end-1
 // creating a read only copy :c which is a pointer inside :a
-// used only by k2split_k2, a could be open ended
+// used only by k2split_k2, a: could be open ended
 // Note: it is important that b, lenb, subtinfostart, backp, and rank are copied as they are
 static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
-  assert(a->open_ended || !k2is_empty(a));
+  assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for open ended
+  // assert(!k2is_empty(a)); // should work also for open ended :a
   assert(k2is_empty(c));
   assert(!c->read_only);
   *c = *a; // copy all fields
@@ -418,14 +461,14 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 
 // return the matrix obtained following the pointer in the root of a
 // NOTE: this function uses the slightly dangerous notion of open ended (submatrix)
-// ie a submatrix tmp of a larger matrix in which the field tmp.pos is not correclty
-// defined, since it is set to the end of the input submatrix a (since tmp precedes a, 
+// ie a submatrix :tmp of a larger matrix in which the field tmp.pos is not correclty
+// defined, since it is set to a->pos ie the end of the submatrix a (since tmp precedes a, 
 // a->pos is larger than the actual tmp.pos)
-// the ending position of a visit can be obtained with a visit of the submatrix,
+// The ending position of :tmp could be obtained with a visit of the submatrix,
 // but it is not striclty necessary for all operations (eg matrix vector multiplication)
-// we use a lazy evaluation scheme and compute it if and when it is necessary. 
-// In the current code (not in this fucntion):
-//   1. if we add the subtree information the ending position is computed in that phase
+// we use a lazy evaluation scheme and compute it if and when it is strictly necessary. 
+// In the current code (not specifically in this function):
+//   1. if we add the subtree information to :tmp the ending position is computed in that phase
 //   2. if we only have to split the matrix for recursion, the ending position is
 //      not necessary and it is not computed 
 // return a read-only matrix, open ended because we do not know the size of the submatrix 
@@ -445,7 +488,7 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
   tmp.offset = destp;       // set offset to the node where the subtree starts
   tmp.subtinfo =  NULL;     // set subtree info not available
   tmp.subtinfo_size = 0; 
-  tmp.open_ended = true;  // open ended: tmp.pos=a->pos is larger than the actual end position
+  tmp.open_ended = true;    // open ended: tmp.pos=a->pos is larger than the actual end position
   return tmp;
 }
 #else
@@ -543,7 +586,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL);
-  assert(a->open_ended || !k2is_empty(a)); // it is possible we are splitting an open ended matrix
+  assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for an open ended matrix
   assert(k2is_empty(&b[0][0]) && k2is_empty(&b[0][1]) &&
          k2is_empty(&b[1][0]) && k2is_empty(&b[1][1]));
    
