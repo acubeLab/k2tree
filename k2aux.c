@@ -140,11 +140,7 @@ void k2print(const k2mat_t *m, FILE *f)
 node_t k2read_node(const k2mat_t *m, size_t p)
 {
   p+=m->offset;
-  // assert(p<m->pos);
-  if(p>=m->pos) {
-    k2print(m,stderr);
-    quit("k2read_node: position out of bounds",__LINE__,__FILE__);
-  }
+  assert(p<m->pos);
   assert(p<m->lenb);
   if(p%2==0)
     return m->b[p/2] & 0xF;
@@ -350,27 +346,27 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 // *posa should always point to the next item to be read
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 // used when summing two matrices and a submatrix is all zeros 
-void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
-{
-  assert(size>MMsize);
-  assert(a->backp==NULL); // back pointers not supported
-  assert(*posa<a->pos); // implies a is non-empty
-  // copy root node
-  node_t roota = k2read_node(a,*posa); *posa +=1;
-  k2add_node(b,roota);
-  if(roota==ALL_ONES) return;  // all 1's matrix consists of root only
-  for(int i=0;i<4;i++) {
-    if((roota & (1<<i))!=0) {
-      if(size==2*MMsize) { // end of recursion
-        minimat_t m = k2read_minimat(a,posa);
-        k2add_minimat(b,m);
-      }
-      else { // recurse on submatrix
-        k2copy_rec(size/2,a,posa,b);
-      }
-    }
-  }
-}
+// void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
+// {
+//   assert(size>MMsize);
+//   assert(a->backp==NULL); // back pointers not supported
+//   assert(*posa<a->pos); // implies a is non-empty
+//   // copy root node
+//   node_t roota = k2read_node(a,*posa); *posa +=1;
+//   k2add_node(b,roota);
+//   if(roota==ALL_ONES) return;  // all 1's matrix consists of root only
+//   for(int i=0;i<4;i++) {
+//     if((roota & (1<<i))!=0) {
+//       if(size==2*MMsize) { // end of recursion
+//         minimat_t m = k2read_minimat(a,posa);
+//         k2add_minimat(b,m);
+//       }
+//       else { // recurse on submatrix
+//         k2copy_rec(size/2,a,posa,b);
+//       }
+//     }
+//   }
+// }
 
 // copy the subtree of :a starting at *posa to :b
 // *posa should always point to the next item to be read
@@ -378,20 +374,19 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 // subtreeinfo infotmation is ignored, backpointers in :a are followed but 
 // they are never written to :b 
 // used when summing two matrices and a submatrix is all zeros 
-void k2copy_rec_backp(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
+void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
   assert(*posa<a->pos); // implies a is non-empty
-
   // get root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
   if(roota==ALL_ONES) {
     if(a->backp==NULL) k2add_node(b,roota); // all 1's matrix consists of root only
     else {  // a->backp!=NULL
       assert(roota==POINTER);  // ALL_ONES and POINTER are the save value
-      k2mat_t  atmp = k2jump(size,a);
+      k2mat_t atmp = k2jump(size,a);
       size_t pos = 0;
-      k2copy_rec_backp(size,&atmp, &pos, b); 
+      k2copy_rec(size,&atmp, &pos, b); 
     }
     return;
   }
@@ -404,7 +399,7 @@ void k2copy_rec_backp(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
         k2add_minimat(b,m);
       }
       else { // recurse on submatrix
-        k2copy_rec_backp(size/2,a,posa,b);
+        k2copy_rec(size/2,a,posa,b);
       }
     }
   }
@@ -421,7 +416,6 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for open ended
-  // assert(!k2is_empty(a)); // should work also for open ended :a
   assert(k2is_empty(c));
   assert(!c->read_only);
   *c = *a; // copy all fields
@@ -451,8 +445,6 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
   assert(!k2is_empty(m));
   assert(pos<m->pos);
   assert(k2read_node(m,pos) == POINTER); // pos should be a pointer node
-  // size_t p = pos + m->offset; // position in the k2mat buffer
-  // assert(p < m->lenb); // pos should be in the buffer
   size_t rp = rank_rank(m->r, m, pos); // get # 0000 in [0,p-1]
   assert(rp < m->backp->size); // rank should be in the range of backp
   // return the pointer at pos
