@@ -112,24 +112,19 @@ int main (int argc, char **argv) {
   #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
-  // transpose matrix
-  k2transpose(&a);
-  sprintf(oname,"%s.tr.txt",outfile);
-  mwrite_to_textfile(size,asize, &a, oname);
   // add main diagonal 1's
   k2add_identity(&a);
   printf("Caution: add_identity may add 1's also outside the original matrix size!\n");
-  sprintf(oname,"%s.tr1.txt",outfile);
+  sprintf(oname,"%s.1.txt",outfile);
   mwrite_to_textfile(size,asize, &a, oname);
   // squaring 
   // do the multiplication show/save the result
   Use_all_ones_node = true;
   k2mat_t asq = K2MAT_INITIALIZER;
   mmult(asize,&a,&a,&asq);
-  mshow_stats(size, asize,&asq,"(At+I)^2",stdout);
-  sprintf(oname,"%s.tr1sq.txt",outfile);
+  mshow_stats(size, asize,&asq,"(A+I)^2",stdout);
+  sprintf(oname,"%s.1sq.txt",outfile);
   msave_to_file(size,asize,&asq,oname);
-
 
   // done
   matrix_free(&a);    

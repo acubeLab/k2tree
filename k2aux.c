@@ -225,29 +225,19 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree.
 // Called by msum_rec, mequals_rec and mmult_base
-// take care of transpose and main_diag_1 flags
+// take care of main_diag_1 flag
 void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax[2][2])
 {
   assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) ax[i/2][i%2] = k2read_minimat(a,posa); // k2read_minimat advances posa
     else               ax[i/2][i%2] = MINIMAT0s;  // note all 0s minimats are not stored
-  // take care of of main_diag and transpose flags
+  // take care of of main_diag flag
   if(a->main_diag_1) {
     ax[0][0] |= MINIMAT_Id; ax[1][1] |= MINIMAT_Id;
   }
-  if(a->transpose) {
-    minimat_t tmp = ax[1][0]; ax[1][0]=mtranspose[ax[0][1]]; ax[0][1]=mtranspose[tmp];
-    ax[0][0] = mtranspose[ax[0][0]];
-    ax[1][1] = mtranspose[ax[1][1]];
-  }
 }
 
-// transpose matrix a
-void k2transpose(k2mat_t *a)
-{
-  a->transpose = !a->transpose;
-}
 
 // add indentity matrix to a
 void k2add_identity(k2mat_t *a)
@@ -398,7 +388,7 @@ static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
   c->subtinfo_size = 0;         // if necessary will be initialized later 
   c->read_only = true;          // c is read only
   c->open_ended = false;        // c not open ended since c->pos is correct
-  c->transpose = c->main_diag_1 = false;
+  c->main_diag_1 = false;
 }
 
 // make c an identical read-only image of matrix a
@@ -567,7 +557,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
     // even if :a had subtree information, with cloning the info is lost not a problem because there are no actual subtrees. 
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
-      k2clone(a, pos-1, pos, &b[i][j]); // transpose and main diagonal not relevant
+      k2clone(a, pos-1, pos, &b[i][j]); // main diagonal not relevant
     return;    
   }
   // root is not all 1's: we have the standard structure and we need to do a real partition 
@@ -648,12 +638,8 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     }
   }
   // note: pos is the ending position of :a we could set a->open_ended = false but :a is const 
-  // update transpose and main diag
+  // update  main diag
   if(a->main_diag_1) b[0][0].main_diag_1 = b[1][1].main_diag_1 = true;
-  if(a->transpose) {
-    k2mat_t tmp = b[0][1]; b[0][1]=b[1][0]; b[1][0] = tmp;//swap off-diagonal blocks
-    b[0][0].transpose = b[0][1].transpose = b[1][0].transpose = b[1][1].transpose = true;
-  }
   assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix, but not if open ended
 }
 

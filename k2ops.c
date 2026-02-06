@@ -47,10 +47,10 @@
 
     The input matrices can be in format PDF EDF and CFD. In no backpointers
     are used (PDF and EDF formats) the node 0000 denotes a submatrix of all 1's.
-    The input matrices can have the flags main_diag and transpose set to true
+    The input matrices can have the flag main_diag  set to true
 
     The output matrices are always in the PDF format; the node 0000 denotes an
-    all 1 submatrix and the flags main_diag and transpose are always set to flase. 
+    all 1 submatrix and the flag main_diag is always set to false. 
 
 
 */
@@ -113,7 +113,7 @@ static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa,
 // :a and :b must be of size at least 2*MMsize but their content can be
 // arbitrary: all 0's, all 1's, or generic
 // note: here all 0's matrices are considered of depth 1 even if they are empty
-// TODO: consider subtree info and backpointers transpose and main diagonal flags
+// TODO: consider subtree info backpointers and main diagonal flag
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);
@@ -358,7 +358,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
     return;
   }
   // TODO: insert possible code to speedup the case when one matrix is all 1s and the other is not
-  // split a and b, taking care also of transpose and main_diag
+  // split a and b, taking care also of main_diag
   size_t posa=1,posb=1; // we have already read the root node
   if(roota!=ALL_ONES)   // case ALL_ONES is covered by initialization above, no need to call k2split_minimats
     k2split_minimats(a,&posa,roota,ax);
@@ -412,7 +412,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
-// te be tested on transpose and main_diag cases 
+// te be tested on main_diag cases 
 void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
@@ -520,7 +520,7 @@ void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double 
 //   an output 0 matrix is represented as an empty matrix (no root node)
 // the case in which :a or b: are empty (all 0's or Identity) is handled in the caller
 // the case size==2*MMsize is handled in the caller 
-// transpose and main_diag_1 flags are by k2split_k2() 
+// main_diag_1 flag is andled by k2split_k2() 
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>2*MMsize);

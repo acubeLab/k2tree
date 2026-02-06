@@ -67,11 +67,11 @@ typedef struct k2mat {
   // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are read only  
   bool read_only;   // if true write and add operations are not allowed
   bool open_ended;  // pos strictly greater that the end of the matrix: only for read_only matrices      
-  // flags to denote if the matrix is transposed or has 1s in the main diagonal 
-  bool transpose, main_diag_1;
+  // flag to denote if the matrix  has 1s in the main diagonal 
+  bool main_diag_1;
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false, false, false}
+#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false, false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)
@@ -100,8 +100,6 @@ node_t k2read_node(const k2mat_t *m, size_t p);
 void k2read_subtinfo(k2mat_t *a, const char *infofile);
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit);
 size_t k2treesize(const k2mat_t *m);
-// transpose matrix a
-void k2transpose(k2mat_t *a);
 // add indentity matrix to a
 void k2add_identity(k2mat_t *a);
 // print some info about a k2mat

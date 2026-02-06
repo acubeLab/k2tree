@@ -930,7 +930,7 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
   node_t roota = k2read_node(a,*pos); *pos += 1;
   if(roota==ALL_ONES) {
     if(a->backp!=NULL) quit("Illegal matrix: has backpointers and an ALL_ONES node at last level",__LINE__,__FILE__);
-    // output all 1s submatrix, transpose and main_diag_1 irrelevant 
+    // output all 1s submatrix  main_diag_1 irrelevant 
     for(size_t ii=i; ii<i+size && ii < msize; ii++)
       for(size_t jj=j; jj<j+size && jj < msize; jj++) {
         int e = fprintf(outfile,"%zu %zu\n",ii,jj);
@@ -938,7 +938,7 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
       }
   }
   else {
-    // split :a taking care also of transpose and main_diag
+    // split :a taking care also of main_diag
     k2split_minimats(a,pos,roota,ax); // not we cannot pass here i,j
     // fprintf(stderr,"Decoding base submatrix i=%zu j=%zu %x %x %x %x\n",i,j,ax[0][0],ax[0][1],ax[1][0],ax[1][1]);
     for(size_t k=0;k<4;k++) {  
@@ -975,7 +975,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   // size>2*MMsize and c contains some data: read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(c->backp==NULL && rootc==ALL_ONES) { // all 1s matrix
-    // output all 1s submatrix, transpose and main_diag_1 irrelevant 
+    // output all 1s submatrix, main_diag_1 irrelevant 
     for(size_t ii=i; ii<i+size && ii < msize; ii++)
       for(size_t jj=j; jj<j+size && jj < msize; jj++) {
         int e = fprintf(outfile,"%zu %zu\n",ii,jj);
@@ -995,15 +995,12 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   for(size_t k=0;k<4;k++) {  
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2); // submatrix top left corner
     if(rootc & (1<<k)) { // read a submatrix
-      if(k==0 || k==3) { // we are on a diagonal submatrix: keep main_diag_1 and transpose
+      if(k==0 || k==3) { // we are on a diagonal submatrix: keep main_diag_1
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
       }
       else { // off diagonal block 
         k2mat_t tmp = *c;
         tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
-        if(c->transpose) {
-          ii = i + (size/2)*((k^3)/2); jj= j + (size/2)*((k^3)%2); // k^ means: 01-->10 and 10-->01
-        }
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos); // swap ii and jj
       }
     }
@@ -1020,7 +1017,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
 
 
 // recursively decode a k2 submatrix into a list of entries written to a text file
-// only work for plain k2 matrices (no backpointers, transpose, or main_diagonal)
+// only work for plain k2 matrices (no backpointers or main_diagonal)
 // Parameters:
 //   f output file 
 //   msize actual file of the matrix
@@ -1036,8 +1033,8 @@ void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, 
   assert(i<msize+2*size && j<msize+2*size);
   if(c->backp!=NULL) 
     quit("mdecode_to_textfile_plain: cannot handle k2 matrices with backpointers",__LINE__,__FILE__);
-  if(c->transpose || c->main_diag_1) 
-    quit("mdecode_to_textfile_plain: cannot handle k2 matrices with transpose or main_diagonal on",__LINE__,__FILE__); 
+  if(c->main_diag_1) 
+    quit("mdecode_to_textfile_plain: cannot handle k2 matrices with main_diagonal on",__LINE__,__FILE__); 
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
   if(rootc==ALL_ONES) { // all 1s matrix
