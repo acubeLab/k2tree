@@ -133,7 +133,7 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
-// check when it is used
+// only look at the tree structure: do not consider main_diag
 static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
@@ -141,8 +141,6 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   assert(!k2is_empty(a));
   assert(!b->read_only);
   assert(!a->read_only);  // remove this??
-  assert(!a->open_ended);
-  assert(a->backp==NULL);
 
   if(a->backp==NULL && !a->open_ended)
     // new faster version in which the complete content of a from a->offset to a->pos is copied to b
@@ -246,8 +244,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
   return; 
 }
 
-// entry point for matrix addition
-// assume plain matrices: no subtreeinfo no backpointers
+// entry point for matrix addition plain matrices: no subtreeinfo no backpointers
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
 // :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
@@ -257,13 +254,13 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
 // Note: this function is called by matrix product, to sum partial products 
-// so the operands are never compressed  
+// so the operands are plain (no backp compression, no main_diag_1, subtreinfo ignored)  
 void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  assert(a->backp==NULL && a->subtinfo==NULL);
-  assert(b->backp==NULL && b->subtinfo==NULL);
+  assert(a->backp==NULL && b->backp==NULL);
+  assert(!a->main_diag_1 && !b->main_diag_1);
 
   k2_free(c); // free old content and initialize as empty
   if(k2is_empty(a) && k2is_empty(b)) 
@@ -282,7 +279,7 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 }
 
 // FIXME
-// entry point for matrix addition for matrices with subtree info and/or backpointers
+// entry point for matrix addition for matrices with backpointers and/or main_diag_1
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
 // :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
@@ -291,26 +288,25 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 //    if the result is a zero matrix, c is left empty
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
-// void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
-// {
-//   assert(size>=2*MMsize);
-//   assert(a!=NULL && b!=NULL && c!=NULL);
+void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+{
+  assert(size>=2*MMsize);
+  assert(a!=NULL && b!=NULL && c!=NULL);
 
-//   k2_free(c); // free old content and initialize as empty
+  k2_free(c); // free old content and initialize as empty
 
-//   // simple cases :a or b: is empty (all  0's or Identity)
-//   if(k2is_zero(a) &&  k2is_zero(b))
-//     return;  // if a==0 && b==0: c=0
-//   if(a->main_diag_1 || b->main_diag_1 )
-//     c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
+  // simple cases :a or b: is empty (all 0's or Identity)
+  if(k2is_zero(a) &&  k2is_zero(b))
+    return;  // if a==0 && b==0: c=0
+  if(a->main_diag_1 || b->main_diag_1 )
+    c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
 
-//   else if(k2is_zero(b))      
-//     mdup(size,a,c);        // if b==0: c=a
-//   else if(k2is_zero(a))    
-//     mdup(size,b,c);        // if a==0: c=b
-  
+  else if(k2is_zero(b))      
+    mcopy_full(size,a,c);        // if b==0: c=a
+  else if(k2is_zero(a))    
+    mcopy_full(size,b,c);        // if a==0: c=b  
 
-//   }
+}
 
 
 
