@@ -341,33 +341,6 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
     }
 }
 
-
-// copy the subtree of :a starting at *posa to :b
-// *posa should always point to the next item to be read
-// it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
-// used when summing two matrices and a submatrix is all zeros 
-// void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
-// {
-//   assert(size>MMsize);
-//   assert(a->backp==NULL); // back pointers not supported
-//   assert(*posa<a->pos); // implies a is non-empty
-//   // copy root node
-//   node_t roota = k2read_node(a,*posa); *posa +=1;
-//   k2add_node(b,roota);
-//   if(roota==ALL_ONES) return;  // all 1's matrix consists of root only
-//   for(int i=0;i<4;i++) {
-//     if((roota & (1<<i))!=0) {
-//       if(size==2*MMsize) { // end of recursion
-//         minimat_t m = k2read_minimat(a,posa);
-//         k2add_minimat(b,m);
-//       }
-//       else { // recurse on submatrix
-//         k2copy_rec(size/2,a,posa,b);
-//       }
-//     }
-//   }
-// }
-
 // copy the subtree of :a starting at *posa to :b
 // *posa should always point to the next item to be read
 // it is assumed :a is not all 0s and that there is a root node and size>MMsize
