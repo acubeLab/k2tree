@@ -31,7 +31,7 @@
 #endif
 // used by both matrix types
 #include "bbm.h"
-#define default_ext ".prod"
+#define default_ext ".unary"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
@@ -93,14 +93,15 @@ int main (int argc, char **argv) {
   if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
 
-  // check command line options
+  // always use ALL_ONES root in results
+  Use_all_ones_node = true;
   
   // create file names
   sprintf(iname1,"%s",argv[1]);
   if(outfile!=NULL) sprintf(oname,"%s",outfile);
   else       sprintf(oname,"%s%s",argv[1],default_ext); 
 
-  // init matrix variables (valid for b128 and k2t)
+  // init matrix variables (valid for b128 and k2tree)
   k2mat_t a=K2MAT_INITIALIZER;
   size_t size, asize;
 
@@ -112,14 +113,19 @@ int main (int argc, char **argv) {
   #endif
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
+  // add zero matrix 
+  k2mat_t b=K2MAT_INITIALIZER,a0=K2MAT_INITIALIZER;
+  msum(size,b,a,a0); // a0 = b+a = 0+a = a
+  sprintf(oname,"%s.0.txt",outfile);
+  mwrite_to_textfile(size,asize, &a0, oname);
+
   // add main diagonal 1's
   k2add_identity(&a);
   printf("Caution: add_identity may add 1's also outside the original matrix size!\n");
   sprintf(oname,"%s.1.txt",outfile);
   mwrite_to_textfile(size,asize, &a, oname);
+
   // squaring 
-  // do the multiplication show/save the result
-  Use_all_ones_node = true;
   k2mat_t asq = K2MAT_INITIALIZER;
   mmult(asize,&a,&a,&asq);
   mshow_stats(size, asize,&asq,"(A+I)^2",stdout);

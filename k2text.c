@@ -1306,14 +1306,13 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
   }
   
   free(prefix_help);
-
-  ca->backp = pointers_init(&P_h);
+  ca->backp = P_h.n>0 ? pointers_init(&P_h) : NULL;
   vu64_free(&P_h);
   vu64_free(&z);
   free(text);
   dsu_free(&u);
-
-  rank_init(&(ca->r), block_size, ca);
+  // no need to compute them, they are not saved
+  // rank_init(&(ca->r), block_size, ca);
 
 }
 

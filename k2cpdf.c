@@ -92,52 +92,59 @@ int main(int argc, char* argv[]) {
   k2mat_t ca = K2MAT_INITIALIZER;
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
-  //!!! TODO: fix this, not nice 
-  // replace last two chars of input file name (likely k2) with ck2
-  char file_ck2[strlen(k2name_file) + 5];
-  strcpy(file_ck2, k2name_file);
-  file_ck2[strlen(k2name_file) - 2] = 'c';
-  file_ck2[strlen(k2name_file) - 1] = 'k';
-  file_ck2[strlen(k2name_file)] = '2';
-  file_ck2[strlen(k2name_file) + 1] = '\0';
 
-  if(write) {
-    // save .ck2 file
-    msave_to_file(size, asize, &ca, file_ck2);
-    // save .ck2.p file with pointers
-    char file_p[strlen(file_ck2) + 5];
-    strcpy(file_p, file_ck2);
-    #ifdef SIMPLEBACKPOINTERS
-    strcat(file_p, ".p");
-    #else
-    strcat(file_p, ".xp");
-    #endif
-    pointers_write_to_file(ca.backp, file_p);
-
-    // NOTE: the rank000 data structure is not stored but recomputed from scratch
+  if(ca.backp==NULL) {
+    printf("No compressible subtree founds. No output file produced\n");
   }
-  if(check || verbose || !write) {
-    size_t totnz_ca = 0;
-    totnz_ca = mshow_stats(size, asize, &ca, basename(file_ck2), stdout);
-    if(check) {
-      if(totnz_ca == totnz) {
-        k2mat_t check_a = K2MAT_INITIALIZER;
-        size_t pos = 0;
-        if(verbose) printf("Decompressing the k2tree and comparing it with the original\n");
-        k2decompress(asize, &ca, &pos, &check_a);
-        size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "Decompressed matrix", stdout);
-        if(totnz_ca_a == totnz) {
-          int d = mequals(asize, &a, &check_a);
-          if(d < 0) {
-            if(verbose) printf("Correct decompression!\n");
+  else {
+
+    //!!! TODO: fix this, not nice 
+    // replace last two chars of input file name (likely k2) with ck2
+    char file_ck2[strlen(k2name_file) + 5];
+    strcpy(file_ck2, k2name_file);
+    file_ck2[strlen(k2name_file) - 2] = 'c';
+    file_ck2[strlen(k2name_file) - 1] = 'k';
+    file_ck2[strlen(k2name_file)] = '2';
+    file_ck2[strlen(k2name_file) + 1] = '\0';
+
+    if(write) {
+      // save .ck2 file
+      msave_to_file(size, asize, &ca, file_ck2);
+      // save .ck2.p file with pointers
+      char file_p[strlen(file_ck2) + 5];
+      strcpy(file_p, file_ck2);
+      #ifdef SIMPLEBACKPOINTERS
+      strcat(file_p, ".p");
+      #else
+      strcat(file_p, ".xp");
+      #endif
+      pointers_write_to_file(ca.backp, file_p);
+
+      // NOTE: the rank000 data structure is not stored but recomputed from scratch
+    }
+    if(check || verbose || !write) {
+      size_t totnz_ca = 0;
+      totnz_ca = mshow_stats(size, asize, &ca, basename(file_ck2), stdout);
+      if(check) {
+        if(totnz_ca == totnz) {
+          k2mat_t check_a = K2MAT_INITIALIZER;
+          size_t pos = 0;
+          if(verbose) printf("Decompressing the k2tree and comparing it with the original\n");
+          k2decompress(asize, &ca, &pos, &check_a);
+          size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "Decompressed matrix", stdout);
+          if(totnz_ca_a == totnz) {
+            int d = mequals(asize, &a, &check_a);
+            if(d < 0) {
+              if(verbose) printf("Correct decompression!\n");
+            } else {
+              printf("Error at decompression: generated a different k2tree\n");
+            }
           } else {
-            printf("Error at decompression: generated a different k2tree\n");
+            printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
           }
         } else {
-          printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+          printf("Number of nonzeros mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
         }
-      } else {
-        printf("Number of nonzeros mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
       }
     }
   }

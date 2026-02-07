@@ -269,7 +269,7 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     mcopy_full(size,a,c);        // if b==0: c=a
   else if(k2is_empty(a))    
     mcopy_full(size,b,c);        // if a==0: c=b
-  else { // a and b are both not empty, call msum_rec
+  else { // a and b are both not empty, call msum_rec_plain
     size_t posa=0,posb=0;
     msum_rec_plain(size,a,&posa,b,&posb,c);
     assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completeley read
@@ -278,7 +278,6 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   return;
 }
 
-// FIXME
 // entry point for matrix addition for matrices with backpointers and/or main_diag_1
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
@@ -286,6 +285,7 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
 //    if the result is a zero matrix, c is left empty
+//    if the result is the identity matrix is is possible that c is left empty with main_diag_1
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
@@ -295,16 +295,27 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 
   k2_free(c); // free old content and initialize as empty
 
-  // simple cases :a or b: is empty (all 0's or Identity)
+  // some simple cases
   if(k2is_zero(a) &&  k2is_zero(b))
     return;  // if a==0 && b==0: c=0
+  // handle the case of an input with main_diag_1, 
+  // after that the flag is forgotten   
   if(a->main_diag_1 || b->main_diag_1 )
     c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
-
-  else if(k2is_zero(b))      
+  if(k2is_zero(b)) {    
     mcopy_full(size,a,c);        // if b==0: c=a
-  else if(k2is_zero(a))    
+    return;
+  }
+  if(k2is_zero(a)) {
     mcopy_full(size,b,c);        // if a==0: c=b  
+    return;
+  }  
+
+  
+  // case :a and :b do have a root node
+  assert(!k2is_empty(a) && !k2is_empty(b));
+  // to be written
+  assert(false);
 
 }
 
