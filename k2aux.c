@@ -334,22 +334,25 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 // copy the subtree of :a starting at *posa to :b
 // *posa should always point to the next item to be read
 // it is assumed :a is not all 0s and that there is a root node and size>MMsize
-// subtreeinfo infotmation is ignored, backpointers in :a are followed but 
+// only look at the tree structure: do not consider main_diag_1 flag
+// subtreeinfo information is ignored, backpointers in :a are followed but 
 // they are never written to :b 
 // used when summing two matrices and a submatrix is all zeros 
 void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
-  assert(size>MMsize);
+  assert(size>= 2*MMsize);
   assert(*posa<a->pos); // implies a is non-empty
+  assert(a->offset==0);
   // get root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
   if(roota==ALL_ONES) {
     if(a->backp==NULL) k2add_node(b,roota); // all 1's matrix consists of root only
     else {  // a->backp!=NULL
       assert(roota==POINTER);  // ALL_ONES and POINTER are the save value
-      k2mat_t atmp = k2jump(size,a);
-      size_t pos = 0;
-      k2copy_rec(size,&atmp, &pos, b); 
+      assert(size>MMsize);
+      k2pointer_t destp = k2get_backpointer(a,*posa-1); // -1 because we have already advanced pos
+      size_t posp = destp; // move position to the target subtree
+      k2copy_rec(size,a, &posp, b); 
     }
     return;
   }
@@ -423,7 +426,7 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 // but it is not striclty necessary for all operations (eg matrix vector multiplication)
 // we use a lazy evaluation scheme and compute it if and when it is strictly necessary. 
 // In the current code (not specifically in this function):
-//   1. if we add the subtree information to :tmp the ending position is computed in that phase
+//   1. if we add the subtree information to :tmp (dynamic subtinfo) the ending position is computed in that phase
 //   2. if we only have to split the matrix for recursion, the ending position is
 //      not necessary and it is not computed 
 // return a read-only matrix, open ended because we do not know the size of the submatrix 
@@ -455,7 +458,7 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
 
 #if 0
 // old version doing together jumping to a previous subtree and splitting
-// do not delete since it contains code useful for writeing k2jump for full pointers 
+// do not delete since it contains code useful for writing k2jump for full pointers 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // special case in which the root is a pointer to a previous subtree
 // called only by k2split_k2, where the input parameters are tested 

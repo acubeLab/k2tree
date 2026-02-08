@@ -47,12 +47,15 @@ do
   $timecmd -f"$tf" ./k2unary.x -o $dir/$f.2  $dir/$f.k2 
   $timecmd -f"$tf" ./k2unary.x -o $dir/$f.4  $dir/$f.k4 
 
-  echo "==== check k2 matrix ==="  
+  echo "==== check k2+0 matrix  ==="  
+  $timecmd -f"$tf" ./matrixcmp.x $dir/$f.2.0.txt $dir/$f
+  echo "==== check k2+I matrix  ==="  
   $timecmd -f"$tf" ./matrixcmp.x $dir/$f.2.1.txt sparse.1
 
-  echo "==== check k4 matrix ==="  
+  echo "==== check k4+0 matrix  ==="  
+  $timecmd -f"$tf" ./matrixcmp.x $dir/$f.4.0.txt $dir/$f
+  echo "==== check k4+I matrix  ==="  
   $timecmd -f"$tf" ./matrixcmp.x $dir/$f.4.1.txt sparse.1
-
 
 
   echo "====== compress matrix $f in format k2 + backpointers"
@@ -62,7 +65,7 @@ do
     echo "===== uncompress and test ck2 matrix"
     $timecmd -f"$tf" ./k2sparse.x -d $dir/$f.ck2 -I $dir/$f.ck2.p -o sparse.ck2
     $timecmd -f"$tf" ./matrixcmp.x $dir/$f sparse.ck2
-    echo " unary operations"
+    echo "===== unary operations"
     $timecmd -f"$tf" ./k2unary.x -o $dir/$f.2 -I $dir/$f.ck2.p $dir/$f.ck2 
     echo "==== check ck2+0 matrix  ==="  
     $timecmd -f"$tf" ./matrixcmp.x $dir/$f.2.0.txt $dir/$f
@@ -74,6 +77,7 @@ do
 
   echo "==== cleaning ==="
   rm -f $dir/$f.2.1.txt $dir/$f.4.1.txt $dir/$f.2.1sq.txt $dir/$f.4.1sq.txt
+  rm -f $dir/$f.2.0.txt $dir/$f.4.0.txt
 
 
 

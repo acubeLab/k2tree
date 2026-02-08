@@ -133,14 +133,16 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
-// only look at the tree structure: do not consider main_diag
+// only look at the tree structure: do not consider main_diag_1 flag
+// should work for any input matrix. subtinfo is ignored
 static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a));
   assert(!b->read_only);
-  assert(!a->read_only);  // remove this??
+  assert(!a->open_ended); // not required, but open ended are only multiplied
+  assert(a->offset==0);   // not required, but we only use it for whole matrices 
 
   if(a->backp==NULL && !a->open_ended)
     // new faster version in which the complete content of a from a->offset to a->pos is copied to b
@@ -156,11 +158,12 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 }
 
 // recursive sum of two k2 (sub)matrices
-// assume plain matrices: no subtree info, no backpointers
+// used by mmult to sum the product of two matrices
+// so assume plain matrices: no backpointers, subtree info, open_ended
 // a and b must not be all 0s (sub)matrices
 //   (if a or b is all 0s this function is not called because the sum is a copy) 
 // a and b can be all 1's 
-// the output matrix c is normalized as ususal
+// the output matrix c is normalized as usual:
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
 //  otherwise we follow the standard rule: root node + subtrees in DFS order
@@ -171,6 +174,9 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 {
   assert(size>=2*MMsize); // there must be the root node 
   assert(a!=NULL && b!=NULL && c!=NULL);
+  assert(!a->backp && !b->backp); // this is required
+  assert(!a->subtinfo && !b->subtinfo); // can be removed but a,b are product so no subtinfo should be available 
+  assert(!a->open_ended && !b->open_ended); // can be removed but a,b are product so no open_ended
   assert(!k2submatrix_empty(a,*posa) && !k2submatrix_empty(b,*posb));
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
@@ -244,7 +250,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
   return; 
 }
 
-// entry point for matrix addition plain matrices: no subtreeinfo no backpointers
+// entry point for matrix addition plain matrices with no backpointers
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
 // :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
@@ -253,22 +259,31 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 //    if the result is a zero matrix, c is left empty
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
-// Note: this function is called by matrix product, to sum partial products 
-// so the operands are plain (no backp compression, no main_diag_1, subtreinfo ignored)  
+// Note: this function is currently not called by anyone 
+// does some checking and then calls msum_rec_plain
+// subtinfo even if available is not used, 
+// matrices assumed to be non open_ended even if the assumptio is not necessary: 
+// open endness comes from backpointers, so there is no reason they are open eneded here
 void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(a->backp==NULL && b->backp==NULL);
-  assert(!a->main_diag_1 && !b->main_diag_1);
+  assert(!a->open_ended && !b->open_ended); // not necessary, but not coleld for open ended
 
   k2_free(c); // free old content and initialize as empty
-  if(k2is_empty(a) && k2is_empty(b)) 
-    return;                 // if a==0 && b==0: c=0
+
+  // handle the case of an input with main_diag_1, 
+  // after that the flag is forgotten (assumed false for both matrices) 
+  if(a->main_diag_1 || b->main_diag_1 )
+    c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
+
+  if(k2is_empty(a) &&  k2is_empty(b))
+    return;  // if a & b empty: c empty
   else if(k2is_empty(b))      
-    mcopy_full(size,a,c);        // if b==0: c=a
+    mcopy_full(size,a,c);        // if b empty: c=a
   else if(k2is_empty(a))    
-    mcopy_full(size,b,c);        // if a==0: c=b
+    mcopy_full(size,b,c);        // if a empty: c=b
   else { // a and b are both not empty, call msum_rec_plain
     size_t posa=0,posb=0;
     msum_rec_plain(size,a,&posa,b,&posb,c);
@@ -290,32 +305,28 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 //    otherwise c is a node + the recursive description of its subtree 
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
-  assert(size>=2*MMsize);
+  assert(size>MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
 
   k2_free(c); // free old content and initialize as empty
 
-  // some simple cases
-  if(k2is_zero(a) &&  k2is_zero(b))
-    return;  // if a==0 && b==0: c=0
   // handle the case of an input with main_diag_1, 
-  // after that the flag is forgotten   
+  // after that flag is forgotten (assumed false for both matrices) 
   if(a->main_diag_1 || b->main_diag_1 )
     c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
-  if(k2is_zero(b)) {    
-    mcopy_full(size,a,c);        // if b==0: c=a
-    return;
-  }
-  if(k2is_zero(a)) {
-    mcopy_full(size,b,c);        // if a==0: c=b  
-    return;
-  }  
 
-  
-  // case :a and :b do have a root node
-  assert(!k2is_empty(a) && !k2is_empty(b));
-  // to be written
-  assert(false);
+  if(k2is_empty(a) &&  k2is_empty(b))
+    return;  // if a & b empty: c empty
+  else if(k2is_empty(b))      
+    mcopy_full(size,a,c);        // if b empty: c=a
+  else if(k2is_empty(a))    
+    mcopy_full(size,b,c);        // if a empty: c=b
+  else {
+    // case :a and :b do have a root node
+    assert(!k2is_empty(a) && !k2is_empty(b));
+    // to be written
+    assert(false);
+  }
 
 }
 

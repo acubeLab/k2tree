@@ -115,10 +115,11 @@ int main (int argc, char **argv) {
 
   // add zero matrix 
   k2mat_t b=K2MAT_INITIALIZER,a0=K2MAT_INITIALIZER;
-  msum(size,b,a,a0); // a0 = b+a = 0+a = a
+  msum(asize,&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
+  mshow_stats(size,asize,&a0,oname,stdout);
   mwrite_to_textfile(size,asize, &a0, oname);
-
+  
   // add main diagonal 1's
   k2add_identity(&a);
   printf("Caution: add_identity may add 1's also outside the original matrix size!\n");

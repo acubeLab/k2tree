@@ -136,7 +136,7 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
 // sum two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar + by logical or 
-void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
