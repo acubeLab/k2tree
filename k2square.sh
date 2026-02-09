@@ -2,6 +2,10 @@
 
 # test matrix multiplication speed squaring each input matrix
 
+# exit immediately on error
+set -e
+
+
 if [ $# -lt 1 ]
 then
   echo "Usage:"

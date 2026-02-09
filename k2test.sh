@@ -2,13 +2,18 @@
 
 # compress/decompress/check all files passed on the command line 
 
+# exit immediately on error
+set -e
+
+
 if [ $# -lt 1 ]
 then
   echo "Usage:"
   echo "         $0 file1 [file2 ...]"
   echo
-  echo "Compress, decompress, and check all the input files with all the"
-  echo "known variants of k2sparse (wildcards in file names are ok)"
+  echo "Compress, decompress, and check all the input files with the"
+  echo "plain variants of k2sparse (not including subtree compression"
+  echo "with backpointers). Wildcards in file names are ok"
   echo
   echo "Sample usage:"
   echo "         $0 data/*.txt"        

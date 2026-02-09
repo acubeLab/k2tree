@@ -117,7 +117,7 @@ int main (int argc, char **argv) {
   k2mat_t b=K2MAT_INITIALIZER,a0=K2MAT_INITIALIZER;
   msum(asize,&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
-  mshow_stats(size,asize,&a0,oname,stdout);
+  if(verbose)  mshow_stats(size,asize,&a0,oname,stdout);
   mwrite_to_textfile(size,asize, &a0, oname);
   
   // add main diagonal 1's
@@ -129,7 +129,7 @@ int main (int argc, char **argv) {
   // squaring 
   k2mat_t asq = K2MAT_INITIALIZER;
   mmult(asize,&a,&a,&asq);
-  mshow_stats(size, asize,&asq,"(A+I)^2",stdout);
+  if(verbose)   mshow_stats(size, asize,&asq,"(A+I)^2",stdout);
   sprintf(oname,"%s.1sq.txt",outfile);
   msave_to_file(size,asize,&asq,oname);
 

@@ -172,12 +172,12 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa, 
                          const k2mat_t *b, size_t *posb, k2mat_t *c)
 {
-  assert(size>=2*MMsize); // there must be the root node 
+  assert(size>=2*MMsize); 
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!a->backp && !b->backp); // this is required
-  assert(!a->subtinfo && !b->subtinfo); // can be removed but a,b are product so no subtinfo should be available 
-  assert(!a->open_ended && !b->open_ended); // can be removed but a,b are product so no open_ended
-  assert(!k2submatrix_empty(a,*posa) && !k2submatrix_empty(b,*posb));
+  assert(!a->subtinfo && !b->subtinfo); // not required but a,b are products so no subtinfo should be available 
+  assert(!a->open_ended && !b->open_ended); // not required, but a,b are products so no open_ended
+  assert(!k2submatrix_empty(a,*posa) && !k2submatrix_empty(b,*posb)); // there nust be a root node
   // take care of all 1s matrices: read root without advancing positions
   node_t roota = k2read_node(a,*posa);
   node_t rootb = k2read_node(b,*posb);
@@ -293,6 +293,119 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   return;
 }
 
+
+// recursive sum of two k2 (sub)matrices, called by msum
+// a and b must be nonempty (sub)matrices: they must have a root node
+//   (if a or b are empty this function is not called because the sum is a copy) 
+// a and b can be all 1's or have backpointer
+// the output matrix c is normalized as usual:
+//  if c is all 0s nothing is written (this should not happen because the sum is an OR)
+//  if c is all 1s just the root ALL_ONES is written
+//  otherwise we follow the standard rule: root node + subtrees in DFS order
+// If Use_all_ones_node is false and a and b do not contain ALL_ONES nodes then neither c does 
+// subtinfo is not used  
+static void msum_rec(size_t size, const k2mat_t *a, size_t *posa, 
+                         const k2mat_t *b, size_t *posb, k2mat_t *c)
+{
+  assert(size>=2*MMsize); 
+  assert(a!=NULL && b!=NULL && c!=NULL);
+  assert(!a->open_ended && !b->open_ended); // not required, but open_ended matrices are only multiplied
+  assert(!k2submatrix_empty(a,*posa) && !k2submatrix_empty(b,*posb)); // there must be a root node
+  // destination pointers
+  size_t newposa, newposb;
+
+  // take care of all 1s matrices: read root without advancing positions
+  node_t roota = k2read_node(a,*posa);
+  node_t rootb = k2read_node(b,*posb);
+
+  // case of all ones matrices
+  if(roota==ALL_ONES && a->backp==NULL) {
+    k2add_node(c,ALL_ONES); 
+    *posa+=1; // reach the end of a
+    k2dfs_visit_fast(size,b,posb); //scan but ignore b content (subtree info could speedup?)
+    return;
+  }
+  else if(rootb==ALL_ONES && b->backp==NULL) {
+    k2add_node(c,ALL_ONES); 
+    *posb+=1; // same as above with a and b swapped
+    k2dfs_visit_fast(size,a,posa); //scan but ignore a content
+    return;
+  }
+  // backpointer in matrix a
+  if(roota==ALL_ONES && a->backp!=NULL) {
+      assert(roota==POINTER);  // ALL_ONES and POINTER are the save value
+      newposa = k2get_backpointer(a,*posa); // get destination
+      *posa+=1;           // skip pointer node
+      posa = &newposa;
+      roota = k2read_node(a,*posa);
+  }
+  // backpointer in matrix b
+  if(rootb==ALL_ONES && b->backp!=NULL) {
+      assert(rootb==POINTER);  // ALL_ONES and POINTER are the save value
+      newposb = k2get_backpointer(b,*posb); // get destination
+      *posb+=1;           // skip pointer node
+      posb = &newposb;
+      rootb = k2read_node(b,*posb);
+  }
+
+  assert(roota!=ALL_ONES && rootb!=ALL_ONES);
+  // a and b are not all 1s, merge children
+  *posa += 1; *posb += 1; // skip root nodes already read
+  node_t rootc = roota | rootb; // root node of c, correct except when c is all 1s
+  assert(rootc!=NO_CHILDREN);   // at least one child is nonzero
+  size_t rootpos = k2add_node(c,rootc);  // save c root and its position
+  bool all_ones=true;     // true if all submatrices cx[i][j] are all 1's
+  if(size==2*MMsize) {    // children are minimat matrices
+    minimat_t ax[2][2], bx[2][2];
+    k2split_minimats(a,posa,roota,ax);
+    k2split_minimats(b,posb,rootb,bx);
+    for(int k=0;k<4;k++) {
+      minimat_t cx = ax[k/2][k%2] | bx[k/2][k%2]; // compute bitwise or of corresponding minimat
+      if (cx != MINIMAT0s) { // save cx if nonzero
+        assert(rootc & (1 << k)); // implied by  cx = ax | bx 
+        k2add_minimat(c, cx);
+      }
+      else assert((rootc & (1 << k)) == 0);
+      if (cx != MINIMAT1s) all_ones = false;
+    }
+    // redundant check: all_ones=> 4 minimats stored
+    assert(!all_ones || (rootc==ALL_CHILDREN&&k2pos(c)==rootpos+1+4*Minimat_node_ratio)); 
+  }
+  else { // size>2*MMsize: children are k2 matrices, possibly use recursion
+    // we could split a and b in 4 submatrices and sum them, but it is more efficient 
+    // to compute the sum without building submatrices (which requires a scan of a and b)
+    for(int k=0;k<4;k++) {
+      size_t tmp = k2pos(c);        // save current position
+      if (roota & (1 << k)) {
+        if(rootb & (1 << k)) 
+          msum_rec(size/2,a,posa,b,posb,c); // k-th child of c is sum of kth children of a and b
+        else 
+          k2copy_rec(size/2,a,posa,c); // k-th child of c is kth child of a
+      }
+      else if (rootb & (1 << k))
+        k2copy_rec(size/2,b,posb,c); // k-th child of c is kth child of b
+      else 
+        assert( (rootc & (1 << k)) == 0); // both children are 0s, nothing to do
+      // check tmp and update all_ones
+      if(tmp!=k2pos(c)) { // something was written
+        assert(k2pos(c)>tmp);
+        if(k2read_node(c,tmp)!=ALL_ONES) all_ones = false;
+        else assert(k2pos(c)==tmp+1); // the written submatrix was ALL_ONES
+      }
+      else all_ones = false; // nothing was written, submatrix is all 0s, all_ones is false
+    } // end for k=0..3
+    assert(!all_ones  || (rootc==ALL_CHILDREN && k2pos(c)==rootpos+5));
+  }
+  // normalize if c is all 1s (regardless of size)
+  if(all_ones && Use_all_ones_node) {
+    assert(rootc==ALL_CHILDREN);
+    k2setpos(c,rootpos+1);       // discard current children
+    k2write_node(c,rootpos,ALL_ONES); // write ALL_ONES as root
+  }
+  return; 
+}
+
+
 // entry point for matrix addition for matrices with backpointers and/or main_diag_1
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
@@ -324,10 +437,11 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   else {
     // case :a and :b do have a root node
     assert(!k2is_empty(a) && !k2is_empty(b));
-    // to be written
-    assert(false);
+    size_t posa=0,posb=0;
+    msum_rec(size,a,&posa,b,&posb,c);
+    assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completely read
+    assert(!k2is_empty(c));  // implied by a+b!=0
   }
-
 }
 
 

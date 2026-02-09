@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# test squaring for a set of matrices already in k2 format 
+
+
 # exit immediately on error
 set -e
 
@@ -8,11 +11,12 @@ then
   echo "Usage:"
   echo "         $0 dir file1 [file2 ...]"
   echo
-  echo "Test squaring for file1 file2 ... from dir"
-  echo  "Also compute sha1sums and compare with those in prod.sha1sum" 
+  echo "Test squaring with subtinfo, backpointers, and dynamic subtrees"
+  echo "for file1.k2 file2.k2 ... all from directory dir"
+  echo "Also compute sha1sums and compare with those in prod.sha1sum" 
   echo
   echo "Sample usage (better with nohup):"
-  echo "         $0 web cnr80k"        
+  echo "         $0 web cnr80k eu80k"        
   exit
 fi
 
@@ -60,12 +64,7 @@ do
   echo "====== squaring with compressed subtrees + subtree info + dynamic subtrees:$f"
   $timecmd -f"$tf" ./k2mult.x -e -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
   sha1sum --ignore-missing -c $dir/prod.sha1sum
-
-done
-
-# delete prod file 
-for f in "$@"
-do 
   echo "==== deleting $f.k2.prod"
   rm -f $dir/$f.k2.prod
+
 done

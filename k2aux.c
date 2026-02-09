@@ -1,6 +1,6 @@
 /* Core routines for handling square binary matrices using k^2 trees 
 
-   This file contains the defintion of the k2mat_t type and the basic
+   This file contains the definition of the k2mat_t type and the basic
    operations on it, without reference to particular operations
    
    Matrix sizes in these routines (except k2get_k2size) always refer to an 
@@ -308,7 +308,7 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
 }
 
 // as above but does not track nodes, minimats and nonzero
-// used to split a matrix into 4 submatrices
+// used to split a matrix into 4 submatrices, or to skip the nodes of a submatrix
 // subtree info is not used, and pointers are not followed
 // scan the subtree from *pos (root) to the end of the subtree
 void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
@@ -340,33 +340,33 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 // used when summing two matrices and a submatrix is all zeros 
 void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
-  assert(size>= 2*MMsize);
+  assert(size>MMsize);
   assert(*posa<a->pos); // implies a is non-empty
   assert(a->offset==0);
+  size_t newpos;
+
   // get root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
   if(roota==ALL_ONES) {
-    if(a->backp==NULL) k2add_node(b,roota); // all 1's matrix consists of root only
-    else {  // a->backp!=NULL
-      assert(roota==POINTER);  // ALL_ONES and POINTER are the save value
-      assert(size>MMsize);
-      k2pointer_t destp = k2get_backpointer(a,*posa-1); // -1 because we have already advanced pos
-      size_t posp = destp; // move position to the target subtree
-      k2copy_rec(size,a, &posp, b); 
+    if(a->backp==NULL) {
+      k2add_node(b,roota); // all 1's matrix consists of root only
+      return;
+    } else {  // a->backp!=NULL
+      assert(roota==POINTER);  // ALL_ONES and POINTER are the same value
+      newpos = k2get_backpointer(a,*posa-1); //  move position to the target subtree
+      posa = &newpos;
+      roota = k2read_node(a,*posa); *posa +=1;
     }
-    return;
   }
-  // root is not a special node
-  k2add_node(b,roota);
+  assert(roota!=ALL_ONES);    // roota is not a special node
+  k2add_node(b,roota);        // copy it to b 
   for(int i=0;i<4;i++) {
     if((roota & (1<<i))!=0) {
       if(size==2*MMsize) { // end of recursion
         minimat_t m = k2read_minimat(a,posa);
         k2add_minimat(b,m);
       }
-      else { // recurse on submatrix
-        k2copy_rec(size/2,a,posa,b);
-      }
+      else k2copy_rec(size/2,a,posa,b);  // recurse on submatrix
     }
   }
 }
