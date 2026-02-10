@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
             if(d < 0) {
               if(verbose) printf("Correct decompression!\n");
             } else {
-              printf("Error at decompression: generated a different k2tree\n");
+              printf("Error at decompression: generated a different k2tree (error at level: %d)\n",d);
             }
           } else {
             printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);

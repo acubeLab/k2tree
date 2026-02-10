@@ -99,39 +99,53 @@ static int k2tree_equals_rec(size_t size, const k2mat_t *a, size_t *posa,
   }
 }
 
+// return number of levels in the k2_tree storing matrix :a
+// only the tree strucure is considered, not the main_diagonal flag or backpointers
+// note: root with no children: 1 level 
+//       minimats+root: 2 levels, etcs. 
+int k2tree_levels(size_t size, const k2mat_t *a) 
+{
+  if(k2is_empty(a)) return 1;
+  size_t pa=0, pb=0;
+  int d = k2tree_equals_rec(size, a, &pa, a, &pb);
+  assert(d<0);  // certainly a==q
+  return -d;
+}
 
-// main entry point for matrix equality
+// main entry point for matrix equality (almost, see below)
 // check if size x size k2 compressed matrices :a and :b are equal
+// if a or b have main_diag_1 or backp!=NULL we cannot say
+//   if they are equal, return INT32_MAX
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
 // (first in the sense of the first level encountered in dfs order)
-// Note that if a==b we return the number of visited levels negated (tree depth), 
+// Note that if a==b we return the number of visited levels negated, 
 // while if a!=b we return the level of the first difference counting from 0 (root)
-// these two values differ by one (this can be seen in the returned value):
-//   if the tree has 2 level (0 and 1) a difference can be at level 1 at most, 
-//   but the number of traversed levels is 2  
+// these two values differ by one: if the tree has 2 level (0 and 1) a difference 
+//   can be at level 1 at most, but the number of traversed levels is 2  
 // :a and :b must be of size at least 2*MMsize but their content can be
-// arbitrary: all 0's, all 1's, or generic
+// arbitrary: all 0's, all 1's, or generic 
 // note: here all 0's matrices are considered of depth 1 even if they are empty
 // only the tree strucure is considered, not the main diagonal flag or backpointers
-// TODO: find a different algo for finding equalities 
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL);
-  assert(a->backp==NULL);
-  assert(b->backp==NULL);
+  if(a->main_diag_1 || b->main_diag_1)
+    return INT32_MAX; // cannot say
+  if( (a->backp!=NULL) || (a->backp!=NULL) )  
+    return INT32_MAX; // cannot say
   if(k2is_empty(a) && k2is_empty(b)) 
     return -1;                 // if a==0 && b==0: a==b and one level traversed
   else if(k2is_empty(b))      
     return 0;                 // if b==0 && a!=0: a!=b and difference at level 0
   else if(k2is_empty(a))    
     return 0;                 // if a==0 && b!=0: a!=b as above
-  // a and b are both not zero
+  // a and b are both non-zero, with no backp or main_diag
   size_t posa=0,posb=0;
   int eq = k2tree_equals_rec(size,a,&posa,b,&posb);
   // do extra checks if the matrices are equal
-  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b)) );
+  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && (posa==posb) ) );
   return eq;
 }
 
