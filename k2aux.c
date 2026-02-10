@@ -42,7 +42,7 @@ size_t k2treesize(const k2mat_t *m)
 // if p==0 this empties the matrix 
 void k2setpos(k2mat_t *m, size_t p)
 {
-  assert(!m->read_only);
+  assert(!m->is_pointer);
   assert(p<m->pos);
   m->pos = p;
 }
@@ -70,7 +70,7 @@ bool k2submatrix_empty(const k2mat_t *m, size_t pos)
 // make m empty, but keep memory  
 void k2make_empty(k2mat_t *m)
 {
-  assert(!m->read_only);  // must be a whole matrix
+  assert(!m->is_pointer); // must be a whole non-pointer matrix
   assert(m->offset==0);   // must be a whole matrix
   assert(!m->open_ended); // must be a whole matrix
   assert(m->backp==NULL); // backpointers not allowed in empty matrices
@@ -81,8 +81,8 @@ void k2make_empty(k2mat_t *m)
 // free mem, *m still reusable if needed 
 static void k2_free(k2mat_t *m)
 {
-  if(m->read_only) // read only matrices are pointers to other matrices
-    quit("Illegal operation: freeing a read only k2-matrix",__LINE__,__FILE__); 
+  if(m->is_pointer) // canno free pointers to other matrices
+    quit("Illegal operation: freeing a pointer k2-matrix",__LINE__,__FILE__); 
   if(m->b!=NULL) free(m->b);
   m->b=NULL;
   m->pos = m->lenb = m->offset = 0;
@@ -110,7 +110,7 @@ static void k2_free(k2mat_t *m)
 // return the position where the node was stored 
 size_t k2add_node(k2mat_t *m, node_t n)
 {
-  assert(!m->read_only);
+  assert(!m->is_pointer);
   assert(n<ILLEGAL_NODE);
   assert(m->lenb%16==0);            // #positions must be ==0(16) so that conversion to uint64 is safe  
   // make sure there is space
@@ -164,7 +164,7 @@ int k2get_root_nchildren(const k2mat_t *m)
 // write node n at (existing) position p
 void k2write_node(k2mat_t *m, size_t p, node_t n)
 {
-  assert(!m->read_only);
+  assert(!m->is_pointer);
   assert(n<ILLEGAL_NODE);
   assert(p<m->pos && p<m->lenb);
   assert(m->offset==0);   // if m->offset>0 node should be read only 
@@ -182,7 +182,7 @@ void k2write_node(k2mat_t *m, size_t p, node_t n)
 // return the starting position where the matrix is stored
 size_t k2add_minimat(k2mat_t *b, minimat_t m)
 {
-  assert(!b->read_only);
+  assert(!b->is_pointer);
   assert(MMsize>7  ||  m< (1UL<<(MMsize*MMsize)));
   if (MMsize==2) {
     // a 2x2 matrix takes exactly 4 bit == one node 
@@ -224,7 +224,7 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
 // split the submatrix :a starting at position *posa into 4 minimats
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree.
-// Called by msum_rec, mequals_rec and mmult_base
+// Called by msum_rec, k2tree_equals_rec and mmult_base
 // take care of main_diag_1 flag
 void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax[2][2])
 {
@@ -271,14 +271,12 @@ void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size
   // if this is a compressed tree visit the subtree pointed by m->backp
   // the counts for pos/nodes/minimtas are not updated here
   // but the visit is used to count the number of nonzeros 
-  if(m->r !=NULL && root == POINTER) { // pointer in  k2 compressed tree
+  if(m->backp !=NULL && root == POINTER) { // pointer in  k2 compressed tree
     size_t aux_pos = *pos; // remember where to comback
     size_t aux_nodes = *nodes; // to not overcount nodes
     size_t aux_minimats = *minimats; // to not overcount minimats
     assert(m->offset==0);
-    uint64_t rp = rank_rank(m->r, m, (*pos) - 1); //\\ apparently ok, m[(*pos)-1]==POINTER, but called with offset==0
-    assert(rp < m->backp->size);
-    *pos = m->backp->nodep[rp] & TSIZEMASK;
+    *pos =  k2get_backpointer(m, *pos -1);
     assert(*pos < m->pos);
     k2dfs_visit(size, m, pos, nodes, minimats, nz, all1); // read submatrix and advance pos
     // restore values
@@ -378,18 +376,18 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 // creating a read only copy :c which is a pointer inside :a
 // used only by k2split_k2, a: could be open ended
 // Note: it is important that b, lenb, subtinfostart, backp, and rank are copied as they are
-static void k2clone(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
+static void k2clone_submatrix(const k2mat_t *a, size_t start, size_t end, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for open ended
   assert(k2is_empty(c));
-  assert(!c->read_only);
+  assert(!c->is_pointer);
   *c = *a; // copy all fields
   c->pos = c->offset + end;     // actual ending position of c in buffer
   c->offset += start;           // actual starting position of c in buffer
   c->subtinfo = NULL;           // if necessary will be initialized later 
   c->subtinfo_size = 0;         // if necessary will be initialized later 
-  c->read_only = true;          // c is read only
+  c->is_pointer = true;         // c is a pointer to a
   c->open_ended = false;        // c not open ended since c->pos is correct
   c->main_diag_1 = false;
 }
@@ -402,7 +400,7 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
   assert(a!=NULL && c!=NULL);
   k2_free(c);
   *c = *a; // copy all fields (caution, including subtinfo, rank and backp) 
-  c->read_only = true;   // c is read only
+  c->is_pointer = true;   // c is read only
 }
 
 k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
@@ -491,7 +489,7 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       int i=k/2; int j=k%2;
       if(root & (1<<k)) { // k-th child is non empty
         k2dfs_visit_fast(size/2,&tmp,&next);       // move to end of submatrix
-        k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
+        k2clone_submatrix(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                                // advance to next submatrix
         // by construction in b[i][j] subtinfo is NULL and subtinfo_size is 0  
         assert(b[i][j].subtinfo==NULL && b[i][j].subtinfo_size==0);      
@@ -519,7 +517,7 @@ void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
         k2dfs_visit_fast(size/2,&tmp,&next0); 
         assert(next==next0); // scanned size should match the size in subtinfo
         #endif
-        k2clone(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
+        k2clone_submatrix(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
         pos = next;                             // advance to next submatrix
         b[i][j].subtinfo_size = tmp.subtinfo[child] >> BITSxTSIZE;
         if(b[i][j].subtinfo_size > 0) { // if subtinfo for child is available
@@ -560,7 +558,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     // create 4 all 1's submatrices pointing to the ALL_ONES root and stop
     // even if :a had subtree information, with cloning the info is lost not a problem because there are no actual subtrees. 
     for(int i=0;i<2;i++) for(int j=0;j<2;j++)
-      k2clone(a, pos-1, pos, &b[i][j]); // main diagonal not relevant
+      k2clone_submatrix(a, pos-1, pos, &b[i][j]); // main diagonal not relevant
     return;    
   }
   // root is not all 1's: we have the standard structure and we need to do a real partition 
@@ -632,7 +630,7 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
     if(root & (1<<k)) { // k-th child is non empty
       if(a->subtinfo || nchildren==1) next = pos + subt_size[child]; // jump to end of submatrix
       else k2dfs_visit_fast(size/2,a,&next);  // move to end of submatrix
-      k2clone(a, pos, next, &b[i][j]);        // create pointer to submatrix
+      k2clone_submatrix(a, pos, next, &b[i][j]);        // create pointer to submatrix
       pos = next;                             // advance to next item
       if(a->subtinfo) {
         b[i][j].subtinfo = subt_info[child];    // save subtinfo if available

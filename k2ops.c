@@ -62,16 +62,14 @@ static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfl
 bool Extended_edf = false; // compute subtree info on the fly
 
 
-// recursive test for equality of two k2 matrices both nonzero
-// see mequals for details
-static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa, 
+// recursive test for equality of two k2 matrices both non empty
+// only consider the tree structure: no main_diag or backpointers
+static int k2tree_equals_rec(size_t size, const k2mat_t *a, size_t *posa, 
                           const k2mat_t *b, size_t *posb)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
-  assert(a->backp==NULL && a->subtinfo==NULL);
-  assert(b->backp==NULL && b->subtinfo==NULL);
   // read root nodes of a and b
   node_t roota = k2read_node(a,*posa); *posa +=1;
   node_t rootb = k2read_node(b,*posb); *posb +=1;
@@ -92,7 +90,7 @@ static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa,
     for(int k=0;k<4;k++) {
       if (roota & (1 << k)) {
         assert(rootb & (1 << k)); 
-        int eqr = mequals_rec(size/2,a,posa,b,posb);
+        int eqr = k2tree_equals_rec(size/2,a,posa,b,posb);
         if(eqr>0) return eqr+1; // a and b are different at level eqr+1
         if(eqr < eq) eq = eqr;  // keep track of deepest level reached
       }
@@ -107,17 +105,22 @@ static int mequals_rec(size_t size, const k2mat_t *a, size_t *posa,
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
 // (first in the sense of the first level encountered in dfs order)
-// Note that if a==b we return the number of visited levels (tree depth), 
+// Note that if a==b we return the number of visited levels negated (tree depth), 
 // while if a!=b we return the level of the first difference counting from 0 (root)
-// these two values differ by one (this can be seen in the returned value)
+// these two values differ by one (this can be seen in the returned value):
+//   if the tree has 2 level (0 and 1) a difference can be at level 1 at most, 
+//   but the number of traversed levels is 2  
 // :a and :b must be of size at least 2*MMsize but their content can be
 // arbitrary: all 0's, all 1's, or generic
 // note: here all 0's matrices are considered of depth 1 even if they are empty
-// TODO: consider subtree info backpointers and main diagonal flag
+// only the tree strucure is considered, not the main diagonal flag or backpointers
+// TODO: find a different algo for finding equalities 
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL);
+  assert(a->backp==NULL);
+  assert(b->backp==NULL);
   if(k2is_empty(a) && k2is_empty(b)) 
     return -1;                 // if a==0 && b==0: a==b and one level traversed
   else if(k2is_empty(b))      
@@ -126,9 +129,9 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
     return 0;                 // if a==0 && b!=0: a!=b as above
   // a and b are both not zero
   size_t posa=0,posb=0;
-  int eq = mequals_rec(size,a,&posa,b,&posb);
+  int eq = k2tree_equals_rec(size,a,&posa,b,&posb);
   // do extra checks if the matrices are equal
-  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && posa==posb));
+  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b)) );
   return eq;
 }
 
@@ -140,7 +143,7 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   assert(size>MMsize);  // required by k2copy_rec 
   assert(a!=NULL && b!=NULL);
   assert(!k2is_empty(a));
-  assert(!b->read_only);
+  assert(!b->is_pointer);
   assert(!a->open_ended); // not required, but open ended are only multiplied
   assert(a->offset==0);   // not required, but we only use it for whole matrices 
 
@@ -250,6 +253,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
   return; 
 }
 
+#if 0
 // entry point for matrix addition plain matrices with no backpointers
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
@@ -292,7 +296,7 @@ void msum_plain(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   }
   return;
 }
-
+#endif
 
 // recursive sum of two k2 (sub)matrices, called by msum
 // a and b must be nonempty (sub)matrices: they must have a root node
@@ -466,7 +470,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   assert(size==2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
-  assert(!c->read_only);
+  assert(!c->is_pointer);
   // c is always an empty matrix because a partial product is never written directly to a result matrix 
   assert(k2is_empty(c));
   // initialize ax[][] and bx[][] to cover the case when the matrix a/b is all 1s                       
