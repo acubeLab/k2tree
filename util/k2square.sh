@@ -13,15 +13,18 @@ then
   echo
   echo "Compute the square of all input k2-mats (wildcards in file names are ok)"
   echo "reporting running time and peak memory usage"
+  echo "No subtinfo or backpointers are supported. Results are not checked"
   echo
   echo "Sample usage:"
-  echo "         $0 data/*.k2"        
+  echo "         $0 web/*.k2"      
   exit
 fi
 
 
 for f in "$@"
 do 
+  echo ">>>>>>>> Squaring using a single copy of $f"
+  /usr/bin/time -f"Command: %C\nE(secs):%e Mem(kb):%M" k2mult.x -q $f $f
   echo ">>>>>>>> Squaring $f"
-  /usr/bin/time -f"Command: %C\nE(secs):%e Mem(kb):%M" k2mult.x -c $f $f
+  /usr/bin/time -f"Command: %C\nE(secs):%e Mem(kb):%M" k2mult.x $f $f
 done

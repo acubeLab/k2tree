@@ -228,7 +228,7 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
 // take care of main_diag_1 flag
 void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax[2][2])
 {
-  assert(roota!=ALL_ONES); // currently called with this assumption, could change in the future
+  assert(roota!=ALL_ONES); // currently called with this assumption see mmult_base, could change in the future
   for(int i=0;i<4;i++) 
     if(roota & (1<<i)) ax[i/2][i%2] = k2read_minimat(a,posa); // k2read_minimat advances posa
     else               ax[i/2][i%2] = MINIMAT0s;  // note all 0s minimats are not stored
@@ -238,12 +238,6 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
   }
 }
 
-
-// add indentity matrix to a
-void k2add_identity(k2mat_t *a)
-{
-  a->main_diag_1 = true;
-}
 
 // --------------------------------------------------------------
 // complex operations on k2mat struct, operating on submatrices
@@ -454,90 +448,15 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
 #error "Function k2jump for FULL pointers missing"
 #endif
 
-#if 0
-// old version doing together jumping to a previous subtree and splitting
-// do not delete since it contains code useful for writing k2jump for full pointers 
-// split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
-// special case in which the root is a pointer to a previous subtree
-// called only by k2split_k2, where the input parameters are tested 
-void k2jumpsplit_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2]) 
-{
-  // read root node
-  node_t root = k2read_node(a,0);  // read root of current tree
-  assert(root==POINTER); 
-  k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree
-  #ifdef SIMPLEBACKPOINTERS
-  size_t nodep = destp;    // pointer to destination node
-  size_t subtp = 0;        // no subtree info available for destination nodes
-  #else
-  size_t nodep = destp &TSIZEMASK;     // pointer to destination node 
-  size_t subtp = destp >> BITSxTSIZE;  // possible pointer to subtree info for destination node
-  #endif
-  k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
-  k2make_pointer(a, &tmp); // make tmp a shallow copy of a
-  tmp.offset = nodep; // set pos to the node where the subtree starts
-  tmp.subtinfo = (subtp==0) ? NULL : a->subtinfoarray + subtp; // set subtree info if available
-  tmp.subtinfo_size = 0; tmp.pos = tmp.lenb; // for debug purposes, not used since tmp will be discarded 
-  // TODO: can we go back to k2split_k2 here? for SIMPLEBACKPOINTERS probably yes
-  // do the actual splitting
-  size_t pos = 0;
-  root = k2read_node(&tmp,pos); pos++;
-  assert(root!=POINTER);      // the destination of a pointer cannot be a pointer
-  if(tmp.subtinfo==NULL) {    // no subtinfo information available, visit the submatrices to do the splitting
-    size_t next=pos; //now pos==1 since we already read the root
-    for(int k=0;k<4;k++) {
-      int i=k/2; int j=k%2;
-      if(root & (1<<k)) { // k-th child is non empty
-        k2dfs_visit_fast(size/2,&tmp,&next);       // move to end of submatrix
-        k2clone_submatrix(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
-        pos = next;                                // advance to next submatrix
-        // by construction in b[i][j] subtinfo is NULL and subtinfo_size is 0  
-        assert(b[i][j].subtinfo==NULL && b[i][j].subtinfo_size==0);      
-      }
-    }
-  } 
-  else { // recover subtree info for the destination node, and use it to do the splitting
-    #ifdef SIMPLEBACKPOINTERS
-    quit("Illegal operation: k2jumpsplit_k2 with simple backpointers",__LINE__,__FILE__);
-    #endif
-    // get number of children
-    size_t nchildren = __builtin_popcountll(root);
-    //fprintf(stderr, "k2jumpsplit_k2: root is a pointer to node %zu, subtinfo %zu, children %zu root=%zu fc=%zu\n", 
-    //                 nodep, subtp,nchildren,k2read_node(&tmp,0),k2read_node(&tmp,1));
-    assert(nchildren>0 && nchildren<=4); 
-    uint64_t *next_info = tmp.subtinfo + nchildren; // start of next subtree information
-    int child = 0;   // child index, used for subt_size[] subt_info[] 
-    size_t next=pos; //now pos==1 since we already read the root
-    for(int k=0;k<4;k++) {
-      int i=k/2; int j=k%2;
-      if(root & (1<<k)) { // k-th child is non empty
-        next = pos + (tmp.subtinfo[child]&TSIZEMASK); // jump to end of submatrix
-        #ifndef NDEBUG
-        size_t next0 = pos;       // compute dimension scanning the matrix
-        k2dfs_visit_fast(size/2,&tmp,&next0); 
-        assert(next==next0); // scanned size should match the size in subtinfo
-        #endif
-        k2clone_submatrix(&tmp, pos, next, &b[i][j]);        // create pointer to submatrix
-        pos = next;                             // advance to next submatrix
-        b[i][j].subtinfo_size = tmp.subtinfo[child] >> BITSxTSIZE;
-        if(b[i][j].subtinfo_size > 0) { // if subtinfo for child is available
-          b[i][j].subtinfo = next_info;
-          next_info += b[i][j].subtinfo_size; // advance to next subtinfo
-        }
-        else assert(b[i][j].subtinfo==NULL); // no subtinfo for this child
-        child++; // advance to next non empty child
-      }
-    }
-    assert(child==nchildren); // all children should be processed    
-  }
-}
-#endif
 
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside :a, so no memory is allocated
 // the submatrices are not minimats since we are not at the last level of the tree
 // :a is not all 0's, it could be all 1's (for now)
 // note: a could be open ended
+// backpointer should have been already followed
+// main_diag_1 if present is transmitted to the diagonmal submatrices
+// ALL_ONES submatrices are correctly handled  
 void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
 {
   assert(size>2*MMsize);

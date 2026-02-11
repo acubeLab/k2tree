@@ -89,6 +89,7 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
 
 // write the content of the :msize x :msize k2 matrix :a to a
 // text file in one entry per line format
+// respcet main_diag_1 and backp pointers. subtinfo is not used
 void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outname)
 {
   assert(outname!=NULL && a!=NULL);
@@ -1025,7 +1026,7 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-// Note: it is currentrly not used, but it works fine for the results of operations
+// Note: it is currently not used, but it works fine for the results of operations
 // which are always plain k2 matrices
 void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);

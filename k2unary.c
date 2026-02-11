@@ -121,8 +121,8 @@ int main (int argc, char **argv) {
   mwrite_to_textfile(size,asize, &a0, oname);
   
   // add main diagonal 1's
-  k2add_identity(&a);
-  printf("Caution: add_identity may add 1's also outside the original matrix size!\n");
+  madd_identity(&a);
+  printf("Caution: madd_identity may add 1's also outside the original matrix size!\n");
   sprintf(oname,"%s.1.txt",outfile);
   mwrite_to_textfile(size,asize, &a, oname);
 

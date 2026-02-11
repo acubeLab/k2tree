@@ -100,8 +100,6 @@ node_t k2read_node(const k2mat_t *m, size_t p);
 void k2read_subtinfo(k2mat_t *a, const char *infofile);
 void k2add_subtinfo_limit(size_t size, k2mat_t *a, size_t limit);
 size_t k2treesize(const k2mat_t *m);
-// add indentity matrix to a
-void k2add_identity(k2mat_t *a);
 // print some info about a k2mat
 void k2print(const k2mat_t *m, FILE *f);
 // follow a pointer node and returns the pointed submatrix
@@ -130,15 +128,17 @@ void matrix_free(k2mat_t *m);
 void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 
 // from k2ops.c
-// try to check if two k2 compressed matrices :a and :b are equal
+// check if two k2 compressed matrices :a and :b are equal with limitations:
 // if :a or :b have backp or main_diag, result is unknow and return INT32_MAX
 // otherwise if a==b return -d, where d>0 is the number of levels traversed  
 //           if a!=b return the level>=0 containing the first difference
+// Note that the results of sum and product operations never have backpoiners
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
 // return number of levels in the k2tree associated to a
 int k2tree_levels(size_t size, const k2mat_t *a);
-// sum two k2 matrices a and b writing the result to c
-// multiplication is done replacing scalar + by logical or 
+// add indentity matrix to a
+void madd_identity(k2mat_t *a);
+// sum (logical or) of two k2 matrices a and b writing the result to c
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
