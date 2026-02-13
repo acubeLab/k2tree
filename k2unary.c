@@ -116,6 +116,7 @@ int main (int argc, char **argv) {
 
   // add zero matrix 
   k2mat_t b=K2MAT_INITIALIZER,a0=K2MAT_INITIALIZER;
+  b.fullsize = a.fullsize; b.realsize = a.realsize;
   msum(asize,&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
   if(verbose)  mshow_stats(size,asize,&a0,oname,stdout);

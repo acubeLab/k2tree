@@ -91,6 +91,7 @@ int main(int argc, char* argv[]) {
 
   // execute subtree compression
   k2mat_t ca = K2MAT_INITIALIZER;
+  ca.fullsize = a.fullsize; ca.realsize = a.realsize;
   k2compress(asize, &a, &ca, threshold, rank_block); 
 
 

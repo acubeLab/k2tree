@@ -38,7 +38,7 @@ jobs:
           ./matrixcmp.x sparsek2.1.txt sparsek2.1.ok
 
     - name: big traspose test 
-      run: ./trdtest.sh . sparsek2.txt
+      run: ./trdtest.sh sparsek2.txt
   
 
     # - name: configure

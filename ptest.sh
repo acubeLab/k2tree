@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # test squaring for a set of matrices already in k2 format 
-
+# comparing results with precomputed sha1sum values
 
 # exit immediately on error
 set -e
@@ -16,7 +16,7 @@ then
   echo "Also compute sha1sums and compare with those in prod.sha1sum" 
   echo
   echo "Sample usage (better with nohup):"
-  echo "         $0 web cnr80k eu80k"        
+  echo "         $0 web cnr80k eu80k goo120k"        
   exit
 fi
 
