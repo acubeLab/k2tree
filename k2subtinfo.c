@@ -150,7 +150,8 @@ int main (int argc, char **argv) {
   // read input matrix (could be subtree compressed, we cannot know...)
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize;
-  size = mload_from_file(&asize, &a, iname); // also init k2 library
+  size = mload_from_file(&a, iname); // also init k2 library
+  asize = a.fullsize;
   // show information acquired so far from the input files 
   if (verbose) {
     fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 

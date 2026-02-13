@@ -62,26 +62,28 @@ static inline bool a_lt_b2(uint64_t a, uint64_t b);
 
 // read a matrix from the text file :iname (one entry per line)
 // and store it in k2 format
-// the compressed matrix is stored to :a and its size to :msize
+// the compressed matrix is stored to :a and its size to a->realsize
 // if :xsize>0 that value is forced to be the size of k2 matrix
 // return the internal size of the k2 matrix (which has the form 2**k*MMsize)
 // since entries are encoded in 64 bits, each index can be at most 32 bits
 // so the maximum matrix size is 2^32 (change ia[],imin,imax type to go further)
-size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
+size_t mread_from_textfile(k2mat_t *a, char *iname, size_t xsize)
 {
   assert(iname!=NULL && a!=NULL);
   FILE *f = fopen(iname,"rt");
-  if(f==NULL) quit("mread_from_file: cannot open input file",__LINE__,__FILE__);
+  if(f==NULL) quit("mread_from_textfile: cannot open input file",__LINE__,__FILE__);
   // generate interleaved array from input file
   size_t n; // number of entries
+  size_t msize; // computed matrix size;
   // since we are storing entries in 64 bits each index must fit in 32 bits   
   if(xsize>1UL+UINT32_MAX) quit("mread_from_textfile: matrix too large, current limit is 2^32",__LINE__,__FILE__);
-  uint64_t *ia = create_ia(f,&n,msize,xsize);
-  assert(xsize==0 || *msize==xsize);
+  uint64_t *ia = create_ia(f,&n,&msize,xsize);
+  assert(xsize==0 || msize==xsize);
   fclose(f);
   // compress the matrix represented by the ia[] array into a k2mat_t structure
-  size_t asize = mread_from_ia(ia,n,*msize,a);
+  size_t asize = mread_from_ia(ia,n,msize,a);
   free(ia);
+  a->realsize = msize; a->fullsize = asize;
   return asize; // return the size of the k2_matrix
 }
 
@@ -90,9 +92,10 @@ size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize)
 // write the content of the :msize x :msize k2 matrix :a to a
 // text file in one entry per line format
 // respcet main_diag_1 and backp pointers. subtinfo is not used
-void mwrite_to_textfile(size_t msize, size_t asize, const k2mat_t *a, char *outname)
+void mwrite_to_textfile(const k2mat_t *a, char *outname)
 {
   assert(outname!=NULL && a!=NULL);
+  size_t msize = a->realsize, asize = a->fullsize; 
   assert(asize>=msize);
   FILE *f = fopen(outname,"wt");
   if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);

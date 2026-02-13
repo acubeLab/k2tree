@@ -72,7 +72,8 @@ int main(int argc, char* argv[]) {
     fputs("\n",stdout);  
   }
 
-  size = mload_from_file(&asize, &a, k2name_file); // also init k2 library
+  size = mload_from_file(&a, k2name_file); // also init k2 library
+  asize = a.fullsize;
   if(minimat_size()!=2) {
     fprintf(stderr, "Error: to compress k2tree mini-matrix size must be 2, got %d\n", minimat_size());
     fprintf(stderr, "(otherwise a spurious 0000 may appear in a mini-matrix)\n");
@@ -109,7 +110,7 @@ int main(int argc, char* argv[]) {
 
     if(write) {
       // save .ck2 file
-      msave_to_file(size, asize, &ca, file_ck2);
+      msave_to_file(&ca, file_ck2);
       // save .ck2.p file with pointers
       char file_p[strlen(file_ck2) + 5];
       strcpy(file_p, file_ck2);

@@ -107,10 +107,11 @@ int main (int argc, char **argv) {
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
-  size = mload_extended(&asize, &a, iname1, infofile1, backpfile1, rank_block_size);
+  size = mload_extended(&a, iname1, infofile1, backpfile1, rank_block_size);
   #else
-  size = mload_from_file(&asize, &a, iname1);
+  size = mload_from_file(&a, iname1);
   #endif
+  asize = a.fullsize;
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
   // add zero matrix 
@@ -118,20 +119,20 @@ int main (int argc, char **argv) {
   msum(asize,&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
   if(verbose)  mshow_stats(size,asize,&a0,oname,stdout);
-  mwrite_to_textfile(size,asize, &a0, oname);
+  mwrite_to_textfile(&a0, oname);
   
   // add main diagonal 1's
   madd_identity(&a);
   printf("Caution: madd_identity may add 1's also outside the original matrix size!\n");
   sprintf(oname,"%s.1.txt",outfile);
-  mwrite_to_textfile(size,asize, &a, oname);
+  mwrite_to_textfile(&a, oname);
 
   // squaring 
   k2mat_t asq = K2MAT_INITIALIZER;
   mmult(asize,&a,&a,&asq);
   if(verbose)   mshow_stats(size, asize,&asq,"(A+I)^2",stdout);
   sprintf(oname,"%s.1sq.txt",outfile);
-  msave_to_file(size,asize,&asq,oname);
+  msave_to_file(&asq,oname);
 
   // done
   matrix_free(&a);    

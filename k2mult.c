@@ -136,10 +136,11 @@ int main (int argc, char **argv) {
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
-  size = mload_extended(&asize, &a, iname1, infofile1, backpfile1, rank_block_size);
+  size = mload_extended(&a, iname1, infofile1, backpfile1, rank_block_size);
   #else
-  size = mload_from_file(&asize, &a, iname1);
+  size = mload_from_file(&a, iname1);
   #endif
+  asize= a.fullsize;
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
   // copy or load second matrix
@@ -151,10 +152,11 @@ int main (int argc, char **argv) {
     size_t bsize, size1;
     #ifdef K2MAT
     // possibly load subtree info
-    size1 = mload_extended(&bsize, &b, iname2, infofile2, backpfile2, rank_block_size);
+    size1 = mload_extended(&b, iname2, infofile2, backpfile2, rank_block_size);
     #else
-    size1 = mload_from_file(&bsize, &b, iname2);
+    size1 = mload_from_file(&b, iname2);
     #endif
+    bsize = b.fullsize;
     // check sizes correpondds
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
     if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
@@ -165,7 +167,7 @@ int main (int argc, char **argv) {
   mmult(asize,&a,&b,&ab);
   if (verbose || !write) 
     mshow_stats(size, asize,&ab,oname,stdout);
-  if(write) msave_to_file(size,asize,&ab,oname);
+  if(write) msave_to_file(&ab,oname);
 
   // check product if requested: use bbm matrix (n^2 bytes n^3 time) 
   if(check) {

@@ -99,7 +99,8 @@ int main (int argc, char **argv) {
   k2mat_t a = K2MAT_INITIALIZER;
   size_t size, asize; uint8_t *b = NULL;
   if(decompress) {
-    size = mload_from_file(&asize, &a, iname); // also init k2 library
+    size = mload_from_file(&a, iname); // also init k2 library
+    asize = a.fullsize;
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
     b= bbm_alloc(size);
@@ -113,7 +114,7 @@ int main (int argc, char **argv) {
     asize = mread_from_bbm(b,size,&a);
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
-    if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
+    if(write) msave_to_file(&a,oname);  // save k2mat to file
     if(check) {
       uint8_t *bx = bbm_alloc(size);
       mwrite_to_bbm(bx,size,asize, &a);

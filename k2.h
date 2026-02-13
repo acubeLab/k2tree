@@ -62,16 +62,18 @@ typedef struct k2mat {
   // the following two fields support pointers to subtrees for compressed matrices  
   pointers_t *backp;    // pointers to repeated subtree information
   rank_0000_t *r;       // rank 0000 auxiliary structure
+  // fields storing the sizes of teh represented matrix: not always accurate for submatrices
+  size_t fullsize;     // size of the matrix represented by the MSIZE*2^k  
+  size_t realsize;     // actual size of the matrix (no limitations) 
   // flag to denote if the matrix is a pointer; if true the matrix is a pointer to another matrix
   // and usually defines a submatrix of the other matrix, using offset,pos, and subtinfo 
   // all matrices created by splitting k2split_k2/k2jumpsplit_k2 are pointers 
   bool is_pointer;   // if true this is a pointer to another matrix: write/add operations are not allowed
-  bool open_ended;  // pos strictly greater that the end of the matrix: only for read_only matrices      
-  // flag to denote if the matrix  has 1s in the main diagonal 
-  bool main_diag_1;
+  bool open_ended;   // pos strictly greater that the end of the matrix: only for read_only matrices      
+  bool main_diag_1;  // if true all diagonal entries are 1s, in addition to the content of the k2-tree 
 } k2mat_t;
 // initialize to an empty writable matrix 
-#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, false, false, false}
+#define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, 0,0,false, false, false}
 
 // maximum allowed size of a k2 matrix
 #define MaxMatrixSize (1UL<<40)
@@ -108,11 +110,11 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos);
 
 // from k2io.c
 // save a k2-matrix to file
-void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename);
+void msave_to_file(const k2mat_t *a, const char *filename);
 // load a k2-matrix from file
-size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename);
+size_t mload_from_file(k2mat_t *a, const char *filename);
 // load a k2-matrix from file, possibly with subtree info and backpointers
-size_t mload_extended(size_t *asize, k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size);
+size_t mload_extended(k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size);
 // write the content of a k2 matrix in a bbm matrix
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
@@ -149,8 +151,8 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 void mvmult(size_t asize, const k2mat_t *a, size_t size, double *x, double *y, bool clear_y);
 
 // from k2text.c
-void mwrite_to_textfile(size_t msize, size_t size, const k2mat_t *a, char *outname);
-size_t mread_from_textfile(size_t *msize, k2mat_t *a, char *iname, size_t xsize);
+void mwrite_to_textfile(const k2mat_t *a, char *outname);
+size_t mread_from_textfile(k2mat_t *a, char *iname, size_t xsize);
 uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int32_t depth2go);
 uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, size_t limit);
 size_t k2dfs_check_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, 

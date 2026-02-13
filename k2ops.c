@@ -64,6 +64,8 @@ bool Extended_edf = false; // compute subtree info on the fly
 
 // recursive test for equality of two k2 matrices both non empty
 // only consider the tree structure: no main_diag or backpointers
+// if a==b return -d, where d>0 is the number of levels traversed  
+// if a!=b return the level>=0 containing the first difference
 static int k2tree_equals_rec(size_t size, const k2mat_t *a, size_t *posa, 
                           const k2mat_t *b, size_t *posb)
 {
@@ -95,7 +97,7 @@ static int k2tree_equals_rec(size_t size, const k2mat_t *a, size_t *posa,
         if(eqr < eq) eq = eqr;  // keep track of deepest level reached
       }
     }
-    return eq -1; // increase depth by one 
+    return eq -1; // a: equals to :b, increase depth by one 
   }
 }
 
@@ -114,8 +116,7 @@ int k2tree_levels(size_t size, const k2mat_t *a)
 
 // main entry point for matrix equality with limitations, see below:
 // check if size x size k2 compressed matrices :a and :b are equal
-// if a or b have main_diag_1 or backp!=NULL we cannot say
-//   if they are equal, return INT32_MAX
+// if a or b have main_diag_1 or backp!=NULL we cannot say: return INT32_MAX
 // if a==b return -d, where d>0 is the number of levels traversed  
 // if a!=b return the level>=0 containing the first difference
 // (first in the sense of the first level encountered in dfs order)
@@ -163,7 +164,7 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   assert(a->offset==0);   // not required, but we only use it for whole matrices 
 
   if(a->backp==NULL && !a->open_ended)
-    // new faster version in which the complete content of a from a->offset to a->pos is copied to b
+    // faster version in which the complete content of :a from a->offset to a->pos is copied to b
     // ok since the size of the minimats is an integral multiple of the size of a node  
     for(size_t pos=a->offset;pos < a->pos; pos++) {
       node_t n = k2read_node(a,pos);
@@ -394,18 +395,23 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
 // arbitrary: all 0's, all 1's, or generic
 // at exit:
 //    if the result is a zero matrix, c is left empty
-//    if the result is the identity matrix is is possible that c is left empty with main_diag_1
+//    if the result is the identity matrix it is possible that c is left empty with main_diag_1=true
 //    if the result is an all one's matrix, c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
-// the output matrix never contains backp; is has main_diag_1 iff one betwen :a and :b has
+// the output matrix never contains backp; is has main_diag_1=true iff one betwen :a and :b has
 // it will contains ALL_ONES submatrices if :a or :b does, 
 // it may contain new ALL_ONES submatrices if Use_all_ones is true 
 void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
+  assert(a->fullsize==size);
+  assert(a->fullsize == b->fullsize);
+  assert(a->realsize==b->realsize);
 
   k2_free(c); // free old content and initialize as empty
+  c->fullsize = a->fullsize;
+  c->realsize = a->realsize;
 
   // handle the case of an input with main_diag_1, 
   // after that flag is forgotten (assumed false for both matrices) 
@@ -433,7 +439,7 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 
 // base case of matrix multiplication: matrices of size 2*MMmin
 // a and b must be not empty:
-//   if a or b is 0s (main_diag_1=false) this function is not called because the product is 0 
+//   if a or b is 0 (main_diag_1=false) this function is not called because the product is 0 
 //   if a or b are empty with main_diag_1=true this is handled in the caller
 // a and b can be all 1's 
 // the output matrix c is normalized as usual:
@@ -528,7 +534,8 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
-// the output matrix never contains backp; is has main_diag_1 iff one betwen :a and :b has
+// the output matrix never contains backp; 
+// it has main_diag_1=true iff both :a and :b have main_diag_1=true and they are the identity matrix
 // it will contains ALL_ONES submatrices if :a or :b does, 
 // it may contain new ALL_ONES submatrices if Use_all_ones is true 
 void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
@@ -537,6 +544,7 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   assert(size>MMsize); // inputs cannot be minimats 
   assert(size%2==0);
   k2_free(c); // free old content and initialize as empty
+  c->fullsize = a->fullsize; c->realsize = a->realsize;
   // case :a or b: is empty (all  0's or Identity)
   if(k2is_zero(a) ||  k2is_zero(b))
     return;  //if one matrix is all 0s the result is all 0's: nothing to be done
@@ -557,6 +565,7 @@ void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     mcopy_full(size,a,c);
     return;
   }
+  // split here!!!!!!!
 
   // recursion base step
   if(size==2*MMsize) {

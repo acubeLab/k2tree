@@ -85,7 +85,7 @@ static void k2_free(k2mat_t *m)
     quit("Illegal operation: freeing a pointer k2-matrix",__LINE__,__FILE__); 
   if(m->b!=NULL) free(m->b);
   m->b=NULL;
-  m->pos = m->lenb = m->offset = 0;
+  m->pos = m->lenb = m->offset = m->fullsize = m->realsize = 0;
   if(m->subtinfoarray!=NULL) {
     free(m->subtinfoarray); m->subtinfoarray = m->subtinfo=NULL; m->subtinfo_size=0;
   }
@@ -248,13 +248,14 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 // count the number of nonzero entries incrementing *nz
 // it is assumed the matrix is not all 0s and that there is a root node so size>MMsize
 // used to gather statistics on a k2 matrix and for debugging
-// Since it finds the end of a submatrix, it can be used to split a matrix into 4 submatrices
+// Since it finds the end of a submatrix, it could be used to split a matrix into 4 submatrices
 // but for that purpose k2dfs_visit_fast should be used instead since it does no update counters
 // and does not visit repeated subtrees to count nonzeros.
 // Note: the number of nonzeros can be incorrect because of overflows 
 // Note: subtinfo is not used even if available
 // Note: if this is a compressed matrix m->r and m->backp are used to follow the pointers 
 // (to count the overall number of nonzeros) 
+// currently used only by mstat() to gather information of the tree
 void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *all1)
 {
   assert(size>MMsize);

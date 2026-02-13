@@ -50,6 +50,8 @@ size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a)
   assert(asize>=2*MMsize);
   // read matrix m into a
   mencode_bbm(m,msize,0,0,asize,a);
+  a->fullsize = asize;
+  a->realsize = msize;
   return asize;
 }
 
@@ -71,11 +73,15 @@ size_t mget_nonzeros(size_t asize, const k2mat_t *a) {
 }
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-// :size is the acutal; matrix size (not power of 2), :asize is the internal size
+// :size is the actual; matrix size (not power of 2), :asize is the internal size
 // return number of nonzeros in the matrix
 size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats, nz, all1;
+  if(asize!=a->fullsize) quit("mshow_stats: full size mismatch",__LINE__,__FILE__);
+  if(size!=a->realsize) quit("mshow_stats: matrix size mismatch",__LINE__,__FILE__);
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
+  if(a->main_diag_1) 
+    fprintf(file,"matrix has all 1s on the main diagonal: the reported number of nonzeros is a lower bound\n");
   int levels = mstats(asize,a,&pos,&nodes,&minimats,&nz,&all1);
   if(a->backp == NULL)
     assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
@@ -100,14 +106,15 @@ size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mnam
 // save the matrix :a to file :filename
 // the format is
 // 1) the actual size of the matrix (a size_t)
-// 2) the size of the last level of recursion, aka the size of a minimat,  (an int)
+// 2) the size of the last level of recursion, aka the size of a minimat, (an int)
 // 3) the internal size of the k2 matrix (a size_t, we could skip this) 
 // 4) the total number of positions (a size_t)
 // 5) the array of positions (an uint8_t array, each uint8 stores 2 positions)
-void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *filename)
+void msave_to_file(const k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
-  assert(asize>=size);
+  size_t size = a->realsize;
+  size_t asize = a->fullsize;
   FILE *f = fopen(filename,"w");
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   size_t e = fwrite(&size,sizeof(size),1,f);
@@ -132,13 +139,13 @@ void msave_to_file(size_t size, size_t asize, const k2mat_t *a, const char *file
 // size of the k2 matrix, see msave_to_file() for details of the file format
 // :a old content is discarded
 // call minimat_init() if necessary, check that the correct MMsize is used
-size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
+size_t mload_from_file(k2mat_t *a, const char *filename)
 {
   assert(a!=NULL);
   k2_free(a);
   FILE *f = fopen(filename,"r");
   if(f==NULL) quit("mload_from_file: cannot open file", __LINE__,__FILE__);
-  size_t size;
+  size_t size, asize;
   int mmsize;
   size_t e = fread(&size,sizeof(size),1,f);
   if(e!=1) quit("mload_from_file: cannot read matrix size",__LINE__,__FILE__);
@@ -149,12 +156,13 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
     minimat_init(mmsize); // initialize minimat library if not already done
   else 
     if(mmsize!=MMsize) quit("mload_from_file: minimatrix size mismatch",__LINE__,__FILE__);
-  e = fread(asize, sizeof(*asize),1,f);
+  e = fread(&asize, sizeof(asize),1,f);
   if(e!=1) quit("mload_from_file: cannot read k2 matrix size",__LINE__,__FILE__);
-  if(*asize<2*MMsize)
+  if(asize<2*MMsize)
     quit("mload_from_file: k2 matrix size incompatible with minimatrix size, wrong format?",
                          __LINE__,__FILE__);
-  if(*asize!=k2get_k2size(size)) quit("mload_from_file: wrong k2 matrix size",__LINE__,__FILE__ );                       
+  if(asize!=k2get_k2size(size)) quit("mload_from_file: wrong k2 matrix size",__LINE__,__FILE__ ); 
+  a->fullsize = asize; a->realsize = size;                      
   e = fread(&a->pos,sizeof(size_t),1,f);
   if(e!=1) quit("mload_from_file: cannot read number of positions",__LINE__,__FILE__);
   if(a->pos>0) {
@@ -176,9 +184,9 @@ size_t mload_from_file(size_t *asize, k2mat_t *a, const char *filename)
 // the old content of :a is discarded
 // return the actual size of the matrix and store to *asize the internal (power of 2)
 // size of the k2 matrix, see msave_to_file() for details of the file format
-size_t mload_extended(size_t *asize, k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size)
+size_t mload_extended(k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size)
 {
-  size_t size = mload_from_file(asize,a,fname);
+  size_t size = mload_from_file(a,fname);
   // try to load subtinfo if present
   if(subtname!=NULL)  k2read_subtinfo(a,subtname);
   if(backpname!=NULL) {

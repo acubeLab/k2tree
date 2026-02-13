@@ -256,7 +256,8 @@ int main (int argc, char **argv) {
   for(int i=0;i<nblocks;i++) rblocks[i]=a; // struct with all fields set to 0 or NULL
 
   if(nblocks==1) {
-    size_t msize = mload_from_file(&asize, &a, argv[1]); // also init k2 library
+    size_t msize = mload_from_file(&a, argv[1]); // also init k2 library
+    asize = a.fullsize;
     if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
     if (verbose>1) mshow_stats(size,asize,&a,argv[1],stdout);
   }
@@ -465,7 +466,8 @@ static void mload_from_file_multipart(size_t *asize, size_t size, k2mat_t *b, in
   for(int i=0;i<nb;i++) {
     char fname[FILENAME_MAX];
     sprintf(fname,"%s.%d.%d%s",name,nb,i,ext);
-    msize = mload_from_file(asize, &b[i], fname); // also init k2 library
+    msize = mload_from_file(&b[i], fname); // also init k2 library
+    *asize = b[i].fullsize;
     if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
     if(as==0) as = *asize;
     else if(as!=*asize) quit("Internal matrix size mismatch", __LINE__, __FILE__);

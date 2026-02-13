@@ -139,24 +139,27 @@ int main (int argc, char **argv) {
   size_t size, asize; // size the actual matrix size, asize the internal size 2^k * MMsize
   if(decompress) {
     #ifdef K2MAT
-    size = mload_extended(&asize, &a, iname, infofile1, backpfile1, rank_block_size);
+    size = mload_extended(&a, iname, infofile1, backpfile1, rank_block_size);
     #else
-    size = mload_from_file(&asize, &a, iname);
+    size = mload_from_file(&a, iname);
     #endif
+    asize = a.fullsize;
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
-    if(write) mwrite_to_textfile(size,asize, &a, oname);
+    if(write) mwrite_to_textfile(&a, oname);
   }
   else { // compression
     minimat_init(mmsize);     // init k2 library
-    size_t asize = mread_from_textfile(&size,&a,iname,xsize);
+    size_t asize = mread_from_textfile(&a,iname,xsize);
+    size = a.realsize;
+    assert(asize == a.fullsize);
     assert(xsize==0 || (size==xsize));
     if (verbose || !write)  
       mshow_stats(size, asize,&a,iname,stdout);
-    if(write) msave_to_file(size,asize,&a,oname);  // save k2mat to file
+    if(write) msave_to_file(&a,oname);  // save k2mat to file
     if(check) {
       strcat(oname,".check"); // create check file name 
-      mwrite_to_textfile(size,asize, &a, oname); 
+      mwrite_to_textfile(&a, oname); 
       matrix_free(&a);
       // statistics (we are not returning from execlp)
       fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
