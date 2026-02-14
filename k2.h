@@ -138,13 +138,17 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
 // return number of levels in the k2tree associated to a
 int k2tree_levels(size_t size, const k2mat_t *a);
+// creates a size x size zero matrix
+k2mat_t mat_zero(size_t size);
+//creates a size x size identity matrix
+k2mat_t mat_identity(size_t size);
 // add indentity matrix to a
 void madd_identity(k2mat_t *a);
 // sum (logical or) of two k2 matrices a and b writing the result to c
-void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+void msum(const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
-void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
+void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // right mutiply a k2 matrix :a by a vector :x writing the result to :y
 // :size is the internal size of the k2 matrices (not the size of the vector 
 // which can be smaller and in that case :a is padded with zeros)

@@ -115,9 +115,8 @@ int main (int argc, char **argv) {
   if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
 
   // add zero matrix 
-  k2mat_t b=K2MAT_INITIALIZER,a0=K2MAT_INITIALIZER;
-  b.fullsize = a.fullsize; b.realsize = a.realsize;
-  msum(asize,&b,&a,&a0); // a0 = b+a = 0+a = a
+  k2mat_t b=mat_zero(a.realsize), a0=mat_zero(a.realsize);
+  msum(&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
   if(verbose)  mshow_stats(size,asize,&a0,oname,stdout);
   mwrite_to_textfile(&a0, oname);
@@ -130,7 +129,7 @@ int main (int argc, char **argv) {
 
   // squaring 
   k2mat_t asq = K2MAT_INITIALIZER;
-  mmult(asize,&a,&a,&asq);
+  mmult(&a,&a,&asq);
   if(verbose)   mshow_stats(size, asize,&asq,"(A+I)^2",stdout);
   sprintf(oname,"%s.1sq.txt",outfile);
   msave_to_file(&asq,oname);

@@ -75,6 +75,7 @@ void k2make_empty(k2mat_t *m)
   assert(!m->open_ended); // must be a whole matrix
   assert(m->backp==NULL); // backpointers not allowed in empty matrices
   assert(m->r==NULL);     // rank not allowed in empty matrices
+  m->main_diag_1 = false;
   m->pos = 0;
 }
 
@@ -234,7 +235,20 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
     else               ax[i/2][i%2] = MINIMAT0s;  // note all 0s minimats are not stored
   // take care of of main_diag flag
   if(a->main_diag_1) {
-    ax[0][0] |= MINIMAT_Id; ax[1][1] |= MINIMAT_Id;
+    assert(a->realsize>0 && a->realsize <= 2*MMsize);
+    int bits,idx;
+    if(a->realsize>=MMsize) {
+      ax[0][0] |= MINIMAT_Id;
+      bits = a->realsize - MMsize;
+      idx = 1; // will write bits 1s to ax[1][1]
+    }
+    else {
+      bits = a->realsize; 
+      idx = 0;  // will write bits 1s to a[0][0]
+    }
+    for(int b=0;b<bits;b++) {
+      ax[idx][idx] |= (1UL<<1); /// WRONG: TO BE COMPLETED
+    }
   }
 }
 
@@ -394,7 +408,7 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
   k2_free(c);
-  *c = *a; // copy all fields (caution, including subtinfo, rank and backp) 
+  *c = *a; // copy all fields (caution, including subtinfo, rank and backp, main_diag) 
   c->is_pointer = true;   // c is read only
 }
 
@@ -410,11 +424,11 @@ k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
   return m->backp->nodep[rp]; // return the pointer
 }
 
-// return the matrix obtained following the pointer in the root of a
+// return the matrix obtained following the pointer in the root of :a
 // NOTE: this function uses the slightly dangerous notion of open ended (submatrix)
-// ie a submatrix :tmp of a larger matrix in which the field tmp.pos is not correclty
-// defined, since it is set to a->pos ie the end of the submatrix a (since tmp precedes a, 
-// a->pos is larger than the actual tmp.pos)
+// ie a submatrix :tmp of a larger matrix in which the field tmp.pos is not correctly
+// defined, since it is set to a->pos ie the end of the submatrix :a (since :tmp precedes :a 
+// in the original matrix, a->pos is larger than the actual tmp.pos)
 // The ending position of :tmp could be obtained with a visit of the submatrix,
 // but it is not striclty necessary for all operations (eg matrix vector multiplication)
 // we use a lazy evaluation scheme and compute it if and when it is strictly necessary. 
@@ -453,19 +467,24 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
 // split the matrix :a into 4 submatrices b[0][0], b[0][1], b[1][0], b[1][1]
 // the submatrices are "pointers" inside :a, so no memory is allocated
 // the submatrices are not minimats since we are not at the last level of the tree
-// :a is not all 0's, it could be all 1's (for now)
+// :a is not all 0's, it could be all 1's 
 // note: a could be open ended
 // backpointer should have been already followed
-// main_diag_1 if present is transmitted to the diagonmal submatrices
-// ALL_ONES submatrices are correctly handled  
-void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
+// main_diag_1 if present is transmitted to the diagonmal submatrices 
+void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
 {
-  assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL);
+  size_t size = a->fullsize;
+  assert(size>2*MMsize);
+  assert(size%2==0);
+  assert(a->main_diag_1==false || a->realsize>0); // if main_dag real size mus be well defined 
   assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for an open ended matrix
-  assert(k2is_empty(&b[0][0]) && k2is_empty(&b[0][1]) &&
-         k2is_empty(&b[1][0]) && k2is_empty(&b[1][1]));
-   
+  // init size 
+  for(int i=0;i<4;i++) {
+    k2is_empty(&b[i/2][i%2]);
+    b[i/2][i%2].fullsize = size/2;
+  }      
+       
   // read root node
   size_t pos = 0;
   node_t root = k2read_node(a,pos); pos++;
@@ -558,10 +577,23 @@ void k2split_k2(size_t size, const k2mat_t *a, k2mat_t b[2][2])
       }
     }
   }
-  // note: pos is the ending position of :a we could set a->open_ended = false but :a is const 
-  // update  main diag
-  if(a->main_diag_1) b[0][0].main_diag_1 = b[1][1].main_diag_1 = true;
+  // note: pos is the ending position of :a we could set a->open_ended = false but :a is const and it is not useful
   assert(a->open_ended || next==k2treesize(a)); // next should be at the end of the matrix, but not if open ended
+  // update  main diag, and realsize for diagonal submatrices
+  if(a->main_diag_1) {
+    assert(a->realsize>0);
+    b[0][0].main_diag_1 = true;
+    if(a->realsize>size/2) {
+      b[0][0].realsize = size/2;
+      b[1][1].main_diag_1 = true;
+      b[1][1].realsize = a->realsize - size/2;
+    }
+    else {
+      b[0][0].realsize = size/2; // b[1][1] has not main_diag_1
+    }
+    assert(b[0][0].realsize <= b[0][0].fullsize);
+    assert(b[1][1].realsize <= b[1][1].fullsize);
+  }
 }
 
 

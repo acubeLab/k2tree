@@ -136,7 +136,7 @@ int main (int argc, char **argv) {
   if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
 
   // do the multiplication show/save the result
-  msum(asize,&a,&b,&ab);
+  msum(&a,&b,&ab);
   if (verbose || !write) 
     mshow_stats(size, asize,&ab,oname,stdout);
   if(write) msave_to_file(&ab,oname);

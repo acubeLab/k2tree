@@ -25,7 +25,6 @@
  * and the backpointer info file has default extension .xpinfo (use -P to change it)
  * 
  * Version with SIMPLEBACKPOINTERS defined:
- * The nibble 0000 is not treated in any special way, so we do not read backpointers
  * We do not store the subtree information for the destination of backpointers
  * (the rationale is that this would be availble only for large repeated submatrices). 
  * As a consequence:

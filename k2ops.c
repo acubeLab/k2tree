@@ -176,15 +176,33 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   }
 }
 
+// creates a size x size zero matrix
+k2mat_t mat_zero(size_t size) {
+  k2mat_t a = K2MAT_INITIALIZER;
+  a.realsize = size;
+  a.fullsize = k2get_k2size(size);
+  return a;
+}
+
 // add indentity matrix to a
 void madd_identity(k2mat_t *a)
 {
   a->main_diag_1 = true;
 }
 
+// creates a size x size identity matrix
+k2mat_t mat_identity(size_t size) {
+  k2mat_t a = K2MAT_INITIALIZER;
+  a.realsize = size;
+  a.fullsize = k2get_k2size(size);
+  madd_identity(&a);
+  return a;
+}
+
+
 // recursive sum of two k2 (sub)matrices
 // used by mmult to sum the product of two matrices
-// so assume plain matrices: no backpointers, subtree info, open_ended
+// so assume plain matrices: no backpointers, subtree info, open_ended, main_diag_1
 // a and b must not be all 0s (sub)matrices
 //   (if a or b is all 0s this function is not called because the sum is a copy) 
 // a and b can be all 1's 
@@ -200,6 +218,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
   assert(size>=2*MMsize); 
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!a->backp && !b->backp); // this is required
+  assert(!a->main_diag_1 && !b->main_diag_1); // we do not consider this flag
   assert(!a->subtinfo && !b->subtinfo); // not required but a,b are products so no subtinfo should be available 
   assert(!a->open_ended && !b->open_ended); // not required, but a,b are products so no open_ended
   assert(!k2submatrix_empty(a,*posa) && !k2submatrix_empty(b,*posb)); // there nust be a root node
@@ -401,11 +420,10 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
 // the output matrix never contains backp; is has main_diag_1=true iff one betwen :a and :b has
 // it will contains ALL_ONES submatrices if :a or :b does, 
 // it may contain new ALL_ONES submatrices if Use_all_ones is true 
-void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void msum(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
-  assert(size>MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  assert(a->fullsize==size);
+  assert(!a->open_ended && !b->open_ended); // not required, but open_ended matrices are only multiplied
   assert(a->fullsize == b->fullsize);
   assert(a->realsize==b->realsize);
 
@@ -421,14 +439,14 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   if(k2is_empty(a) &&  k2is_empty(b))
     return;  // if a & b empty: c empty
   else if(k2is_empty(b))      
-    mcopy_full(size,a,c);        // if b empty: c=a
+    mcopy_full(a->fullsize,a,c);        // if b empty: c=a
   else if(k2is_empty(a))    
-    mcopy_full(size,b,c);        // if a empty: c=b
+    mcopy_full(b->fullsize,b,c);        // if a empty: c=b
   else {
     // case :a and :b do have a root node
     assert(!k2is_empty(a) && !k2is_empty(b));
     size_t posa=0,posb=0;
-    msum_rec(size,a,&posa,b,&posb,c);
+    msum_rec(a->fullsize,a,&posa,b,&posb,c);
     assert(posa==k2pos(a) && posb==k2pos(b)); // a and b were completely read
     assert(!k2is_empty(c));  // implied by a+b!=0
   }
@@ -451,9 +469,9 @@ void msum(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 // using the following macro, change it to support additional sizes
 // take care of main_diag_1 flags thanks to k2split_minimats
 #define mmultNxN(s,a,b) ((s)==2 ? mmult2x2((a),(b)) : mmult4x4((a),(b)))
-static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+static void mmult_base(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
-  assert(size==2*MMsize);
+  assert(a->fullsize==2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
   assert(!k2is_empty(a) && !k2is_empty(b));
   assert(!c->is_pointer);
@@ -497,7 +515,7 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
   // here we are assuming that the submatrices are in the order 00,01,10,11
   for(int k=0;k<4;k++) {  
     int i=k/2; int j=k%2;
-    assert(size==4 || size==8); // implies that minimats are 2x2  or 4x4
+    assert(a->fullsize==4 || a->fullsize==8); // implies that minimats are 2x2  or 4x4
     minimat_t cx  = mmultNxN(MMsize,ax[i][0],bx[0][j]);
     cx |= mmultNxN(MMsize,ax[i][1],bx[1][j]); // c[i][j] = a[i][0]*b[0][j] + a[i][1]*b[1][j]
     if(cx!=MINIMAT0s) {
@@ -538,42 +556,43 @@ static void mmult_base(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t 
 // it has main_diag_1=true iff both :a and :b have main_diag_1=true and they are the identity matrix
 // it will contains ALL_ONES submatrices if :a or :b does, 
 // it may contain new ALL_ONES submatrices if Use_all_ones is true 
-void mmult(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
+void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(a!=NULL && b!=NULL && c!=NULL);
-  assert(size>MMsize); // inputs cannot be minimats 
-  assert(size%2==0);
+  assert(a->fullsize>MMsize); // inputs cannot be minimats 
+
   k2_free(c); // free old content and initialize as empty
   c->fullsize = a->fullsize; c->realsize = a->realsize;
-  // case :a or b: is empty (all  0's or Identity)
+  size_t size = a->fullsize;
+
+  // cases where :a or b: or both is empty (all  0's or Identity)
   if(k2is_zero(a) ||  k2is_zero(b))
     return;  //if one matrix is all 0s the result is all 0's: nothing to be done
   else if(k2is_empty(a) &&  k2is_empty(b) ) {
     assert(a->main_diag_1 && b->main_diag_1 );
-    c->main_diag_1 = true;  // Id x Id = Id
+    c->main_diag_1 = true;  // Id x Id = Id  // change this!
     return;
   }
   else if(k2is_empty(a)) {
     assert(a->main_diag_1);
     assert(!k2is_empty(b));
-    mcopy_full(size,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
+    mcopy_full(a->fullsize,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
     return;
   }
   else if(k2is_empty(b)) {
     assert(b->main_diag_1);
     assert(!k2is_empty(a));
-    mcopy_full(size,a,c);
+    mcopy_full(a->fullsize,a,c);
     return;
   }
-  // split here!!!!!!!
 
   // recursion base step
-  if(size==2*MMsize) {
-    mmult_base(size,a,b,c);
+  if(a->fullsize==2*MMsize) {
+    mmult_base(a,b,c);
     return;
   }
   // case  size > 2*MMsize
-  assert(size> 2*MMsize);
+  assert(a->fullsize> 2*MMsize);
   node_t roota = k2read_node(a,0);
   node_t rootb = k2read_node(b,0);
   // the product of two all 1's is all 1's, but now ALL_NODES could be a pointer 
@@ -648,11 +667,12 @@ void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double 
 // the case in which :a or b: are empty (all 0's or Identity) is handled in the caller
 // the case size==2*MMsize is handled in the caller 
 // main_diag_1 flag is handled by k2split_k2() 
+// :a or b: can be backpointers, the are habdled by k2jump
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>2*MMsize);
   assert(a!=NULL && b!=NULL && c!=NULL);
-  // never called with an input empty matrix
+  // never called with an input empty matrix, there must be a root node
   assert(!k2is_empty(a) && !k2is_empty(b));
   // copy *a and *b to local vars, taking care of possible back pointers
   k2mat_t atmp, btmp;
@@ -676,8 +696,8 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
   k2mat_t bx[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
                       {K2MAT_INITIALIZER, K2MAT_INITIALIZER}}; 
-  k2split_k2(size,&atmp,ax);  // note: atmp and btmp can be open ended 
-  k2split_k2(size,&btmp,bx);
+  k2split_k2(&atmp,ax);  // note: atmp and btmp can be open ended 
+  k2split_k2(&btmp,bx);  // but the submatrices in ax[][] and bx[][] are not
 
   // temporary matrices for products
   k2mat_t v1=K2MAT_INITIALIZER, v2=K2MAT_INITIALIZER;  
@@ -690,12 +710,13 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
     int i=k/2, j=k%2;
     k2make_empty(&v1); k2make_empty(&v2);    // reset temporary matrices
     // a[i][0]*b[0][j]
-    if(!k2is_empty(&ax[i][0]) && !k2is_empty(&bx[0][j]) ) // avoid call if one is nonzero: can be removed
-      mmult(size/2, &ax[i][0], &bx[0][j], &v1);
+    if(!k2is_zero(&ax[i][0]) && !k2is_zero(&bx[0][j]) ) // avoid call if one is zero: can be removed
+      mmult(&ax[i][0], &bx[0][j], &v1);
     // a[i][1]*b[1][j]
-    if(!k2is_empty(&ax[i][1]) && !k2is_empty(&bx[1][j]) )
-      mmult(size/2, &ax[i][1], &bx[1][j], &v2);
-    // write sum v1+v2 to c[i][j] ie block k 
+    if(!k2is_zero(&ax[i][1]) && !k2is_zero(&bx[1][j]) )
+      mmult(&ax[i][1], &bx[1][j], &v2);
+    // write sum v1+v2 to c[i][j] ie block k   
+    assert(!v1.main_diag_1 && !v2.main_diag_1);  // v1 and v2 are products, therefore no main_diag_1
     if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // compute v1+v2 if at least one is nonzero
       rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
       size_t tmp = k2pos(c); // save current position to check all 1's 
@@ -798,7 +819,7 @@ static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
     // split a into 4 blocks of half size  
     k2mat_t ax[2][2] = {{K2MAT_INITIALIZER, K2MAT_INITIALIZER}, 
                         {K2MAT_INITIALIZER, K2MAT_INITIALIZER}};
-    k2split_k2(size,a,ax);  
+    k2split_k2(a,ax);  
     // here we are assuming that the submatrices are in the order 00,01,10,11
     for(int k=0;k<4;k++) {
       int i=k/2, j=k%2;
