@@ -236,7 +236,7 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
   // take care of of main_diag flag
   if(a->main_diag_1) {
     assert(a->realsize>0 && a->realsize <= 2*MMsize);
-    int bits,idx;
+    size_t bits,idx;
     if(a->realsize>=MMsize) {
       ax[0][0] |= MINIMAT_Id;
       bits = a->realsize - MMsize;
@@ -391,11 +391,15 @@ static void k2clone_submatrix(const k2mat_t *a, size_t start, size_t end, k2mat_
   assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for open ended
   assert(k2is_empty(c));
   assert(!c->is_pointer);
-  *c = *a; // copy all fields
-  c->pos = c->offset + end;     // actual ending position of c in buffer
-  c->offset += start;           // actual starting position of c in buffer
+  c->b = a->b;                  // node data 
+  c->lenb = a->lenb;
+  c->pos = a->offset + end;     // actual ending position of c in buffer
+  c->offset = a->offset + start;// actual starting position of c in buffer
+  c->subtinfoarray = a->subtinfoarray;
   c->subtinfo = NULL;           // if necessary will be initialized later 
   c->subtinfo_size = 0;         // if necessary will be initialized later 
+  c->backp = a->backp;          // info for backpointers 
+  c->r = a->r;
   c->is_pointer = true;         // c is a pointer to a
   c->open_ended = false;        // c not open ended since c->pos is correct
   c->main_diag_1 = false;
@@ -481,8 +485,9 @@ void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
   assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for an open ended matrix
   // init size 
   for(int i=0;i<4;i++) {
-    k2is_empty(&b[i/2][i%2]);
+    assert(k2is_empty(&b[i/2][i%2]));
     b[i/2][i%2].fullsize = size/2;
+    b[i/2][i%2].realsize = 0; // realsize is not used unless main_diag_1==true
   }      
        
   // read root node
