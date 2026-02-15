@@ -75,10 +75,10 @@ size_t mget_nonzeros(size_t asize, const k2mat_t *a) {
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 // :size is the actual; matrix size (not power of 2), :asize is the internal size
 // return number of nonzeros in the matrix
-size_t mshow_stats(size_t size, size_t asize, const k2mat_t *a, const char *mname,FILE *file) {
+size_t mshow_stats(const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats, nz, all1;
-  if(asize!=a->fullsize) quit("mshow_stats: full size mismatch",__LINE__,__FILE__);
-  if(size!=a->realsize) quit("mshow_stats: matrix size mismatch",__LINE__,__FILE__);
+  size_t asize=a->fullsize;
+  size_t size=a->realsize;
   fprintf(file,"%s:\n matrix size: %zu, leaf size: %d, k2_internal_size: %zu\n",mname,size,MMsize,asize);  
   if(a->main_diag_1) 
     fprintf(file,"matrix has all 1s on the main diagonal: the reported number of nonzeros is a lower bound\n");

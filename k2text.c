@@ -959,14 +959,14 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
 //   f output file 
 //   msize actual file of the matrix
 //   i,j submatrix top left corner
-//   size k^2 submatrix size (has the form 2^k*MMsize)
+//   size k2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
 // Note: subtinfo is not used here. if backp!=NULL and a POINTER/ALL_ONES node is found it is followed
-// creating a target matrix; if backp==NULL ALL_ONES nodes are treated as full 1s submatrices
+// when creating the output if backp==NULL then ALL_ONES nodes are treated as full 1s submatrices
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) 
 {
-  assert(!k2is_empty(c)); // necer called on an empty matrix
+  assert(!k2is_empty(c)); // never called on an empty matrix
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);
@@ -1000,7 +1000,14 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2); // submatrix top left corner
     if(rootc & (1<<k)) { // read a submatrix
       if(k==0 || k==3) { // we are on a diagonal submatrix: keep main_diag_1
-        mdecode_to_textfile(outfile,msize,ii,jj,size/2,c,pos);
+        k2mat_t tmp = *c;
+        tmp.fullsize = tmp.fullsize/2;
+        if(k==0) tmp.realsize = (c->realsize > tmp.fullsize) ?  tmp.fullsize :  c->realsize;
+        else { // k==3
+          assert(c->realsize > tmp.fullsize);
+          tmp.realsize = c->realsize - tmp.fullsize;
+        }  
+        mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos);
       }
       else { // off diagonal block 
         k2mat_t tmp = *c;
@@ -1029,8 +1036,8 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
 //   size k^2 submatrix size (has the form 2^k*MMsize)
 //   *c input k2mat_t structure
 //   *pos position in *c where the submatrix starts
-// Note: it is currently not used, but it works fine for the results of operations
-// which are always plain k2 matrices
+// Note: it is currently not used, but it works fine for the results of products
+// which are always plain k2 matrices with no backp or main_diag
 void mdecode_to_textfile_plain(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) {
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);

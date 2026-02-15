@@ -54,8 +54,8 @@ int main (int argc, char **argv) {
   /* ------------- read options from command line ----------- */
   opterr = 0;
   char *outfile = NULL;
-  Use_all_ones_node = false; Extended_edf = false;
-  while ((c=getopt(argc, argv, "i:r:I:o:qhcnv1e")) != -1) {
+  Use_all_ones_node = true; Extended_edf = false;
+  while ((c=getopt(argc, argv, "i:r:I:o:qhcnvxe")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -67,8 +67,8 @@ int main (int argc, char **argv) {
         infofile1 = optarg; break;                 
       case 'e':
         Extended_edf = true; break; // compute subtree info on the fly                 
-      case '1':
-        Use_all_ones_node = true; break;
+      case 'x':
+        Use_all_ones_node = false; break;
       case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif          
@@ -103,7 +103,7 @@ int main (int argc, char **argv) {
 
   // init matrix variables (valid for b128 and k2tree)
   k2mat_t a=K2MAT_INITIALIZER;
-  size_t size, asize;
+  size_t size;
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
@@ -111,26 +111,25 @@ int main (int argc, char **argv) {
   #else
   size = mload_from_file(&a, iname1);
   #endif
-  asize = a.fullsize;
-  if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
+  if (verbose) mshow_stats(&a,iname1,stdout);
 
   // add zero matrix 
   k2mat_t b=mat_zero(a.realsize), a0=mat_zero(a.realsize);
   msum(&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
-  if(verbose)  mshow_stats(size,asize,&a0,oname,stdout);
+  if(verbose)  mshow_stats(&a0,oname,stdout);
   mwrite_to_textfile(&a0, oname);
   
   // add main diagonal 1's
   madd_identity(&a);
-  printf("Caution: madd_identity may add 1's also outside the original matrix size!\n");
+  // printf("Caution: madd_identity may add 1's also outside the original matrix size!\n");
   sprintf(oname,"%s.1.txt",outfile);
   mwrite_to_textfile(&a, oname);
 
   // squaring 
   k2mat_t asq = K2MAT_INITIALIZER;
   mmult(&a,&a,&asq);
-  if(verbose)   mshow_stats(size, asize,&asq,"(A+I)^2",stdout);
+  if(verbose)   mshow_stats(&asq,"(A+I)^2",stdout);
   sprintf(oname,"%s.1sq.txt",outfile);
   msave_to_file(&asq,oname);
 
@@ -152,11 +151,11 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out    outfile name (def. infile1%s)\n",default_ext);
     #ifdef K2MAT
-    fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
     fprintf(stderr,"\t-i info   infile subtree info file\n");
     fprintf(stderr,"\t-I info   infile backpointers file\n");
     fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
+    fprintf(stderr,"\t-x        do not compact new 1's submatrices in the result matrix\n");    
     #endif  
     fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-h        show this help message\n");    

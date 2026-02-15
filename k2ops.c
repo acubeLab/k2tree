@@ -153,7 +153,7 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 
 // full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
 // only look at the tree structure: do not consider main_diag_1 flag
-// should work for any input matrix. subtinfo is ignored
+// should work for any input matrix: backp are expanded, subtinfo is ignored
 static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
@@ -176,6 +176,44 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   }
 }
 
+// add indentity matrix to a
+void madd_identity(k2mat_t *a)
+{
+  a->main_diag_1 = true;
+}
+
+// write tree representing the :size x :size identity matrix
+// inside a matrix :a  of size :fullsize 
+static void k2id_create(size_t size, size_t fullsize, k2mat_t *a)
+{
+  assert(size>0 && size<=fullsize);
+  assert(fullsize%2==0);
+  if(size<= fullsize/2) { // only first child
+    k2add_node(a,0x01); // single child
+    if(fullsize/2== MMsize) {
+      // stop recursion storing a partial MINIMAT_Id
+      assert(MMsize<8); // change formula for computing mask otherwise  
+      minimat_t mask = ( ((minimat_t) 1) << size*MMsize ) -1;
+      k2add_minimat(a,MINIMAT_Id & mask);
+    }
+    else k2id_create(size,fullsize/2,a); // one more level
+  } 
+  else {
+    k2add_node(a,0x09); // first and last children
+    size = size - fullsize/2; // # of 1s in second child, >0 by construction   
+    if(fullsize/2== MMsize) {
+      // store a full and a partial MINIMAT_Id
+      k2add_minimat(a,MINIMAT_Id);
+      minimat_t mask = ( ((minimat_t) 1) << size*MMsize ) -1;
+      k2add_minimat(a,MINIMAT_Id & mask);
+    }
+    else {
+      k2id_create(fullsize/2,fullsize/2,a); // one more full level
+      k2id_create(size,fullsize/2,a); // one more possibly partial level
+    }
+  }
+}
+
 // creates a size x size zero matrix
 k2mat_t mat_zero(size_t size) {
   k2mat_t a = K2MAT_INITIALIZER;
@@ -184,11 +222,6 @@ k2mat_t mat_zero(size_t size) {
   return a;
 }
 
-// add indentity matrix to a
-void madd_identity(k2mat_t *a)
-{
-  a->main_diag_1 = true;
-}
 
 // creates a size x size identity matrix
 k2mat_t mat_identity(size_t size) {
@@ -298,7 +331,7 @@ static void msum_rec_plain(size_t size, const k2mat_t *a, size_t *posa,
 // recursive sum of two k2 (sub)matrices, called by msum
 // a and b must be nonempty (sub)matrices: they must have a root node
 //   (if a or b are empty this function is not called because the sum is a copy) 
-// a and b can be all 1's or have backpointer
+// a and b can be all 1's or have backpointers. main_diag_1 flag is ignored
 // the output matrix c is normalized as usual:
 //  if c is all 0s nothing is written (this should not happen because the sum is an OR)
 //  if c is all 1s just the root ALL_ONES is written
@@ -407,7 +440,7 @@ static void msum_rec(size_t size, const k2mat_t *a, size_t *posa,
 }
 
 
-// entry point for matrix addition for matrices with backpointers and/or main_diag_1
+// entry point for matrix addition for genral matrices with backpointers and/or main_diag_1
 // sum size x size k2 compressed matrices :a and :b storing
 // the result in :c, the old content of :c is discarded
 // :a and :b must be of (same) size, at least 2*MMsize, but their content can be 
@@ -439,7 +472,7 @@ void msum(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   if(k2is_empty(a) &&  k2is_empty(b))
     return;  // if a & b empty: c empty
   else if(k2is_empty(b))      
-    mcopy_full(a->fullsize,a,c);        // if b empty: c=a
+    mcopy_full(a->fullsize,a,c);        // if b empty: c=a (resolving backpointers)
   else if(k2is_empty(a))    
     mcopy_full(b->fullsize,b,c);        // if a empty: c=b
   else {
@@ -451,8 +484,6 @@ void msum(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     assert(!k2is_empty(c));  // implied by a+b!=0
   }
 }
-
-
 
 
 // base case of matrix multiplication: matrices of size 2*MMmin
@@ -552,9 +583,7 @@ static void mmult_base(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 //    if the result is a zero matrix: c is left empty
 //    if the result is an all one's matrix: c contains a single ALL_ONES node
 //    otherwise c is a node + the recursive description of its subtree 
-// the output matrix never contains backp; 
-// it has main_diag_1=true iff both :a and :b have main_diag_1=true and they are the identity matrix
-// it will contains ALL_ONES submatrices if :a or :b does, 
+// the output matrix never contains backp or has main_diag_1==true 
 // it may contain new ALL_ONES submatrices if Use_all_ones is true 
 void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
@@ -570,13 +599,13 @@ void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     return;  //if one matrix is all 0s the result is all 0's: nothing to be done
   else if(k2is_empty(a) &&  k2is_empty(b) ) {
     assert(a->main_diag_1 && b->main_diag_1 );
-    c->main_diag_1 = true;  // Id x Id = Id  // change this!
+    k2id_create(c->realsize,c->fullsize,c); // create an identity matrix without main_diag_1
     return;
   }
   else if(k2is_empty(a)) {
     assert(a->main_diag_1);
     assert(!k2is_empty(b));
-    mcopy_full(a->fullsize,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
+    mcopy_full(b->fullsize,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
     return;
   }
   else if(k2is_empty(b)) {

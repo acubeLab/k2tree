@@ -55,9 +55,9 @@ int main (int argc, char **argv) {
   opterr = 0;
   bool check = false, write = true;
   char *outfile = NULL;
-  Use_all_ones_node = false; Extended_edf = false;
+  Use_all_ones_node = true; Extended_edf = false;
   bool optimize_squaring = false;    // use a single copy of M to compute M^2
-  while ((c=getopt(argc, argv, "i:j:r:I:J:o:qhcnv1e")) != -1) {
+  while ((c=getopt(argc, argv, "i:j:r:I:J:o:qhcnvxe")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -73,8 +73,8 @@ int main (int argc, char **argv) {
         infofile2 = optarg; break;
       case 'e':
         Extended_edf = true; break; // compute subtree info on the fly                 
-      case '1':
-        Use_all_ones_node = true; break;
+      case 'x':
+        Use_all_ones_node = false; break;
       case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif
@@ -132,7 +132,7 @@ int main (int argc, char **argv) {
 
   // init matrix variables (valid for b128 and k2t)
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
-  size_t size, asize;
+  size_t size;
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
@@ -140,8 +140,7 @@ int main (int argc, char **argv) {
   #else
   size = mload_from_file(&a, iname1);
   #endif
-  asize= a.fullsize;
-  if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
+  if (verbose) mshow_stats(&a,iname1,stdout);
 
   // copy or load second matrix
   if(optimize_squaring) {
@@ -149,44 +148,43 @@ int main (int argc, char **argv) {
     mmake_pointer(&a,&b); // if b==a, use a pointer and save space
   }
   else {
-    size_t bsize, size1;
+    size_t size1;
     #ifdef K2MAT
     // possibly load subtree info
     size1 = mload_extended(&b, iname2, infofile2, backpfile2, rank_block_size);
+    if(b.fullsize!=a.fullsize) quit("k2 matrices have different internal sizes",__LINE__,__FILE__);
     #else
     size1 = mload_from_file(&b, iname2);
     #endif
-    bsize = b.fullsize;
     // check sizes correpondds
     if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
-    if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
   }
-  if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
+  if (verbose) mshow_stats(&b,iname2,stdout);
 
   // do the multiplication show/save the result
   mmult(&a,&b,&ab);
   if (verbose || !write) 
-    mshow_stats(size, asize,&ab,oname,stdout);
+    mshow_stats(&ab,oname,stdout);
   if(write) msave_to_file(&ab,oname);
 
   // check product if requested: use bbm matrix (n^2 bytes n^3 time) 
   if(check) {
     uint8_t *m2, *m1 = bbm_alloc(size), *m3 = bbm_alloc(size);
     // read m1 
-    mwrite_to_bbm(m1,size,asize,&a);
+    mwrite_to_bbm(m1,size,a.fullsize,&a);
     if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
     // read m2 if different from m2
     if(strcmp(iname1,iname2)==0) m2=m1;
     else {
       m2 = bbm_alloc(size);
-      mwrite_to_bbm(m2,size,asize,&b);
+      mwrite_to_bbm(m2,size,b.fullsize,&b);
       if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
     }
     // compute product to m3 = m1 * m2
     // consider using fast_mmult_bbm, but that would require opm
     mmult_bbm(m1,size,m2,m3);
     // uncompress product to m1
-    mwrite_to_bbm(m1,size,asize,&ab);
+    mwrite_to_bbm(m1,size,ab.fullsize,&ab);
     if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
     ssize_t eq = mequals_bbm(m1,size,m3);
     if(eq<0) fprintf(stdout,"Product matches the one computed using byte matrices!\n");
@@ -219,13 +217,13 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out    outfile name (def. infile1%s)\n",default_ext);
     #ifdef K2MAT
-    fprintf(stderr,"\t-1        compact all 1's submatrices in the result matrix\n");
     fprintf(stderr,"\t-i info   infile1 subtree info file\n");
     fprintf(stderr,"\t-j info   infile2 subtree info file\n");
     fprintf(stderr,"\t-I info   infile1 backpointers file\n");
     fprintf(stderr,"\t-J info   infile2 backpointers file\n");
     fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
+    fprintf(stderr,"\t-x        do not compact new 1's submatrices in the result matrix\n");
     #endif  
     fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-c        check multiplication (O(n^3) time and O(n^2) space!)\n");

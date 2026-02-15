@@ -154,7 +154,7 @@ int main (int argc, char **argv) {
   // show information acquired so far from the input files 
   if (verbose) {
     fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
-    mshow_stats(size, asize,&a,iname,stdout);
+    mshow_stats(&a,iname,stdout);
   }
 
   // compute subtree information

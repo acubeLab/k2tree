@@ -56,8 +56,8 @@ int main (int argc, char **argv) {
   opterr = 0;
   bool write = true;
   char *outfile = NULL;
-  Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "i:j:r:I:J:o:qhcnv1")) != -1) {
+  Use_all_ones_node = true;
+  while ((c=getopt(argc, argv, "i:j:r:I:J:o:qhcnvx")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -71,8 +71,8 @@ int main (int argc, char **argv) {
         backpfile2 = optarg; break;                 
       case 'j':
         infofile2 = optarg; break;                
-      case '1':
-        Use_all_ones_node = true; break;
+      case 'x':
+        Use_all_ones_node = false; break;
       case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif  
@@ -110,35 +110,34 @@ int main (int argc, char **argv) {
 
   // init matrix variables (valid for b128 and k2t)
   k2mat_t a=K2MAT_INITIALIZER, b=K2MAT_INITIALIZER, ab=K2MAT_INITIALIZER;
-  size_t size, asize;
+  size_t size;
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
   size = mload_extended(&a, iname1, infofile1, backpfile1, rank_block_size);
+  assert(size==a.realsize);
   #else
   size = mload_from_file(&a, iname1);
   #endif
-  asize = a.fullsize;
-  if (verbose) mshow_stats(size,asize,&a,iname1,stdout);
+  if (verbose) mshow_stats(&a,iname1,stdout);
 
   // copy or load second matrix
   size_t bsize, size1;
   #ifdef K2MAT
   // possibly load subtree info
   size1 = mload_extended(&b, iname2, infofile2, backpfile2, rank_block_size);
+  if(b.fullsize!=a.fullsize) quit("k2 matrices have different internal sizes",__LINE__,__FILE__);
   #else
   size1 = mload_from_file(&b, iname2);
   #endif
-  bsize = b.fullsize;
   // check sizes correpondds
   if(size1!=size) quit("Input matrices have different sizes",__LINE__,__FILE__);
-  if(bsize!=asize) quit("k2 matrices have different sizes",__LINE__,__FILE__);
-  if (verbose) mshow_stats(size, asize,&b,iname2,stdout);
+  if (verbose) mshow_stats(&b,iname2,stdout);
 
   // do the multiplication show/save the result
   msum(&a,&b,&ab);
   if (verbose || !write) 
-    mshow_stats(size, asize,&ab,oname,stdout);
+    mshow_stats(&ab,oname,stdout);
   if(write) msave_to_file(&ab,oname);
 
   // free and terminate
@@ -160,12 +159,12 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n         do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out     outfile name (def. infile1%s)\n",default_ext);
     #ifdef K2MAT
-    fprintf(stderr,"\t-1         compact all 1's submatrices in the result matrix\n");
-    fprintf(stderr,"\t-i subt1   infile1 subtree info file\n");
-    fprintf(stderr,"\t-j subt2   infile2 subtree info file\n");
+    fprintf(stderr,"\t-i subt1   infile1 subtree info file (subtinfo not used fur sum)\n");
+    fprintf(stderr,"\t-j subt2   infile2 subtree info file (subtinfo not used fur sum)\n");
     fprintf(stderr,"\t-I backp1  infile1 backpointers file\n");
     fprintf(stderr,"\t-J backp2  infile2 backpointers file\n");
-    fprintf(stderr,"\t-t size     rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-t size    rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-x         do not compact new 1's submatrices in the result matrix\n");
     #endif  
     fprintf(stderr,"\t-h         show this help message\n");    
     fprintf(stderr,"\t-v         verbose\n\n");

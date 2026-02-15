@@ -51,16 +51,16 @@ int main (int argc, char **argv) {
   int mmsize = 2;
   bool decompress = false, check = false, write = true;
   char *outfile = NULL;
-  Use_all_ones_node = false;
-  while ((c=getopt(argc, argv, "o:m:1dchvn")) != -1) {
+  Use_all_ones_node = true;
+  while ((c=getopt(argc, argv, "o:m:xdchvn")) != -1) {
     switch (c) 
       {
       case 'o':
         outfile = optarg; break;
       case 'm':
         mmsize = atoi(optarg); break;
-      case '1':
-        Use_all_ones_node = true; break;        
+      case 'x':
+        Use_all_ones_node = false; break;        
       case 'd':
         decompress = true; break;
       case 'c':
@@ -102,7 +102,7 @@ int main (int argc, char **argv) {
     size = mload_from_file(&a, iname); // also init k2 library
     asize = a.fullsize;
     if (verbose || !write)  
-      mshow_stats(size, asize,&a,iname,stdout);
+      mshow_stats(&a,iname,stdout);
     b= bbm_alloc(size);
     mwrite_to_bbm(b,size,asize, &a);
     if(write) bbm_write(b,size,oname);
@@ -113,7 +113,7 @@ int main (int argc, char **argv) {
     if(verbose>1) bbm_to_ascii(b,size,0,0,size,stdout);
     asize = mread_from_bbm(b,size,&a);
     if (verbose || !write)  
-      mshow_stats(size, asize,&a,iname,stdout);
+      mshow_stats(&a,iname,stdout);
     if(write) msave_to_file(&a,oname);  // save k2mat to file
     if(check) {
       uint8_t *bx = bbm_alloc(size);
@@ -155,7 +155,7 @@ static void usage_and_exit(char *name)
                    default_cext, default_dext);
     #ifdef K2MAT
     fprintf(stderr,"\t-m M    minimatrix size (def. 2) [compression only]\n");
-    fprintf(stderr,"\t-1      compact all 1's submatrices [compression only]\n");
+    fprintf(stderr,"\t-x      do not compact all 1's submatrices [compression only]\n");
     #endif  
     fprintf(stderr,"\t-c      compress->decompress->check\n");
     fprintf(stderr,"\t-h      show this help message\n");    

@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
   size_t totnz = 0;
   if(verbose) {
     printf("Original matrix stats:\n");
-    totnz = mshow_stats(size, asize, &a, basename(k2name_file), stdout);
+    totnz = mshow_stats(&a, basename(k2name_file), stdout);
   }
   else totnz = mget_nonzeros(asize, &a);
 
@@ -126,14 +126,14 @@ int main(int argc, char* argv[]) {
     }
     if(check || verbose || !write) {
       size_t totnz_ca = 0;
-      totnz_ca = mshow_stats(size, asize, &ca, basename(file_ck2), stdout);
+      totnz_ca = mshow_stats(&ca, basename(file_ck2), stdout);
       if(check) {
         if(totnz_ca == totnz) {
           k2mat_t check_a = K2MAT_INITIALIZER;
           size_t pos = 0;
           if(verbose) printf("Decompressing the k2tree and comparing it with the original\n");
           k2decompress(asize, &ca, &pos, &check_a);
-          size_t totnz_ca_a = mshow_stats(size, asize, &check_a, "Decompressed matrix", stdout);
+          size_t totnz_ca_a = mshow_stats(&check_a, "Decompressed matrix", stdout);
           if(totnz_ca_a == totnz) {
             int d = mequals(asize, &a, &check_a);
             if(d < 0) {

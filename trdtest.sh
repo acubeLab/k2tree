@@ -46,8 +46,8 @@ do
   $timecmd -f"$tf" ./sparsetr.py -d -o sparse.1 $f
 
   echo "===== compress matrix: $f in formats k2 and k4"
-  $timecmd -f"$tf" ./k2sparse.x -1 -o $f.k2  $f 
-  $timecmd -f"$tf" ./k2sparse.x -1 -o $f.k4 -m4 $f 
+  $timecmd -f"$tf" ./k2sparse.x -o $f.k2  $f 
+  $timecmd -f"$tf" ./k2sparse.x -o $f.k4 -m4 $f 
 
   echo "==== add 0, add I and compute (A+I)^2==="
   $timecmd -f"$tf" ./k2unary.x -o $f.2  $f.k2 
@@ -72,15 +72,15 @@ do
   $timecmd -f"$tf" ./sparsetr.py -S -o sparse.sym $f
 
   echo "===== compress transposed matrix $f in formats k2 and k4"
-  $timecmd -f"$tf" ./k2sparse.x -1 -o $f.tr.k2  sparse.tr 
-  $timecmd -f"$tf" ./k2sparse.x -1 -o $f.tr.k4 -m4 sparse.tr 
+  $timecmd -f"$tf" ./k2sparse.x -o $f.tr.k2  sparse.tr 
+  $timecmd -f"$tf" ./k2sparse.x -o $f.tr.k4 -m4 sparse.tr 
   echo "===== compute k2 + k2^t ======="
-  $timecmd -f"$tf" ./k2sum.x -1 -o $f.sum.k2 $f.k2 $f.tr.k2 
+  $timecmd -f"$tf" ./k2sum.x -o $f.sum.k2 $f.k2 $f.tr.k2 
   echo "===== check k2 + k2^t ======="
   $timecmd -f"$tf" ./k2sparse.x -d -o sparse.sum $f.sum.k2
   $timecmd -f"$tf" ./matrixcmp.x sparse.sum sparse.sym
   echo "===== compute k4^t + k4 ======="
-  $timecmd -f"$tf" ./k2sum.x -1 -o $f.sum.k4 $f.tr.k4  $f.k4
+  $timecmd -f"$tf" ./k2sum.x -o $f.sum.k4 $f.tr.k4  $f.k4
   echo "===== check k4^t + k4 ======="
   $timecmd -f"$tf" ./k2sparse.x -d -o sparse.sum $f.sum.k4
   $timecmd -f"$tf" ./matrixcmp.x sparse.sum sparse.sym

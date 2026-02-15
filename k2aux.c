@@ -235,19 +235,19 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
     else               ax[i/2][i%2] = MINIMAT0s;  // note all 0s minimats are not stored
   // take care of of main_diag flag
   if(a->main_diag_1) {
+    assert(MMsize<8); // change formula for computing mask otherwise  
     assert(a->realsize>0 && a->realsize <= 2*MMsize);
-    size_t bits,idx;
-    if(a->realsize>=MMsize) {
+    if(a->realsize<=MMsize) { // change only first minimat
+      size_t bits = a->realsize; 
+      minimat_t mask = ( ((minimat_t) 1) << bits*MMsize ) -1;
+      ax[0][0] |= (MINIMAT_Id & mask);
+      assert(ax[0][1]==MINIMAT0s && ax[1][0]==MINIMAT0s && ax[1][1]==MINIMAT0s);
+    }
+    else {  // change both minimats 
       ax[0][0] |= MINIMAT_Id;
-      bits = a->realsize - MMsize;
-      idx = 1; // will write bits 1s to ax[1][1]
-    }
-    else {
-      bits = a->realsize; 
-      idx = 0;  // will write bits 1s to a[0][0]
-    }
-    for(int b=0;b<bits;b++) {
-      ax[idx][idx] |= (1UL<<1); /// WRONG: TO BE COMPLETED
+      size_t bits = a->realsize - MMsize;
+      minimat_t mask = ( ((minimat_t) 1) << bits*MMsize ) -1;
+      ax[1][1] |= (MINIMAT_Id & mask);
     }
   }
 }

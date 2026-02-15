@@ -87,7 +87,7 @@ int main (int argc, char **argv) {
   #endif
   asize = a.fullsize;
   fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
-  totnz = mshow_stats(size, asize,&a,basename(argv[1]),stdout);
+  totnz = mshow_stats(&a,basename(argv[1]),stdout);
   puts("");
   matrix_free(&a);
   minimat_reset();
