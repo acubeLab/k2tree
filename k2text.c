@@ -967,6 +967,7 @@ static void mdecode_to_textfile_base(FILE *outfile, size_t msize, size_t i, size
 static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j, size_t size, const k2mat_t *c, size_t *pos) 
 {
   assert(!k2is_empty(c)); // never called on an empty matrix
+  assert(c->offset==0);   // we are never working on submatrices 
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
   assert(i<msize+2*size && j<msize+2*size);

@@ -35,7 +35,8 @@
       "request": "launch",
       "program": "${fileDirname}/k2unary.x",
       //"args": [ "-o", "tmp/poli3.2", "-I", "tmp/poli3.ck2.p", "tmp/poli3.ck2"
-      "args": [ "-o", "web/cnr80k.txt.2", "web/cnr80k.txt.k2"
+      // "args": [ "-o", "web/cnr80k.txt.2", "web/cnr80k.txt.k2"
+      "args": [ "-o", "web/cnr80k.txt.2", "web/cnr80k.txt.ck2", "-I", "web/cnr80k.txt.ck2.p"
       ],
       "stopAtEntry": true,
       "cwd": "${fileDirname}",

@@ -349,8 +349,6 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
   assert(*posa<a->pos); // implies a is non-empty
-  assert(a->offset==0);
-  size_t newpos;
 
   // get root node
   node_t roota = k2read_node(a,*posa); *posa +=1;
@@ -360,9 +358,14 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
       return;
     } else {  // a->backp!=NULL
       assert(roota==POINTER);  // ALL_ONES and POINTER are the same value
-      newpos = k2get_backpointer(a,*posa-1); //  move position to the target subtree
-      posa = &newpos;
-      roota = k2read_node(a,*posa); *posa +=1;
+      k2mat_t tmp = *a;  // clone a 
+      tmp.offset = k2get_backpointer(a,*posa-1); //  starting position of dest submatrix 
+      tmp.is_pointer = true; 
+      tmp.open_ended = true;    // open ended: tmp.pos=a->pos is larger than the actual end position
+      size_t pos = 0;
+      assert(k2read_node(&tmp,pos)!=POINTER);
+      k2copy_rec(size,&tmp,&pos,b);
+      return;
     }
   }
   assert(roota!=ALL_ONES);    // roota is not a special node
@@ -407,7 +410,7 @@ static void k2clone_submatrix(const k2mat_t *a, size_t start, size_t end, k2mat_
 
 // make c an identical read-only image of matrix a
 // the previous content of c is freed and lost 
-// used only by k2jump  
+// used only by mmake_pointer  
 static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 {
   assert(a!=NULL && c!=NULL);
@@ -450,13 +453,13 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
   assert(root==POINTER); 
   // Warning: pointers are 32 bits
   k2pointer_t destp = k2get_backpointer(a, 0); // get pointer to the subtree
-  k2mat_t tmp = K2MAT_INITIALIZER; // create a temporary matrix to hold the subtree
-  k2make_pointer(a, &tmp);  // make tmp a shallow copy of a
+  k2mat_t tmp = *a;          // create a temporary matrix to hold the subtree
   assert(destp<tmp.offset); // make sure it is a backward pointer 
   // printf("Jump, size=%zd, offset=%zd, pos:%zd endb:%zd destp=%zd\n",size,tmp.offset,tmp.pos,tmp.lenb,destp);
   tmp.offset = destp;       // set offset to the node where the subtree starts
   tmp.subtinfo =  NULL;     // set subtree info not available
   tmp.subtinfo_size = 0; 
+  tmp.is_pointer = true; 
   tmp.open_ended = true;    // open ended: tmp.pos=a->pos is larger than the actual end position
   return tmp;
 }

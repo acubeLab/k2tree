@@ -87,7 +87,7 @@ do
 
 
   echo "====== compress matrix $f in format k2 + backpointers"
-  $timecmd -f"$tf" ./k2sparse.x -o $f.k2  $f 
+  $timecmd -f"$tf" ./k2sparse.x -x -o $f.k2  $f 
   $timecmd -f"$tf" ./k2cpdf.x $f.k2
   if [ -e $f.ck2.p ]; then
     echo "== uncompress and test ck2 matrix"
