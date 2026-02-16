@@ -102,7 +102,7 @@ static int k2tree_equals_rec(size_t size, const k2mat_t *a, size_t *posa,
 }
 
 // return number of levels in the k2_tree storing matrix :a
-// only the tree strucure is considered, not the main_diagonal flag or backpointers
+// only the tree structure is considered, not the main_diagonal flag or backpointers
 // note: root with no children: 1 level 
 //       minimats+root: 2 levels, etcs. 
 int k2tree_levels(size_t size, const k2mat_t *a) 
@@ -114,13 +114,49 @@ int k2tree_levels(size_t size, const k2mat_t *a)
   return -d;
 }
 
+
+// copy the (submatrix) :a to :b
+// assuming :a has not backpointers, is not open ended
+// and ignoring main_diag_1 flag
+// used inside the recursive product algorithm when one addend is zero 
+static void k2copy_plain(const k2mat_t *a, k2mat_t *b)
+{
+  assert(a->backp==NULL && !a->open_ended);
+  for(size_t pos=0; pos < k2treesize(a); pos++) {
+    node_t n = k2read_node(a,pos);
+    k2add_node(b,n);
+  }
+}
+
+// copy the (submatrix) :a to :b
+// resolving all backpointers but ignoring main_diag_1 flag
+// there are no restriction on :a  it can also be open_ended
+// used inside msum (top level only) when one of the addend is zero or Id 
+// and by k2copy_normalise ? 
+static void k2copy_structure(const k2mat_t *a, k2mat_t *b)
+{
+  assert(a->fullsize>MMsize);  
+  assert(a!=NULL && b!=NULL);
+  assert(!b->is_pointer);
+
+  // easy case
+  if(a->backp==NULL && !a->open_ended)
+    // faster version in which the complete content of :a from a->offset to a->pos is copied to b
+    k2copy_plain(a,b);
+  else {  // slower version based on recursion, ok for :a open-ended or with back pointers
+    size_t pos = 0;
+    k2copy_rec(a->fullsize,a,&pos,b);
+  }
+}
+
+
 // copy the (submatrix) :a to :b
 // resolving all backpointers and main_diag_1 flag
 // there are no restriction on :a  it can also be open_ended
-// NOTE: superseed mcopy_full, maybe delete the latter
+// used in the product algorithm and when we need a normalized representation
 void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
 {
-  assert(a->fullsize>MMsize);  // required by k2copy_rec 
+  assert(a->fullsize>MMsize);  
   assert(a!=NULL && b!=NULL);
   assert(!b->is_pointer);
 
@@ -133,10 +169,7 @@ void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
   }
   else if(a->backp==NULL && !a->open_ended)
     // faster version in which the complete content of :a from a->offset to a->pos is copied to b
-    for(size_t pos=0; pos < k2treesize(a); pos++) {
-      node_t n = k2read_node(a,pos);
-      k2add_node(b,n);
-    }
+    k2copy_plain(a,b);
   else {  // slower version based on recursion, ok for :a open-ended or with back pointers
     size_t pos = 0;
     k2copy_rec(a->fullsize,a,&pos,b);
@@ -179,32 +212,6 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
   // do extra checks if the matrices are equal
   assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && (posa==posb) ) );
   return eq;
-}
-
-// full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
-// should work for any input matrix: backp are expanded, subtinfo is ignored
-// :a could be open ended, but open_ended matrices are never summed hence the assertion
-// only look at the tree structure: **do not consider main_diag_1 flag**
-static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
-{
-  assert(size>MMsize);  // required by k2copy_rec 
-  assert(a!=NULL && b!=NULL);
-  assert(!k2is_empty(a));
-  assert(!b->is_pointer);
-  assert(!a->open_ended); // not required, but open ended are only multiplied
-
-
-  if(a->backp==NULL && !a->open_ended)
-    // faster version in which the complete content of :a from a->offset to a->pos is copied to b
-    // ok since the size of the minimats is an integral multiple of the size of a node  
-    for(size_t pos=0; pos < k2treesize(a); pos++) {
-      node_t n = k2read_node(a,pos);
-      k2add_node(b,n);
-    }
-  else {  // old (slower) version based on recursion, ok for :a open-ended or with back pointers
-    size_t pos = 0;
-    k2copy_rec(size,a,&pos,b);
-  }
 }
 
 // add indentity matrix to a
@@ -267,6 +274,7 @@ k2mat_t mat_identity(size_t size) {
 // recursive sum of two k2 (sub)matrices
 // used by mmult to sum the product of two matrices
 // so assume plain matrices: no backpointers, subtree info, open_ended, main_diag_1
+// not used by the msum operation. 
 // a and b must not be all 0s (sub)matrices
 //   (if a or b is all 0s this function is not called because the sum is a copy) 
 // a and b can be all 1's 
@@ -496,16 +504,16 @@ void msum(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   c->realsize = a->realsize;
 
   // handle the case of an input with main_diag_1, 
-  // after that flag is forgotten (assumed false for both matrices) 
   if(a->main_diag_1 || b->main_diag_1 )
     c->main_diag_1 = true;  // main diagonal of c is 1 if at least one of a or b has main diagonal 1
 
+    // from now on main_diag_1 can be ignored
   if(k2is_empty(a) &&  k2is_empty(b))
     return;  // if a & b empty: c empty
   else if(k2is_empty(b))      
-    mcopy_full(a->fullsize,a,c);        // if b empty: c=a (resolving backpointers)
+    k2copy_structure(a,c);        // if b empty: c=a (resolving backpointers, ingnoring main_diag)
   else if(k2is_empty(a))    
-    mcopy_full(b->fullsize,b,c);        // if a empty: c=b
+    k2copy_structure(b,c);        // if a empty: c=b
   else {
     // case :a and :b do have a root node
     assert(!k2is_empty(a) && !k2is_empty(b));
@@ -777,11 +785,13 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
       mmult(&ax[i][1], &bx[1][j], &v2);
     // write sum v1+v2 to c[i][j] ie block k   
     assert(!v1.main_diag_1 && !v2.main_diag_1);  // v1 and v2 are products, therefore no main_diag_1
+    assert(!v1.backp && !v2.backp);              // v1 and v2 are products, therefore no backpointers
+    assert(!v1.open_ended && !v2.open_ended);    // v1 and v2 are products, therefore no open ended
     if(!k2is_empty(&v1) || !k2is_empty(&v2)) { // compute v1+v2 if at least one is nonzero
       rootc |= ((node_t )1) << k; // v1 + v2 is nonzero 
       size_t tmp = k2pos(c); // save current position to check all 1's 
-      if(k2is_empty(&v2))      mcopy_full(size/2,&v1,c);  // copy v1 -> block c[i][j]  
-      else if(k2is_empty(&v1)) mcopy_full(size/2,&v2,c);  // copy v2 -> block c[i][j]  
+      if(k2is_empty(&v2))      k2copy_plain(&v1,c);  // copy v1 -> block c[i][j]  
+      else if(k2is_empty(&v1)) k2copy_plain(&v2,c);  // copy v2 -> block c[i][j]  
       else { // v1 and v2 are both not empty
         size_t p1=0,p2=0;
         msum_rec_plain(size/2,&v1,&p1,&v2,&p2,c);

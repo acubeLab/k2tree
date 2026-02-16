@@ -73,8 +73,9 @@ void k2make_empty(k2mat_t *m)
   assert(!m->is_pointer); // must be a whole non-pointer matrix
   assert(m->offset==0);   // must be a whole matrix
   assert(!m->open_ended); // must be a whole matrix
-  assert(m->backp==NULL); // backpointers not allowed in empty matrices
-  assert(m->r==NULL);     // rank not allowed in empty matrices
+  assert(m->subtinfo==NULL); // subtinfo should not be here
+  assert(m->backp==NULL);    // backpointers not allowed in empty matrices
+  assert(m->r==NULL);        // rank not allowed in empty matrices
   m->main_diag_1 = false;
   m->pos = 0;
 }

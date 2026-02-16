@@ -3,7 +3,7 @@
 # exit immediately on error
 set -e
 
-if [ $# -lt 2 ]
+if [ $# -lt 1 ]
 then
   echo "Usage:"
   echo "         $0 dir file1 [file2 ...]"
