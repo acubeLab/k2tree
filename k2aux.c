@@ -339,12 +339,13 @@ void k2dfs_visit_fast(size_t size, const k2mat_t *m, size_t *pos)
 }
 
 // copy the subtree of :a starting at *posa to :b
+// used when summing two matrices and a submatrix is all zeros 
 // *posa should always point to the next item to be read
-// it is assumed :a is not all 0s and that there is a root node and size>MMsize
-// only look at the tree structure: do not consider main_diag_1 flag
+// it is assumed :a has a root node and size>MMsize
 // subtreeinfo information is ignored, backpointers in :a are followed but 
 // they are never written to :b 
-// used when summing two matrices and a submatrix is all zeros 
+// :a can be open_ended, indeed if there is jump the copy continues with an open ended matrix
+// only look at the tree structure: **do not consider the main_diag_1 flag**
 void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
 {
   assert(size>MMsize);
@@ -380,8 +381,6 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
     }
   }
 }
-
-
 
 
 // clone a k2 (sub)matrix of :a starting at position :start and ending at :end-1
@@ -422,7 +421,7 @@ static void k2make_pointer(const k2mat_t *a, k2mat_t *c)
 k2pointer_t k2get_backpointer(const k2mat_t *m, size_t pos)
 {
   assert(m!=NULL && m->backp!=NULL && m->r!=NULL);
-  assert(!k2is_empty(m));
+  assert(m->open_ended || !k2is_empty(m));
   assert(pos<m->pos);
   assert(k2read_node(m,pos) == POINTER); // pos should be a pointer node
   size_t rp = rank_rank(m->r, m, pos); // get # 0000 in [0,p-1]

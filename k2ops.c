@@ -114,6 +114,36 @@ int k2tree_levels(size_t size, const k2mat_t *a)
   return -d;
 }
 
+// copy the (submatrix) :a to :b
+// resolving all backpointers and main_diag_1 flag
+// there are no restriction on :a  it can also be open_ended
+// NOTE: superseed mcopy_full, maybe delete the latter
+void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
+{
+  assert(a->fullsize>MMsize);  // required by k2copy_rec 
+  assert(a!=NULL && b!=NULL);
+  assert(!b->is_pointer);
+
+  // if :a has main diag build ad-hoc identity 
+  // and normalize by multiplication
+  if(a->main_diag_1) {
+    k2mat_t c = mat_identity(a->realsize);
+    mmult(a,&c,b); 
+    k2_free(&c);
+  }
+  else if(a->backp==NULL && !a->open_ended)
+    // faster version in which the complete content of :a from a->offset to a->pos is copied to b
+    for(size_t pos=0; pos < k2treesize(a); pos++) {
+      node_t n = k2read_node(a,pos);
+      k2add_node(b,n);
+    }
+  else {  // slower version based on recursion, ok for :a open-ended or with back pointers
+    size_t pos = 0;
+    k2copy_rec(a->fullsize,a,&pos,b);
+  }
+}
+
+
 // main entry point for matrix equality with limitations, see below:
 // check if size x size k2 compressed matrices :a and :b are equal
 // if a or b have main_diag_1 or backp!=NULL we cannot say: return INT32_MAX
@@ -152,8 +182,9 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 }
 
 // full copy of matrix a: to b: used instead of sum when one of the matrices is all 0s
-// only look at the tree structure: do not consider main_diag_1 flag
 // should work for any input matrix: backp are expanded, subtinfo is ignored
+// :a could be open ended, but open_ended matrices are never summed hence the assertion
+// only look at the tree structure: **do not consider main_diag_1 flag**
 static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
 {
   assert(size>MMsize);  // required by k2copy_rec 
@@ -605,13 +636,13 @@ void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
   else if(k2is_empty(a)) {
     assert(a->main_diag_1);
     assert(!k2is_empty(b));
-    mcopy_full(b->fullsize,b,c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
+    k2copy_normalise(b, c); // case matrix 1 is empty with main_diag_1 true: result is matrix 2
     return;
   }
   else if(k2is_empty(b)) {
     assert(b->main_diag_1);
     assert(!k2is_empty(a));
-    mcopy_full(a->fullsize,a,c);
+    k2copy_normalise(a, c); // case matrix 2 is empty with main_diag_1 true: result is matrix 1
     return;
   }
 
