@@ -161,12 +161,12 @@ static void mcopy_full(size_t size, const k2mat_t *a, k2mat_t *b)
   assert(!k2is_empty(a));
   assert(!b->is_pointer);
   assert(!a->open_ended); // not required, but open ended are only multiplied
-  assert(a->offset==0);   // not required, but we only use it for whole matrices 
+
 
   if(a->backp==NULL && !a->open_ended)
     // faster version in which the complete content of :a from a->offset to a->pos is copied to b
     // ok since the size of the minimats is an integral multiple of the size of a node  
-    for(size_t pos=a->offset;pos < a->pos; pos++) {
+    for(size_t pos=0; pos < k2treesize(a); pos++) {
       node_t n = k2read_node(a,pos);
       k2add_node(b,n);
     }

@@ -999,17 +999,18 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   for(size_t k=0;k<4;k++) {  
     size_t ii = i + (size/2)*(k/2); size_t jj= j + (size/2)*(k%2); // submatrix top left corner
     if(rootc & (1<<k)) { // read a submatrix
-      if(k==0 || k==3) { // we are on a diagonal submatrix: keep main_diag_1
-        k2mat_t tmp = *c;
+      if(c->main_diag_1 && (k==0 || k==3)) { // we are on a diagonal submatrix and main_diag_1=true
+        k2mat_t tmp = *c;            // update realsize and fullsize 
         tmp.fullsize = tmp.fullsize/2;
         if(k==0) tmp.realsize = (c->realsize > tmp.fullsize) ?  tmp.fullsize :  c->realsize;
-        else { // k==3
+        else { 
+          assert(k==3);
           assert(c->realsize > tmp.fullsize);
           tmp.realsize = c->realsize - tmp.fullsize;
         }  
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos);
       }
-      else { // off diagonal block 
+      else { // off diagonal block of main_diag_1=false
         k2mat_t tmp = *c;
         tmp.main_diag_1 = false;  // do not propagate main_diag_1 outside the diagonal
         mdecode_to_textfile(outfile,msize,ii,jj,size/2,&tmp,pos); // swap ii and jj

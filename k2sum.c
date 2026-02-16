@@ -122,7 +122,7 @@ int main (int argc, char **argv) {
   if (verbose) mshow_stats(&a,iname1,stdout);
 
   // copy or load second matrix
-  size_t bsize, size1;
+  size_t size1;
   #ifdef K2MAT
   // possibly load subtree info
   size1 = mload_extended(&b, iname2, infofile2, backpfile2, rank_block_size);

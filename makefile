@@ -1,5 +1,5 @@
 # compilation flags
-CFLAGS=-O2 -Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined -DK2MAT
+CFLAGS=-Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined -DK2MAT
 LDFLAGS=-fsanitize=undefined
 CC=gcc
 
@@ -12,12 +12,13 @@ EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x matrixcmp.x
 
 
 # targets not producing a file declared phony
-.PHONY: all clean release
+.PHONY: all clean release gdb
 
 # keep intermediate files
 .SECONDARY:
 
 
+all: CFLAGS += -O2
 all: $(EXECS)
 
 
@@ -83,6 +84,10 @@ matrixcmp.x: matrixcmp.c
 release: CFLAGS = -O3 -Wall -std=c11 -DNDEBUG
 release: clean
 release: $(EXECS)  
+
+#  debug with default flags ie no optimization
+gdb: clean
+gdb: $(EXECS)
 
 clean:
 	rm -f $(EXECS) *.o 

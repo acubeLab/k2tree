@@ -1,7 +1,7 @@
 {
   "configurations": [
     {
-      "name": "C/C++: make all and debug",
+      "name": "C/C++: make all and debug k2mult",
       "type": "cppdbg",
       "request": "launch",
       "program": "${fileDirname}/k2mult.x",
@@ -9,10 +9,6 @@
         "tmp/socfb-Reed98.bin.k2",
         "tmp/socfb-Reed98.bin.k2", "-vn"
       ],
-      // "program": "${fileDirname}/k2unary.x",
-      // // "args": [ "-o", "tmp/poli3.2", "-I", "tmp/poli3.ck2.p", "tmp/poli3.ck2"
-      // "args": [ "-o", "tmp/socfb-Reed98.2", "tmp/socfb-Reed98.k2"
-      // ],
       "stopAtEntry": true,
       "cwd": "${fileDirname}",
       "environment": [],
@@ -30,7 +26,35 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "make all",
+      "preLaunchTask": "make gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    {
+      "name": "k2unary: make all and debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirname}/k2unary.x",
+      //"args": [ "-o", "tmp/poli3.2", "-I", "tmp/poli3.ck2.p", "tmp/poli3.ck2"
+      "args": [ "-o", "web/cnr80k.txt.2", "web/cnr80k.txt.k2"
+      ],
+      "stopAtEntry": true,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make gdb",
       "miDebuggerPath": "/usr/bin/gdb"
     },
     {

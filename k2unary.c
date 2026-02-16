@@ -92,9 +92,6 @@ int main (int argc, char **argv) {
   optind -=1;
   if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
-
-  // always use ALL_ONES root in results
-  Use_all_ones_node = true;
   
   // create file names
   sprintf(iname1,"%s",argv[1]);

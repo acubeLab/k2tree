@@ -47,11 +47,11 @@ void k2setpos(k2mat_t *m, size_t p)
   m->pos = p;
 }
 
-// check if a matrix is empty (should it be m->pos == m->offset, to include submatrices?)
+// check if a matrix is empty
 bool k2is_empty(const k2mat_t *m)
 {
   assert(!m->open_ended);  // m->pos is larger than actual value in open_ended
-  return m->pos == 0;
+  return m->pos == m->offset;
 }
 
 // check is a matrix is zero (all 0 entries)

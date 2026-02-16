@@ -10,6 +10,14 @@
       "detail": "make all"
     },
     {
+      "label": "make gdb",
+      "type": "shell",
+      "command": "make gdb",
+      "group": "build",      
+      "problemMatcher": "$gcc",
+      "detail": "make all"
+    },
+    {
       "label": "make single",
       "type": "shell",
       "command": "make",
