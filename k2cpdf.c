@@ -14,6 +14,7 @@
 
 // local includes
 #include "k2.h"
+extern bool Use_all_ones_node; // use the special ALL_ONES node in the result
 #define default_ext ".ck2"
 
 static void usage_and_exit(char *name);
@@ -21,6 +22,7 @@ static void usage_and_exit(char *name);
 int main(int argc, char* argv[]) {
   extern char *optarg;
   extern int optind, optopt;
+  Use_all_ones_node = false;
 
   uint32_t rank_block_size = 64;
   uint32_t threshold = 32;
@@ -44,7 +46,7 @@ int main(int argc, char* argv[]) {
       case 'h':
         usage_and_exit(argv[0]); break;
       case 'v':
-        verbose = 1; break;
+        verbose++; break;
       case 'c':
         check = 1; break;
       case 'n':
@@ -185,12 +187,15 @@ static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-b      block size for rank 0000 data structure (def. 64)\n");
-    fprintf(stderr,"\t-t      smallest subtree size in bits to be removed (def. 32)\n");
-    fprintf(stderr,"\t-c      check number of ones in the compressed matrix\n");
-    fprintf(stderr,"\t-n      do not write the output file, only show stats\n");
-    fprintf(stderr,"\t-h      show this help message\n");    
-    fprintf(stderr,"\t-v      verbose\n\n");
+    fprintf(stderr,"\t-o out    outfile name (def. infile1%s)\n",default_ext);
+    fprintf(stderr,"\t-I info   infile backpointers file (optional)\n");
+    fprintf(stderr,"\t-i info   infile subtree info file (not used)\n");
+    fprintf(stderr,"\t-r size   block size for rank 0000 data structure (def. 64)\n");
+    fprintf(stderr,"\t-t thrs   smallest subtree size in bits to be removed (def. 32)\n");
+    fprintf(stderr,"\t-c        check number of ones in the compressed matrix\n");
+    fprintf(stderr,"\t-n        do not write the output file, only show stats\n");
+    fprintf(stderr,"\t-h        show this help message\n");    
+    fprintf(stderr,"\t-v        verbose\n\n");
     fprintf(stderr,"Compress a k2 tree exploiting the presence of identical subtrees.\n" 
                    "Compute and store in separates files the compressed tree and\n"
                    "its auxiliary information (pointers information)\n\n");

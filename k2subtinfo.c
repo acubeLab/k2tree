@@ -151,9 +151,13 @@ int main (int argc, char **argv) {
   mload_from_file(&a, iname); // also init k2 library
   // show information acquired so far from the input files 
   if (verbose) {
-    fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
+    if(a.is_pointer)
+      fprintf(stdout,"Caution: the stats information is incorrect: the matrix is subtree compressed\n"); 
     mshow_stats(&a,iname,stdout);
   }
+  else if(a.is_pointer)
+     fprintf(stdout,"Caution: the matrix is subtree compressed (not relevant here)\n");
+  a.is_pointer =false; // reset flag
 
   // compute subtree information
   vu64_t z;      // resizable array to contain the subtree sizes
@@ -261,7 +265,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Compute and store in a separate file the information about the size\n"
                    "of the largest subtrees of the input matrix.\n"
                    #ifdef SIMPLEBACKPOINTERS
-                    "This version uses simple backpointers (no subtree info for backpointer destinations).\n\n");
+                    "\n");
                    #else
                    "If -p option is used backpointers are enriched with subtree information.\n\n");
                    #endif
