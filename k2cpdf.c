@@ -14,25 +14,31 @@
 
 // local includes
 #include "k2.h"
+#define default_ext ".ck2"
 
 static void usage_and_exit(char *name);
 
 int main(int argc, char* argv[]) {
   extern char *optarg;
-  extern int optind, opterr, optopt;
+  extern int optind, optopt;
 
-  k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize;
-  uint32_t rank_block = 64;
+  uint32_t rank_block_size = 64;
   uint32_t threshold = 32;
   int verbose = 0, check = 0, write = 1;
+  char *infofile1=NULL, *backpfile1=NULL, *outfile=NULL; // file with backpointers
 
   char* k2name_file = NULL;
   int c;
-  while((c = getopt(argc, argv, "b:t:hvcn")) != -1) {
+  while((c = getopt(argc, argv, "hi:I:r:t:vcn")) != -1) {
     switch (c) {
-      case 'b':
-        rank_block = atoi(optarg); break;
+      case 'o':
+        outfile = optarg; break;                 
+      case 'I':
+        backpfile1 = optarg; break;                 
+      case 'i':
+        infofile1 = optarg; break;                 
+      case 'r':
+        rank_block_size = atoi(optarg); break;
       case 't':
         threshold = atoi(optarg); break;
       case 'h':
@@ -48,12 +54,11 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
   }
-
-  // threshold >= 4 imples that subtrees of height 1 (root + minimats)
-  // are never compressed (recall minimatsize must be == 2)
-  if(threshold % 4 || threshold < 4) {
-    fprintf(stderr, "Threshold must be a positive multiple of 4 and at least 16, got %d\n", threshold);
-    exit(1);
+  if(verbose > 0) {
+    fputs("==== Command line:\n",stdout);
+    for(int i=0;i<argc;i++)
+      fprintf(stdout," %s",argv[i]);
+    fputs("\n",stdout);  
   }
 
   optind -=1;
@@ -65,15 +70,30 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  if(verbose > 0) {
-    fputs("==== Command line:\n",stdout);
-    for(int i=0;i<argc;i++)
-      fprintf(stdout," %s",argv[i]);
-    fputs("\n",stdout);  
+  // check command line options
+  // threshold >= 4 imples that subtrees of height 1 (root + minimats)
+  // are never compressed (recall minimatsize must be == 2)
+  if(threshold % 4 || threshold < 16) {
+    fprintf(stderr, "Threshold must be a positive multiple of 4 and at least 16, got %d\n", threshold);
+    exit(1);
+  }
+  if(strlen(k2name_file)> PATH_MAX -16) {
+    fprintf(stderr, "Illegal input file name, max size: %d\n", PATH_MAX-16);
+    exit(1);
   }
 
-  size = mload_from_file(&a, k2name_file); // also init k2 library
-  asize = a.fullsize;
+  // create output file name
+  char oname[PATH_MAX];
+  if(outfile!=NULL) sprintf(oname,"%s",outfile);
+  else {
+    sprintf(oname,"%s",k2name_file);
+    char *dot = strrchr(oname, '.'); // search last dot  
+    if (dot && dot != oname) *dot = '\0'; // dot found and it's not the first character, remove ext
+    strcat(oname,default_ext);  
+  }
+
+  k2mat_t a = K2MAT_INITIALIZER;
+  mload_extended(&a, k2name_file, infofile1, backpfile1, rank_block_size); // also init k2 library
   if(minimat_size()!=2) {
     fprintf(stderr, "Error: to compress k2tree mini-matrix size must be 2, got %d\n", minimat_size());
     fprintf(stderr, "(otherwise a spurious 0000 may appear in a mini-matrix)\n");
@@ -81,73 +101,77 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
+  // scan input matrix
+  size_t pos, nodes, minimats, nz, all1;
+  mstats(&a,&pos,&nodes,&minimats,&nz,&all1);
+
+  // check if matrix need to be normalized
+  if(a.main_diag_1) 
+    puts("Original matrix has main_diagonal flag, need to be normalized");
+  if(a.backp!=NULL) 
+    puts("Original matrix has backpointers, need to be normalized");
+  else if(all1>0) 
+    puts("Original matrix has ALL_ONES submatrices, need to be normalized");
+  if(a.main_diag_1 || all1>0) {
+    puts("Normalizing input matrix");
+    k2mat_t b = K2MAT_INITIALIZER;
+    k2copy_normalise(&a,&b);
+    matrix_free(&a);
+    a = b;
+  }
+
   // compute number of nonzeros, if verbose show the stats of the original matrix
-  size_t totnz = 0;
   if(verbose) {
     printf("Original matrix stats:\n");
-    totnz = mshow_stats(&a, basename(k2name_file), stdout);
+    nz = mshow_stats(&a, basename(k2name_file), stdout);
   }
-  else totnz = mget_nonzeros(asize, &a);
+  else nz = mget_nonzeros(&a);
 
   // execute subtree compression
-  k2mat_t ca = K2MAT_INITIALIZER;
-  ca.fullsize = a.fullsize; ca.realsize = a.realsize;
-  k2compress(asize, &a, &ca, threshold, rank_block); 
+  k2mat_t ca = mat_zero(a.realsize);
+  k2compress(&a, &ca, threshold, rank_block_size); 
 
 
   if(ca.backp==NULL) {
     printf("No compressible subtree founds. No output file produced\n");
   }
   else {
-
-    //!!! TODO: fix this, not nice 
-    // replace last two chars of input file name (likely k2) with ck2
-    char file_ck2[strlen(k2name_file) + 5];
-    strcpy(file_ck2, k2name_file);
-    file_ck2[strlen(k2name_file) - 2] = 'c';
-    file_ck2[strlen(k2name_file) - 1] = 'k';
-    file_ck2[strlen(k2name_file)] = '2';
-    file_ck2[strlen(k2name_file) + 1] = '\0';
-
-    if(write) {
-      // save .ck2 file
-      msave_to_file(&ca, file_ck2);
-      // save .ck2.p file with pointers
-      char file_p[strlen(file_ck2) + 5];
-      strcpy(file_p, file_ck2);
-      #ifdef SIMPLEBACKPOINTERS
-      strcat(file_p, ".p");
-      #else
-      strcat(file_p, ".xp");
-      #endif
-      pointers_write_to_file(ca.backp, file_p);
-
-      // NOTE: the rank000 data structure is not stored but recomputed from scratch
-    }
     if(check || verbose || !write) {
       size_t totnz_ca = 0;
-      totnz_ca = mshow_stats(&ca, basename(file_ck2), stdout);
+      totnz_ca = mshow_stats(&ca, oname, stdout);
       if(check) {
-        if(totnz_ca == totnz) {
-          k2mat_t check_a = K2MAT_INITIALIZER;
+        if(totnz_ca == nz) {
+          k2mat_t check_a = mat_zero(ca.realsize);
           size_t pos = 0;
           if(verbose) printf("Decompressing the k2tree and comparing it with the original\n");
-          k2decompress(asize, &ca, &pos, &check_a);
+          k2decompress(ca.fullsize, &ca, &pos, &check_a);
           size_t totnz_ca_a = mshow_stats(&check_a, "Decompressed matrix", stdout);
-          if(totnz_ca_a == totnz) {
-            int d = mequals(asize, &a, &check_a);
+          if(totnz_ca_a == nz) {
+            int d = mequals(a.fullsize, &a, &check_a);
             if(d < 0) {
               if(verbose) printf("Correct decompression!\n");
             } else {
               printf("Error at decompression: generated a different k2tree (error at level: %d)\n",d);
             }
           } else {
-            printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+            printf("Error at decompression: Amount of non zero mismatches! expected %zu, got: %zu\n", nz, totnz_ca);
           }
         } else {
-          printf("Number of nonzeros mismatches! expected %zu, got: %zu\n", totnz, totnz_ca);
+          printf("Number of nonzeros mismatches! expected %zu, got: %zu\n", nz, totnz_ca);
         }
       }
+    }
+        if(write) {
+      // save .ck2 file
+      msave_to_file(&ca, oname);
+      // save .ck2.p file with pointers
+      #ifdef SIMPLEBACKPOINTERS
+      strcat(oname, ".p");
+      #else
+      strcat(oname, ".xp");
+      #endif
+      pointers_write_to_file(ca.backp, oname);
+      // NOTE: the rank000 data structure is not stored but recomputed from scratch
     }
   }
 

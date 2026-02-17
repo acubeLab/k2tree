@@ -1237,9 +1237,9 @@ void k2dfs_write_in_text(size_t size, const k2mat_t *m, size_t *pos, uint8_t* te
 
 // threshold is the minimum amount of nodes to considering erasing a subtree
 // block_size is the block size of rank 0000 datastructure
-void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size) {
+void k2compress(k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size) {
+  size_t asize = a->fullsize;
   uint64_t lvs = ceil_log2((uint64_t)asize);
-
   vu64_t z;
   vu64_init(&z);
   size_t pos = 0;
@@ -1329,7 +1329,12 @@ void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint3
 
 }
 
+// copy to :a the content of :ca expanding all backpointers 
+// work only for full matrices with backpointers (no ALL_ONES nodes)
+// ignore main_diag_1 
+// see k2copy_rec for a version supporting ALL_ONES if backp==NULL
 void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
+  assert(ca->backp!=NULL);
   assert(size>MMsize);
   assert(size%2==0);
   assert(*pos<ca->pos); // implies m is non-empty

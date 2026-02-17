@@ -119,8 +119,10 @@ size_t mload_extended(k2mat_t *a, char *fname, char *subtname, const char *backp
 void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a);
+// return statistics on matrix a
+int mstats(const k2mat_t *a, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *all1);
 // return number of nonzeros in the matrix
-size_t mget_nonzeros(size_t asize, const k2mat_t *a);
+size_t mget_nonzeros(const k2mat_t *a);
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
 // return number of nonzeros in the matrix
 size_t mshow_stats(const k2mat_t *a, const char *mname,FILE *file);
@@ -138,6 +140,8 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
 // return number of levels in the k2tree associated to a
 int k2tree_levels(size_t size, const k2mat_t *a);
+// copy the (submatrix) :a to :b resolving all backpointers and main_diag_1 flag
+void k2copy_normalise(const k2mat_t *a, k2mat_t *b);
 // creates a size x size zero matrix
 k2mat_t mat_zero(size_t size);
 //creates a size x size identity matrix
@@ -165,7 +169,7 @@ void k2dfs_compute_backpointer_info(size_t size, const k2mat_t *m, size_t *pos, 
 
 
 // compress k2tree
-void k2compress(size_t asize, k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size);
+void k2compress(k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size);
 void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a);
 
 #endif /* _K2TYPDEFS_H */

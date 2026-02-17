@@ -88,6 +88,7 @@ static void k2_free(k2mat_t *m)
   if(m->b!=NULL) free(m->b);
   m->b=NULL;
   m->pos = m->lenb = m->offset = m->fullsize = m->realsize = 0;
+  m->is_pointer = m->main_diag_1 = m->open_ended = false;
   if(m->subtinfoarray!=NULL) {
     free(m->subtinfoarray); m->subtinfoarray = m->subtinfo=NULL; m->subtinfo_size=0;
   }

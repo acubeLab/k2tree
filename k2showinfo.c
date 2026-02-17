@@ -44,7 +44,7 @@ static void usage_and_exit(char *name);
 int main (int argc, char **argv) { 
   extern char *optarg;
   extern int optind, opterr, optopt;
-#ifdef K2MAT
+  #ifdef K2MAT
   char *infofile1=NULL, *backpfile1=NULL; // file subtree info and backpointers
   uint32_t rank_block_size = 64; // block size for rank DS  
   #endif
@@ -53,7 +53,7 @@ int main (int argc, char **argv) {
 
   /* ------------- read options from command line ----------- */
   opterr = 0;
-  while ((c=getopt(argc, argv, "hi:I:t:")) != -1) {
+  while ((c=getopt(argc, argv, "hi:I:r:")) != -1) {
     switch (c) 
       {
     #ifdef K2MAT  
@@ -61,7 +61,7 @@ int main (int argc, char **argv) {
         backpfile1 = optarg; break;                 
       case 'i':
         infofile1 = optarg; break;                 
-      case 't':
+      case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
       #endif
       case 'h':
@@ -85,6 +85,7 @@ int main (int argc, char **argv) {
   #else
   size = mload_from_file(&a, argv[1]); // also init k2 library
   #endif
+  (void) size; // otherwise warining on size not used 
   fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
   totnz = mshow_stats(&a,basename(argv[1]),stdout);
   puts("");

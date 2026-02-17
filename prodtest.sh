@@ -38,33 +38,37 @@ tf="Command: %C\nS:%S U:%U E:%e Mem(kb):%M\n"
 for f in "$@"
 do 
   echo "====== squaring with dynamic subtrees: $f"
-  $timecmd -f"$tf" ./k2mult.x -e -xq $dir/$f.k2  $dir/$f.k2 
+  $timecmd -f"$tf" ./k2mult.x -e -q $dir/$f.k2  $dir/$f.k2 
   sha1sum --ignore-missing -c $dir/prod.sha1sum
 
   echo "==== adding subtree information to $f ==="
   ./k2subtinfo.x $dir/$f.k2
   echo "====== squaring with subtree info: $f"
-  $timecmd -f"$tf" ./k2mult.x -xq $dir/$f.k2  $dir/$f.k2 -i $dir/$f.k2.sinfo
+  $timecmd -f"$tf" ./k2mult.x -q $dir/$f.k2  $dir/$f.k2 -i $dir/$f.k2.sinfo
   sha1sum --ignore-missing -c $dir/prod.sha1sum
   echo "====== squaring with subtree info + dynamic subtrees: $f"
-  $timecmd -f"$tf" ./k2mult.x -xq $dir/$f.k2  $dir/$f.k2 -i $dir/$f.k2.sinfo
+  $timecmd -f"$tf" ./k2mult.x -q $dir/$f.k2  $dir/$f.k2 -i $dir/$f.k2.sinfo
   sha1sum --ignore-missing -c $dir/prod.sha1sum
 
   echo "==== compressing subtrees on $f"
   $timecmd -f"$tf" ./k2cpdf.x $dir/$f.k2
   echo "====== squaring with compressed subtrees: $f"
-  $timecmd -f"$tf" ./k2mult.x -xq $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -o $dir/$f.k2.prod
+  $timecmd -f"$tf" ./k2mult.x -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -o $dir/$f.k2.prod
+  sha1sum --ignore-missing -c $dir/prod.sha1sum
+
+  echo "====== squaring with compressed subtrees: $f -x option"
+  $timecmd -f"$tf" ./k2mult.x -qx $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -o $dir/$f.k2.prodx
   sha1sum --ignore-missing -c $dir/prod.sha1sum
 
   echo "==== adding subtree information to $f.ck2"
   $timecmd -f"$tf" ./k2subtinfo.x $dir/$f.ck2
   echo "====== squaring with compressed subtrees + subtree info: $f"
-  $timecmd -f"$tf" ./k2mult.x -xq $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
+  $timecmd -f"$tf" ./k2mult.x -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
   sha1sum --ignore-missing -c $dir/prod.sha1sum
   echo "====== squaring with compressed subtrees + subtree info + dynamic subtrees:$f"
-  $timecmd -f"$tf" ./k2mult.x -e -xq $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
+  $timecmd -f"$tf" ./k2mult.x -e -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
   sha1sum --ignore-missing -c $dir/prod.sha1sum
-  # echo "==== deleting $f.k2.prod"
-  # rm -f $dir/$f.k2.prod
+  echo "==== deleting $f.k2.prod(x)"
+  rm -f $dir/$f.k2.prod $dir/$f.k2.prodx
 
 done

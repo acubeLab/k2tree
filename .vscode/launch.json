@@ -1,7 +1,7 @@
 {
   "configurations": [
     {
-      "name": "C/C++: make all and debug k2mult",
+      "name": "k2mult: make all and debug",
       "type": "cppdbg",
       "request": "launch",
       "program": "${fileDirname}/k2mult.x",

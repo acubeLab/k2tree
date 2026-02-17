@@ -100,13 +100,12 @@ int main (int argc, char **argv) {
 
   // init matrix variables (valid for b128 and k2tree)
   k2mat_t a=K2MAT_INITIALIZER;
-  size_t size;
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
-  size = mload_extended(&a, iname1, infofile1, backpfile1, rank_block_size);
+  mload_extended(&a, iname1, infofile1, backpfile1, rank_block_size);
   #else
-  size = mload_from_file(&a, iname1);
+  mload_from_file(&a, iname1);
   #endif
   if (verbose) mshow_stats(&a,iname1,stdout);
 

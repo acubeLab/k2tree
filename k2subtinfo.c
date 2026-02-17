@@ -148,9 +148,7 @@ int main (int argc, char **argv) {
  
   // read input matrix (could be subtree compressed, we cannot know...)
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, asize;
-  size = mload_from_file(&a, iname); // also init k2 library
-  asize = a.fullsize;
+  mload_from_file(&a, iname); // also init k2 library
   // show information acquired so far from the input files 
   if (verbose) {
     fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
@@ -166,7 +164,7 @@ int main (int argc, char **argv) {
   if(depth_subtree > 0) {
     if(verbose) printf("Computing subtree sizes up to level: %d\n", depth_subtree);
     // visit tree, compute and save subtree sizes in z  
-    p = k2dfs_sizes(asize,&a,&pos,&z,depth_subtree);
+    p = k2dfs_sizes(a.fullsize,&a,&pos,&z,depth_subtree);
   }
   else {
     if(node_limit==0) node_limit = intsqrt(a.pos);
@@ -175,7 +173,7 @@ int main (int argc, char **argv) {
     if(node_limit < min_node_limit) node_limit = min_node_limit; // minimum node limit (ensure at least 2 levels)
     if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
     // visit tree, compute and save subtree sizes in z  
-    p = k2dfs_sizes_limit(asize,&a,&pos,&z,(size_t)node_limit);
+    p = k2dfs_sizes_limit(a.fullsize,&a,&pos,&z,(size_t)node_limit);
   }
   assert(pos==a.pos);         // check visit was complete
   assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
@@ -185,7 +183,7 @@ int main (int argc, char **argv) {
     size_t znsave = z.n;
     z.n=0; // reset z vector
     pos=0; // start from position 0 in the k2 matrix
-    size_t pcheck = k2dfs_check_sizes(asize,&a,&pos,&z,znsave);
+    size_t pcheck = k2dfs_check_sizes(a.fullsize,&a,&pos,&z,znsave);
     assert(pos==a.pos);      // check visit was complete
     if(z.n!=znsave)
       printf("Subtree storage size mismatch! expected: %zu, got: %zu uint64s\n",znsave,z.n);
@@ -213,7 +211,7 @@ int main (int argc, char **argv) {
     size_t znsave = z.n;
     z.n=0; // reset z vector
     pos=0; // start from position 0 in the k2 matrix
-    k2dfs_compute_backpointer_info(asize,&a,&pos,&z);
+    k2dfs_compute_backpointer_info(a.fullsize,&a,&pos,&z);
     assert(pos==a.pos);      // check visit was complete
     assert(z.n==znsave);     // check that we have scanned z
   }
