@@ -106,7 +106,8 @@ int main (int argc, char **argv) {
     fputs("\n",stdout);  
   }
 
-  // virtually get rid of options from the command line 
+  // virtually get rid of options from the command line
+  char *exename = argv[0]; 
   optind -=1;
   if (argc-optind != 2) usage_and_exit(argv[0]); 
   argv += optind; argc -= optind;
@@ -164,7 +165,7 @@ int main (int argc, char **argv) {
       fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));
       if(verbose) fprintf(stderr,"==== Done\n");
       puts("==== Checking compression by calling " matrix_checker);
-      char *tmp = strdup(argv[0]);
+      char *tmp = strdup(exename);
       char *exedir = dirname(tmp);
       char ename[PATH_MAX];
       sprintf(ename,"%s/%s",exedir, matrix_checker); free(tmp);
