@@ -15,7 +15,6 @@ A cmake version `>= 3.10`
 Clone/download the repostory then:
 
 ```
-git submodule update --init --recursive
 cd libsais; cmake .; make; cd ..
 make release
 ```
@@ -44,67 +43,45 @@ in textual form, one nonzero per row.
 
 ### The uncompressed matrix formats
 
-The simplest uncompressed format is the **b**inary **b**yte **m**atrix (extension `.bbm`). In this format the input matrix must be square and represented using one byte per entry (so the `.bbm` file length is the square of the matrix dimension). Each entry should be a 0 or 1 value (ie `\x00` or `\x01`). The file `t8.bbm` contains an 8x8 matrix in this format, type `od -td1 -w8 -An -v t8.bbm` to see its content:
-```
-    0    0    0    0    0    1    1    1
-    0    0    0    0    0    0    1    0
-    0    0    0    0    0    0    1    1
-    0    0    0    0    0    1    0    1
-    1    1    1    1    0    0    1    0
-    1    1    1    1    0    0    0    1
-    1    1    1    1    0    0    0    1
-    1    1    1    1    0    0    1    0
-```
+Since all matrices are binary, the uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based see the file `t8.txt` for an 8x8 example. 
 
-The advantage of this format is that we can look inside a file with command line tools (like `od`), but it is extremely space inefficient since it does not take advantage of sparsity an uses one byte for each 0/1 entry.
-
-Another popular uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based so the matrix above could be represented by the text file `t8.txt`:
+For small sizes the tool `asc2sparse.py` can be used to obtain a more human readable representation. For example typing
 ```
-0 5
-0 6
-0 7
-1 6
-3 5
-2 6
-2 7
-3 7
-4 0
-4 1
-4 2
-4 3
-5 0
-5 1
-5 2
-5 3
-6 0
-6 1
-6 2
-6 3
-7 0
-7 1
-7 2
-7 3
-4 6
-5 7
-6 7
-7 6
+asc2sparse.py -d -o t8.asc t8.txt 
+```
+produces the file `t8.asc` containing the dense ascii representation of the matric:
+```
+00000111
+00000010
+00000011
+00000101
+11110010
+11110001
+11110001
+11110010
 ```
 
 
-### Conversion to/from textual one line per entry sparse representation 
+### Compression to/from $k^2$-tree format 
 
 The executable `k2sparse.x` is used to compress and decode a single textual matrix to/from a k2tree representation; run it without arguments to get basic usage instructions
 ```
 Usage:
-      k2sparse.x [options] filename
+	  k2sparse.x [options] infile
+
+Tool to (de)compress boolean matrices in sparse text format (one line per entry)
+to k2 compressed Plain Depth First format
 
 Options:
-	-d      decompress
+	-d      decompress to text one line per entry format
 	-n      do not write the output file, only show stats
 	-o out  outfile name (def. compr: infile.k2, decompr: infile.txt)
 	-s S    matrix actual size (def. largest index+1) [compression only]
 	-m M    minimatrix size (def. 2) [compression only]
-	-1      compact all 1's submatrices [compression only]
+	-i info infile subtree info file [decompression only] (def. None)
+	-I info infile backpointers file [decompression only] (def. None)
+	-r size rank block size for backpointres (def. 64)
+	-x      do not compact all 1's submatrices [compression only]
 	-c      compress->decompress->check
 	-h      show this help message
 	-v      verbose
@@ -118,7 +95,7 @@ When invoked with `-d` the input file must be a k2 matrix which is then expanded
 
 When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `matrixcmp.x`.
 
-The option `-m` can be used only in compression, currently only with one of the two values `2` or `4`. This parameter is the size of the matrices stored at the leaf of the k2 tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
+The option `-m` can be used only in compression, currently only with one of the two values `2` or `4`. This parameter is the size of the matrices stored at the leaf of the $k^2$-tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
 
 By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a slightly more complex compression algorithm. 
 

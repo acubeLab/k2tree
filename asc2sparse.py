@@ -5,17 +5,21 @@ import sys, argparse
 Description = """
 Convert a full binary matrix in ascii to sparse format by considering 
 the 0/1 characters as matrix entries and ignoring all other characters (e.g., spaces, new lines).
-Each line of the input file is processed sequentially and represent a matrix row
+Each line of the input file is processed sequentially and represents a matrix row
 """
 
 def main():
   parser = argparse.ArgumentParser(description=Description, formatter_class=argparse.RawTextHelpFormatter)
   parser.add_argument('input', help='input matrix file name', type=str)
-  parser.add_argument("-r", help="reverse conversion: sparse->full", action="store_true")
+  parser.add_argument("-r", help="reverse conversion: sparse->dense", action="store_true")
   parser.add_argument("-t", help="transpose matrix", action="store_true")
   parser.add_argument("-d", help="set to 1 the diagonal entries (only sparse->dense)", action="store_true")
   parser.add_argument('-o', metavar='outfile', help='output file name (def. input.sparse/output.full)',type=str,default="" )
   args = parser.parse_args()
+
+  if args.d and not args.r:
+    print("Fata error: option -d requires option -r")
+    sys.exit(1) 
 
   if args.r:
     # reverse conversion: from sparse to full binary matrix
