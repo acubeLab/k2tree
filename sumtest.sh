@@ -45,9 +45,9 @@ do
   echo "===== add diagonal to sparse matrix: $f"  
   $timecmd -f"$tf" ./sparsetr.py -d -o $f.sparse.1 $f
 
-  echo "===== compress matrix: $f in formats k2 and k4"
-  $timecmd -f"$tf" ./k2sparse.x -o $f.k2  $f 
-  $timecmd -f"$tf" ./k2sparse.x -o $f.k4 -m4 $f 
+  echo "===== compress and check matrix $f in formats k2 and k4"
+  $timecmd -f"$tf" ./k2sparse.x -c -o $f.k2  $f 
+  $timecmd -f"$tf" ./k2sparse.x -c -o $f.k4 -m4 $f 
 
   echo "==== add 0, add I and compute (A+I)^2==="
   $timecmd -f"$tf" ./k2unary.x -o $f.2  $f.k2 

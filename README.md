@@ -47,7 +47,7 @@ Since all matrices are binary, the uncompressed format consists of a text file c
 
 For small sizes the tool `asc2sparse.py` can be used to obtain a more human readable representation. For example typing
 ```
-asc2sparse.py -d -o t8.asc t8.txt 
+asc2sparse.py -r -o t8.asc t8.txt 
 ```
 produces the file `t8.asc` containing the dense ascii representation of the matric:
 ```
@@ -95,14 +95,12 @@ When invoked with `-d` the input file must be a k2 matrix which is then expanded
 
 When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `matrixcmp.x`.
 
-The option `-m` can be used only in compression, currently only with one of the two values `2` or `4`. This parameter is the size of the matrices stored at the leaf of the $k^2$-tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 format so it does not have to be provided for decompression.
+The option `-m` can be used only in compression, currently only with one of the two values `2` or `4`. This parameter is the size of the matrices stored at the leaf of the $k^2$-tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 compressed file so it does not have to be provided for decompression.
+Other command line options will be explained after we discuss the different compression formats. 
 
 By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a slightly more complex compression algorithm. 
 
 
-### Conversion to/from .bbm representation 
-
-The executable `k2bbm.x` can be used to compress and decode a single `.bbm` matrix to/from a k2tree representation; run it without arguments to get basic usage instructions (they are essentially the same as `k2sparse.x`).
 
 
 
@@ -116,14 +114,14 @@ Usage:
 Options:
 	-n        do not write output file, only show stats
 	-o out    outfile name (def. infile1.prod)
-	-1        compact all 1's submatrices in the result matrix
 	-i info   infile1 subtree info file
 	-j info   infile2 subtree info file
 	-I info   infile1 backpointers file
 	-J info   infile2 backpointers file
 	-t size   rank block size for k2 compression (def. 64)
-  -e        compute subtree info on the fly (def. no)
-  -q        use a single copy when squaring a matrix
+	-e        compute subtree info on the fly (def. no)
+	-x        do not compact new 1's submatrices in the result matrix
+	-q        use a single copy when squaring a matrix
 	-c        check multiplication (O(n^3) time and O(n^2) space!)
 	-h        show this help message
 	-v        verbose
@@ -131,6 +129,7 @@ Options:
 Multiply two compressed matrices stored in infile1 and infile2
 ```
 When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional $O(n^3)$ time algorithm applied to the uncompressed inputs. For large matrices this verification can be slow and space consuming. 
+
 For an explanation of the `-e`, `-i` and `-j` options see section *Enriched format* below. 
 
 
@@ -140,25 +139,26 @@ The following sequence of compression, matrix multiplication, decompression and 
 ```
 k2sparse.x t8.txt
 k2mult.x t8.txt.k2 t8.txt.k2 -o t8sq.k2
-k2bbm.x -d t8sq.k2 -o t8sq.bbm
-od -td1 -w8 -An -v t8sq.bbm
+k2sparse.x -d t8sq.k2 -o t8sq.txt
+asc2sparse.py -r -o t8sq.asc t8sq.txt
+cat t8sq.asc
 ```
 should eventually display the input matrix squared:
 ```
-    1    1    1    1    0    0    1    1
-    1    1    1    1    0    0    0    1
-    1    1    1    1    0    0    1    1
-    1    1    1    1    0    0    1    1
-    1    1    1    1    0    1    1    1
-    1    1    1    1    0    1    1    1
-    1    1    1    1    0    1    1    1
-    1    1    1    1    0    1    1    1
+11110011
+11110001
+11110011
+11110011
+11110111
+11110111
+11110111
+11110111
 ```
-Note that we start with a matrix in one-line-per-entry representation but 
-the squared matrix is decompressed in `.bbm` representation to get a nicer output 
+
+## Compression formats
 
 
-## Enriched format
+### Enriched format
 
 In order to speedup operations on compressed matrices in k2 format it is possible to use some extra information on its largest subtrees. This information must be computed with `k2subtinfo.x`, for example:
 ```bash
@@ -179,7 +179,7 @@ NOTE: to see a real speed improvement in the matrix multiplication algorithm usi
 
 
 
-## Compressed k2-tree
+### Compressed k2-tree
 
 The executable `k2cpdf.x` is used to compress a $k^2$-tree representation using subtree compression; run it without arguments to get basic usage instructions
 ```
@@ -231,8 +231,7 @@ The Pagerank computation is ideal for testing the speed of the matrix-vector pro
 Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
 it using the `mtx2rowm` tool that after the conversion provides some minimal instructions to
 compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank
-vector (using `k2pagerank.x`) possibly using multiple threads. (The program `k2bpagerank.x` is an experiment
-where thread syncronization is done using pthread barriers, but the performances are very similar). 
+vector (using `k2pagerank.x`) possibly using multiple threads. 
 
 
 
@@ -243,9 +242,6 @@ The library also contains the code for compressing and operating on boolean matr
 The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
 
 
-## Product of bbm matrices with openmp
-
-The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
 
 ## Additional tools 
 
@@ -256,3 +252,9 @@ The script `submatrix.py` can be used to extract a square submatrix form a matri
 
 The files `k2test.sh`, `k2btest.sh`, `k2square.sh` are bash script designed to test `k2sparse.x`, `k2bbm.x` and `k2mult.x` on a set of input files.  
 
+
+## Tools no longer supported
+
+### Product of bbm matrices with openmp
+
+The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
