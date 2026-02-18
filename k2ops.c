@@ -132,7 +132,6 @@ static void k2copy_plain(const k2mat_t *a, k2mat_t *b)
 // resolving all backpointers but ignoring main_diag_1 flag
 // there are no restriction on :a  it can also be open_ended
 // used inside msum (top level only) when one of the addend is zero or Id 
-// and by k2copy_normalise ? 
 static void k2copy_structure(const k2mat_t *a, k2mat_t *b)
 {
   assert(a->fullsize>MMsize);  
@@ -191,7 +190,7 @@ void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
 // arbitrary: all 0's, all 1's, or generic 
 // note: here all 0's matrices are considered of depth 1 even if they are empty
 // only the tree strucure is considered, not the main diagonal flag or backpointers
-// todo: write a better mequals 
+// TODO: use k2copy_normalize to compare any pair of matrices 
 int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);

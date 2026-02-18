@@ -35,7 +35,6 @@
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
-static void quit(const char *msg, int line, char *file);
 
 
 int main (int argc, char **argv) { 
@@ -95,8 +94,7 @@ int main (int argc, char **argv) {
   
   // create file names
   sprintf(iname1,"%s",argv[1]);
-  if(outfile!=NULL) sprintf(oname,"%s",outfile);
-  else       sprintf(oname,"%s%s",argv[1],default_ext); 
+  if(outfile==NULL) outfile = argv[1];
 
   // init matrix variables (valid for b128 and k2tree)
   k2mat_t a=K2MAT_INITIALIZER;
@@ -158,13 +156,3 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-v        verbose\n\n");
     exit(1);
 }
-
-// write error message and exit
-static void quit(const char *msg, int line, char *file) {
-  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
-  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
-               strerror(errno));
-  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
-  exit(1);
-}
-

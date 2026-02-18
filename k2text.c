@@ -1331,10 +1331,14 @@ void k2compress(k2mat_t *a, k2mat_t *ca, uint32_t threshold, uint32_t block_size
 
 // copy to :a the content of :ca expanding all backpointers 
 // work only for full matrices with backpointers (no ALL_ONES nodes)
+// used to decompress a matrix just compressed with k2compress
 // ignore main_diag_1 
 // see k2copy_rec for a version supporting ALL_ONES if backp==NULL
+// see k2copy_normalize for a version working for all input matrices 
 void k2decompress(size_t size, const k2mat_t *ca, size_t *pos, k2mat_t *a) {
   assert(ca->backp!=NULL);
+  assert(ca->r!=NULL);
+  assert(!ca->main_diag_1);
   assert(size>MMsize);
   assert(size%2==0);
   assert(*pos<ca->pos); // implies m is non-empty

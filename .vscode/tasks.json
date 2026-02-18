@@ -21,7 +21,7 @@
       "label": "make",
       "type": "shell",
       "command": "make",
-      // "args": ["${fileBasenameNoExtension}.x", "-D K2MAT"],
+      "args": ["${fileBasenameNoExtension}.x"],
       "group": {
         "kind": "build",
         "isDefault": true

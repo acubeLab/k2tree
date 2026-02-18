@@ -268,9 +268,10 @@ void k2split_minimats(const k2mat_t *a, size_t *posa, node_t roota, minimat_t ax
 // but for that purpose k2dfs_visit_fast should be used instead since it does no update counters
 // and does not visit repeated subtrees to count nonzeros.
 // Note: the number of nonzeros can be incorrect because of overflows 
-// Note: subtinfo is not used even if available
+// Note: subtinfo is not used even if available, main_diag_1 flag is ignored
 // Note: if this is a compressed matrix m->r and m->backp are used to follow the pointers 
-// (to count the overall number of nonzeros) 
+//       to count the overall number of nonzeros, the number of nodes and minimats are those
+//       of the pruned (compressed) subtree, and the number of all1 should be zero  
 // currently used only by mstat() to gather information of the tree
 void k2dfs_visit(size_t size, const k2mat_t *m, size_t *pos, size_t *nodes, size_t *minimats, size_t *nz, size_t *all1)
 {

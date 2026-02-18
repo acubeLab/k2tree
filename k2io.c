@@ -85,13 +85,13 @@ size_t mshow_stats(const k2mat_t *a, const char *mname,FILE *file) {
   int levels = mstats(a,&pos,&nodes,&minimats,&nz,&all1);
   if(a->backp == NULL)
     assert(pos==nodes+minimats*Minimat_node_ratio); // check that the number of positions is correct
-  fprintf(file," #Nonzeros: %zu, Nonzero x row: %lf\n", nz, (double) nz/(double)size);
+  fprintf(file," Nonzeros: %zu, Nonzero x row: %lf\n", nz, (double) nz/(double)size);
   fprintf(file," Levels: %d, Nodes: %zu, Minimats: %zu, 1's submats: %zu\n",
           levels,nodes,minimats, all1);
   fprintf(file," Subtree info size (bytes): %zu,", a->subtinfo_size);
   size_t bits_sub = sizeof(*(a->subtinfo)) * a->subtinfo_size;
-  fprintf(file, " Subtree info size (bits): %zu\n", bits_sub);
-  fprintf(file," #Subtree pointers: %zu\n", a->backp ? a->backp->size : 0);
+  fprintf(file," Subtree info size (bits): %zu\n", bits_sub);
+  fprintf(file," Subtree pointers: %zu\n", a->backp ? a->backp->size : 0);
   size_t bits_p = pointers_size_in_bits(a->backp);
   size_t bits_r = rank_size_in_bits(a->r);
   fprintf(file, " Pointers size (bits): %zu, Rank DS (bits, not stored): %zu\n", bits_p, bits_r);
@@ -192,7 +192,7 @@ size_t mload_from_file(k2mat_t *a, const char *filename)
 
 // load a k2 matrix, stored in file :fname, into the k2mat_t structure :a
 // possibly read also the subtree info from file :subtname and the backpointers from file :backpname
-// if backpname is present, rank_block_size must be provided as it is used to initialize the rank structure
+// if backpname is present, rank_block_size is used to initialize the rank structure
 // the old content of :a is discarded
 // return the actual size of the matrix and store to *asize the internal (power of 2)
 // size of the k2 matrix, see msave_to_file() for details of the file format
