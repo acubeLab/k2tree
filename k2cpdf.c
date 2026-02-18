@@ -81,7 +81,8 @@ int main(int argc, char* argv[]) {
 
   // check command line options
   // threshold >= 4 imples that subtrees of height 1 (root + minimats)
-  // are never compressed (recall minimatsize must be == 2)
+  // are never compressed (recall minimatsize must be == 2) this is a requirement in our algorithms!
+  // note that small thredhold can increase the space usage!
   if(threshold % 4 || threshold < 16) {
     fprintf(stderr, "Threshold must be a positive multiple of 4 and at least 16, got %d\n", threshold);
     exit(1);

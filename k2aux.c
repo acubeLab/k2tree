@@ -224,6 +224,56 @@ static minimat_t k2read_minimat(const k2mat_t *b, size_t *p) {
   }    
 }
 
+// write tree representing the :size x :size identity matrix
+// inside a matrix :a  of size :fullsize 
+static void k2create_id(size_t size, size_t fullsize, k2mat_t *a)
+{
+  assert(size>0 && size<=fullsize);
+  assert(fullsize%2==0);
+  if(size<= fullsize/2) { // only first child
+    k2add_node(a,0x01); // single child
+    if(fullsize/2== MMsize) {
+      // stop recursion storing a partial MINIMAT_Id
+      assert(MMsize<8); // change formula for computing mask otherwise  
+      minimat_t mask = ( ((minimat_t) 1) << size*MMsize ) -1;
+      k2add_minimat(a,MINIMAT_Id & mask);
+    }
+    else k2create_id(size,fullsize/2,a); // one more level
+  } 
+  else {
+    k2add_node(a,0x09); // first and last children
+    size = size - fullsize/2; // # of 1s in second child, >0 by construction   
+    if(fullsize/2== MMsize) {
+      // store a full and a partial MINIMAT_Id
+      k2add_minimat(a,MINIMAT_Id);
+      minimat_t mask = ( ((minimat_t) 1) << size*MMsize ) -1;
+      k2add_minimat(a,MINIMAT_Id & mask);
+    }
+    else {
+      k2create_id(fullsize/2,fullsize/2,a); // one more full level
+      k2create_id(size,fullsize/2,a); // one more possibly partial level
+    }
+  }
+}
+
+// write to :a matrix of :size times :size consisting od all 1s
+// used to replace an ALL_ONES node when Use_all_one_nodes is false
+// size is by construction a power of two
+static void k2create_all_ones(size_t size, k2mat_t *a)
+{
+  assert(size>MMsize);
+  assert(size%2==0);
+  k2add_node(a,ALL_CHILDREN);
+  size = size/2;  // down onw level
+  if(size<=MMsize) {
+    assert(size==MMsize);
+    for(int i=0;i<4;i++) k2add_minimat(a,MINIMAT1s); 
+  }
+  else 
+    for(int i=0;i<4;i++) k2create_all_ones(size,a); 
+}
+
+
 // split the submatrix :a starting at position *posa into 4 minimats
 // and write them to ax[] assuming we have already read the root node :roota 
 // we are implicitly assuming we are at the last level of the tree.
@@ -358,7 +408,8 @@ void k2copy_rec(size_t size, const k2mat_t *a, size_t *posa, k2mat_t *b)
   node_t roota = k2read_node(a,*posa); *posa +=1;
   if(roota==ALL_ONES) {
     if(a->backp==NULL) {
-      k2add_node(b,roota); // all 1's matrix consists of root only
+      if(Use_all_ones_node) k2add_node(b,roota); // all 1's matrix consists of root only
+      else k2create_all_ones(size,b);
       return;
     } else {  // a->backp!=NULL
       assert(roota==POINTER);  // ALL_ONES and POINTER are the same value

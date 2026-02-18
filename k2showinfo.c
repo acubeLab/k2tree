@@ -78,15 +78,13 @@ int main (int argc, char **argv) {
   argv += optind; argc -= optind;
 
   k2mat_t a = K2MAT_INITIALIZER;
-  size_t size, totnz=0;
+  size_t totnz=0;
   printf("Matrix file: %s\n",argv[1]);
   #ifdef K2MAT
-  size = mload_extended(&a, argv[1], infofile1, backpfile1, rank_block_size);
+  mload_extended(&a, argv[1], infofile1, backpfile1, rank_block_size);
   #else
-  size = mload_from_file(&a, argv[1]); // also init k2 library
-  #endif
-  (void) size; // otherwise warining on size not used 
-  fprintf(stdout,"Caution: the following information is incorrect if the input matrix is subtree compressed (ck2 format)\n"); 
+  mload_from_file(&a, argv[1]); // also init k2 library
+  #endif 
   totnz = mshow_stats(&a,basename(argv[1]),stdout);
   puts("");
   matrix_free(&a);
@@ -102,14 +100,14 @@ int main (int argc, char **argv) {
 
 static void usage_and_exit(char *name)
 {
-    fprintf(stderr,"Usage:\n\t  %s [options] file1\n\n",name);
+    fprintf(stderr,"Usage:\n\t  %s [options] file\n\n",name);
     fputs("Options:\n",stderr);
-  #ifdef K2MAT
+    #ifdef K2MAT
+    fprintf(stderr,"\t-I info   backpointers file (required for subtree compressed matrices)\n");
     fprintf(stderr,"\t-i info   subtree info file\n");
-    fprintf(stderr,"\t-I info   backpointers file\n");
-    fprintf(stderr,"\t-t size   rank block size for k2 compression (def. 64)\n");
+    fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
     #endif
     fprintf(stderr,"\t-h      show this help message\n");    
-    fprintf(stderr,"Get info on the k2-compressed matrix file1\n\n");
+    fprintf(stderr,"Get info on the k2-compressed matrix file\n\n");
     exit(1);
 }

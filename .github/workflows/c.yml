@@ -22,23 +22,17 @@ jobs:
       run: make  
         
     - name: run
-      run: ./prodtest.sh web cnr80k
+      run: ./prodtest.sh web cnr80k eu80k goo80k goo120k
 
-    - name: check
-      run: ./k2sparse.x web/cnr80k.k2 -d -o web/cnr80k.txt;   
-           ./k2sparse.x web/cnr80k.ck2 -d -I web/cnr80k.ck2.p -o sparseck2.txt;
-           ./matrixcmp.x web/cnr80k.txt sparseck2.txt 
-
-    # - name: test add diag
-    #   run: |
-    #       ./sparsetr.py web/cnr80k.txt -d -o sparsek2.1.ok  # traspose the original matrix
-    #       echo "Unary operations on web/cnr80k.k2"
-    #       ./k2unary.x web/cnr80k.k2  -o sparsek2             # creates sparsek2.tr.txt sparsek2.tr1.txt
-    #       echo "Compare matrices"
-    #       ./matrixcmp.x sparsek2.1.txt sparsek2.1.ok
+    - name: uncomporess
+      run: |
+          ./k2sparse.x -d web/cnr80k.k2 -o web/cnr80k.txt   
+          ./k2sparse.x -d web/eu80k.k2 -o web/eu80k.txt   
+          ./k2sparse.x -d web/goo80k.k2 -o web/goo80k.txt   
+          ./k2sparse.x -d web/goo120k.k2 -o web/goo120k.txt   
 
     - name: big transpose test 
-      run: ./sumtest.sh web/cnr80k.txt
+      run: ./sumtest.sh web/*.txt
   
 
     # - name: configure

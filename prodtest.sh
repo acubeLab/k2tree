@@ -49,6 +49,7 @@ do
   echo "====== squaring with subtree info + dynamic subtrees: $f"
   $timecmd -f"$tf" ./k2mult.x -q $dir/$f.k2  $dir/$f.k2 -i $dir/$f.k2.sinfo
   sha1sum --ignore-missing -c $dir/prod.sha1sum
+  rm -f $dir/$f.k2.sinfo
 
   echo "==== compressing subtrees on $f"
   $timecmd -f"$tf" ./k2cpdf.x $dir/$f.k2
@@ -69,6 +70,6 @@ do
   $timecmd -f"$tf" ./k2mult.x -e -q $dir/$f.ck2  $dir/$f.ck2 -I $dir/$f.ck2.p -i $dir/$f.ck2.sinfo -o $dir/$f.k2.prod
   sha1sum --ignore-missing -c $dir/prod.sha1sum
   echo "==== deleting $f.k2.prod(x)"
-  rm -f $dir/$f.k2.prod $dir/$f.k2.prodx
+  rm -f $dir/$f.k2.prod $dir/$f.k2.prodx $dir/$f.k2.prod  $dir/$f.k2.sinfo $dir/$f.ck2 $dir/$f.ck2.p $dir/$f.ck2.sinfo
 
 done

@@ -847,7 +847,7 @@ static int uint64_cmp(const void *p, const void *q)
   return 0;
 }
 
-// create and return interleaved array from the list of entries in a text file
+// create and return an interleaved array from the list of entries in a text file
 // the matrix size stored in :msize is computed as follows: 
 //  if xsize==0 *msize = largest index + 1
 //  if xsize>0 that value is forced to be the matrix size (all indexes must be <xsize)

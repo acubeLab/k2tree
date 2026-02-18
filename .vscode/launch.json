@@ -6,8 +6,8 @@
       "request": "launch",
       "program": "${fileDirname}/k2mult.x",
       "args": [
-        "tmp/socfb-Reed98.bin.k2",
-        "tmp/socfb-Reed98.bin.k2", "-vn"
+        "web/cnr80k.ck2",
+        "web/cnr80k.ck2", "-qvn", "-I", "web/cnr80k.ck2.p" 
       ],
       "stopAtEntry": true,
       "cwd": "${fileDirname}",
@@ -65,7 +65,7 @@
       "program": "${fileDirname}/k2cpdf.x",
       //"args": [ "-o", "tmp/poli3.2", "-I", "tmp/poli3.ck2.p", "tmp/poli3.ck2"
       // "args": [ "-o", "web/cnr80k.txt.2", "web/cnr80k.txt.k2"
-      "args": [ "-o", "web/cnr80k.cck2", "web/cnr80k.ck2", "-I", "web/cnr80k.ck2.p", "-v",
+      "args": [ "-o", "web/cnr80k.cck2", "web/cnr80k.k2", "-vc",
       ],
       "stopAtEntry": true,
       "cwd": "${fileDirname}",

@@ -73,8 +73,9 @@ size_t mget_nonzeros(const k2mat_t *a) {
 }
 
 // write to :file statistics for a k2 matrix :a with an arbitrary :name as identifier
-// :size is the actual; matrix size (not power of 2), :asize is the internal size
-// return number of nonzeros in the matrix
+// for subtree compressed matrices the number of nodes and minimats are those
+// of the compressed matrix, while the number of nonzeros refers to the whole matrix  
+// return number of nonzeros in the matrix, without considering the main_diag_1 flag
 size_t mshow_stats(const k2mat_t *a, const char *mname,FILE *file) {
   size_t pos, nodes, minimats, nz, all1;
   size_t asize=a->fullsize;
@@ -202,13 +203,15 @@ size_t mload_extended(k2mat_t *a, char *fname, char *subtname, const char *backp
   // try to load subtinfo if present
   if(subtname!=NULL)  k2read_subtinfo(a,subtname);
   if(backpname!=NULL) {
+    if(a->is_pointer==false)
+      quit("mload_extended: input matrix does not support backpointer info",__LINE__,__FILE__);
     a->backp = pointers_load_from_file(backpname);
     assert(rank_block_size>0 && rank_block_size%4==0);  
     rank_init(&(a->r),rank_block_size,a);
     a->is_pointer = false;
   }
   else if(a->is_pointer) {
-    quit("mload_exteded: input matrix requires backpointer info",__LINE__,__FILE__);
+    quit("mload_extended: input matrix requires backpointer info",__LINE__,__FILE__);
   }
   return size;
 }

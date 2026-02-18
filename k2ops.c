@@ -116,7 +116,7 @@ int k2tree_levels(size_t size, const k2mat_t *a)
 
 
 // copy the (submatrix) :a to :b
-// assuming :a has not backpointers, is not open ended
+// assuming :a has not backpointers, is not open ended, and it ok to keep ALL_ONES nodes
 // and ignoring main_diag_1 flag
 // used inside the recursive product algorithm when one addend is zero 
 static void k2copy_plain(const k2mat_t *a, k2mat_t *b)
@@ -129,7 +129,7 @@ static void k2copy_plain(const k2mat_t *a, k2mat_t *b)
 }
 
 // copy the (submatrix) :a to :b
-// resolving all backpointers but ignoring main_diag_1 flag
+// resolving all backpointers but ignoring main_diag_1 flag, and it ok to keep ALL_ONES nodes
 // there are no restriction on :a  it can also be open_ended
 // used inside msum (top level only) when one of the addend is zero or Id 
 static void k2copy_structure(const k2mat_t *a, k2mat_t *b)
@@ -151,6 +151,7 @@ static void k2copy_structure(const k2mat_t *a, k2mat_t *b)
 
 // copy the (submatrix) :a to :b
 // resolving all backpointers and main_diag_1 flag
+// if Use_all_ones is false ALL_ONES subtrees are expanded 
 // there are no restriction on :a  it can also be open_ended
 // used in the product algorithm and when we need a normalized representation
 void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
@@ -166,7 +167,7 @@ void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
     mmult(a,&c,b); 
     k2_free(&c);
   }
-  else if(a->backp==NULL && !a->open_ended)
+  else if(a->backp==NULL && !a->open_ended  && Use_all_ones_node)
     // faster version in which the complete content of :a from a->offset to a->pos is copied to b
     k2copy_plain(a,b);
   else {  // slower version based on recursion, ok for :a open-ended or with back pointers
@@ -219,37 +220,6 @@ void madd_identity(k2mat_t *a)
   a->main_diag_1 = true;
 }
 
-// write tree representing the :size x :size identity matrix
-// inside a matrix :a  of size :fullsize 
-static void k2id_create(size_t size, size_t fullsize, k2mat_t *a)
-{
-  assert(size>0 && size<=fullsize);
-  assert(fullsize%2==0);
-  if(size<= fullsize/2) { // only first child
-    k2add_node(a,0x01); // single child
-    if(fullsize/2== MMsize) {
-      // stop recursion storing a partial MINIMAT_Id
-      assert(MMsize<8); // change formula for computing mask otherwise  
-      minimat_t mask = ( ((minimat_t) 1) << size*MMsize ) -1;
-      k2add_minimat(a,MINIMAT_Id & mask);
-    }
-    else k2id_create(size,fullsize/2,a); // one more level
-  } 
-  else {
-    k2add_node(a,0x09); // first and last children
-    size = size - fullsize/2; // # of 1s in second child, >0 by construction   
-    if(fullsize/2== MMsize) {
-      // store a full and a partial MINIMAT_Id
-      k2add_minimat(a,MINIMAT_Id);
-      minimat_t mask = ( ((minimat_t) 1) << size*MMsize ) -1;
-      k2add_minimat(a,MINIMAT_Id & mask);
-    }
-    else {
-      k2id_create(fullsize/2,fullsize/2,a); // one more full level
-      k2id_create(size,fullsize/2,a); // one more possibly partial level
-    }
-  }
-}
 
 // creates a size x size zero matrix
 k2mat_t mat_zero(size_t size) {
@@ -637,7 +607,7 @@ void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     return;  //if one matrix is all 0s the result is all 0's: nothing to be done
   else if(k2is_empty(a) &&  k2is_empty(b) ) {
     assert(a->main_diag_1 && b->main_diag_1 );
-    k2id_create(c->realsize,c->fullsize,c); // create an identity matrix without main_diag_1
+    k2create_id(c->realsize,c->fullsize,c); // create an identity matrix without main_diag_1
     return;
   }
   else if(k2is_empty(a)) {
