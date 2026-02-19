@@ -37,7 +37,7 @@ extern bool Use_all_ones_node; // use the special ALL_ONES node
 #endif
 // used by both matrix type 
 #define default_dext ".txt"
-#define matrix_checker "matrixcmp.x"
+#define matrix_checker "./matrixcmp.x"
 
 
 // static functions at the end of the file
