@@ -160,6 +160,11 @@ int main (int argc, char **argv) {
   extern int optind, opterr, optopt;
   int verbose=0;
   int c;
+  #ifdef K2MAT
+  char *infofile1=NULL;
+  char *backpfile1=NULL; // file with backpointers
+  uint32_t rank_block_size = 64; // block size for rank DS  
+  #endif
   time_t start_wc = time(NULL);
   #ifdef DETAILED_TIMING
   struct tms ignored;
@@ -173,9 +178,17 @@ int main (int argc, char **argv) {
   
   /* ------------- read options from command line ----------- */
   opterr = 0;
-  while ((c=getopt(argc, argv, "m:e:d:k:vb:x:")) != -1) {
+  while ((c=getopt(argc, argv, "m:e:d:k:vb:x:I:i:r:")) != -1) {
     switch (c) 
       {
+      #ifdef K2MAT
+      case 'I':
+        backpfile1 = optarg; break;                 
+      case 'i':
+        infofile1 = optarg; break;                                  
+      case 'r':
+        rank_block_size = atoi(optarg); break; // block size of rank structure
+      #endif          
       case 'v':
         verbose++; break;
       case 'm':
@@ -256,8 +269,13 @@ int main (int argc, char **argv) {
   for(int i=0;i<nblocks;i++) rblocks[i]=a; // struct with all fields set to 0 or NULL
 
   if(nblocks==1) {
+    #ifdef K2MAT
+    size_t msize = mload_extended(&a, argv[1], infofile1, backpfile1, rank_block_size);
+    size_t asize = a.fullsize;
+    #else
     size_t msize = mload_from_file(&a, argv[1]); // also init k2 library
-    asize = a.fullsize;
+    #endif
+
     if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
     if (verbose>1) mshow_stats(&a,argv[1],stdout);
   }

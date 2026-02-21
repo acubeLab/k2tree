@@ -41,7 +41,7 @@ decompress the $k^2$-tree representation of `m2.k2` producing the list of nonzer
 in textual form, one nonzero per row. 
 
 
-### The uncompressed matrix formats
+### The uncompressed matrix format
 
 Since all matrices are binary, the uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based see the file `t8.txt` for an 8x8 example. 
 
@@ -101,59 +101,6 @@ Other command line options will be explained after we discuss the different comp
 By default the input matrix is assumed to be of size 1+(largest index in the input file). The option `-s` can be used to force the size of the input matrix to a specific (larger) value. Because of the algorithm used to compress textual matrices, currently the largest admissible matrix size is $2^{32}$; this limitation can be removed if needed using a slightly more complex compression algorithm. 
 
 
-
-
-
-## Product of matrices in k2 format
-
-The executable `k2mult.x` can be used to multiply two compressed matrices in k2 format. The matrices must have the same size and must have been compressed with the same `-m` parameter. The output is still in k2 format.
-```
-Usage:
-	  k2mult.x [options] infile1 infile2
-
-Options:
-	-n        do not write output file, only show stats
-	-o out    outfile name (def. infile1.prod)
-	-i info   infile1 subtree info file
-	-j info   infile2 subtree info file
-	-I info   infile1 backpointers file
-	-J info   infile2 backpointers file
-	-t size   rank block size for k2 compression (def. 64)
-	-e        compute subtree info on the fly (def. no)
-	-x        do not compact new 1's submatrices in the result matrix
-	-q        use a single copy when squaring a matrix
-	-c        check multiplication (O(n^3) time and O(n^2) space!)
-	-h        show this help message
-	-v        verbose
-
-Multiply two compressed matrices stored in infile1 and infile2
-```
-When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional $O(n^3)$ time algorithm applied to the uncompressed inputs. For large matrices this verification can be slow and space consuming. 
-
-For an explanation of the `-e`, `-i`, `-j`, `-I`, `-J` options see belows teh sections on teh different compression formats. 
-
-
-### Example:
-
-The following sequence of compression, matrix multiplication, decompression and display operations. 
-```
-k2sparse.x t8.txt
-k2mult.x t8.txt.k2 t8.txt.k2 -o t8sq.k2
-k2sparse.x -d t8sq.k2 -o t8sq.txt
-asc2sparse.py -r -o t8sq.asc t8sq.txt
-cat t8sq.asc
-```
-should eventually display the input matrix squared:
-```
-11110011
-11110001
-11110011
-11110011
-11110111
-11110111
-11110111
-11110111
-```
 
 ## Compression formats
 
@@ -251,6 +198,56 @@ To compute the matrix product using the enriched compressed format:
 k2mult.x -v -i a.ck2.sinfo -I a.ck2.p  -j b.ck2.sinfo -J b.ck2.p  a.ck2  b.ck2
 ```
 
+## Product of matrices in k2 format
+
+The executable `k2mult.x` can be used to multiply two compressed matrices in k2 format. The matrices must have the same size and must have been compressed with the same `-m` parameter. The output is still in k2 format.
+```
+Usage:
+	  k2mult.x [options] infile1 infile2
+
+Options:
+	-n        do not write output file, only show stats
+	-o out    outfile name (def. infile1.prod)
+	-i info   infile1 subtree info file
+	-j info   infile2 subtree info file
+	-I info   infile1 backpointers file
+	-J info   infile2 backpointers file
+	-t size   rank block size for k2 compression (def. 64)
+	-e        compute subtree info on the fly (def. no)
+	-x        do not compact new 1's submatrices in the result matrix
+	-q        use a single copy when squaring a matrix
+	-c        check multiplication (O(n^3) time and O(n^2) space!)
+	-h        show this help message
+	-v        verbose
+
+Multiply two compressed matrices stored in infile1 and infile2
+```
+When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional $O(n^3)$ time algorithm applied to the uncompressed inputs. For large matrices this verification can be slow and space consuming. 
+
+For an explanation of the `-e`, `-i`, `-j`, `-I`, `-J` options see belows the sections on different compression options. 
+
+
+### Example:
+
+The following sequence of compression, matrix multiplication, decompression and display operations. 
+```
+k2sparse.x t8.txt
+k2mult.x t8.txt.k2 t8.txt.k2 -o t8sq.k2
+k2sparse.x -d t8sq.k2 -o t8sq.txt
+asc2sparse.py -r -o t8sq.asc t8sq.txt
+cat t8sq.asc
+```
+should eventually display the input matrix squared:
+```
+11110011
+11110001
+11110011
+11110011
+11110111
+11110111
+11110111
+11110111
+```
 
 
 ## Pagerank computation 
@@ -262,15 +259,6 @@ compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later comput
 vector (using `k2pagerank.x`) possibly using multiple threads. 
 
 
-
-## Matrices represented as bitarrays
-
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
-
-The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
-
-
-
 ## Additional tools 
 
 
@@ -279,6 +267,14 @@ The program `k2showinfo.x` display statics on the k2-compressed files passed on 
 The script `submatrix.py` can be used to extract a square submatrix form a matrix in textual form.
 
 The files `k2test.sh`, `k2btest.sh`, `k2square.sh` are bash script designed to test `k2sparse.x`, `k2bbm.x` and `k2mult.x` on a set of input files.  
+
+## Matrices represented as bitarrays
+
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
+
+The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
+
+
 
 
 ## Tools no longer supported
