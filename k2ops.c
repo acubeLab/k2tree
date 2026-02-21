@@ -55,7 +55,7 @@
 
 */
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
-static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
+// static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y);
 static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfloat *x, vfloat *y);
 // global variable to force computation of subtree info on the fly
 // chenge this to a per-matrix property
@@ -654,30 +654,29 @@ void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 
 
 // Main entry point for right matrix vector multiplication
-// multiply :asize x :asize k2 compressed matrix :a by vector :x
+// multiply k2 compressed matrix :a by vector :x
 // storing the result in vector :y
 // :a must be of size at least 2*MMsize
-// :x and :y are both of :size <= :asize. 
-// :a elements with index >= :size are guaranteed to be zero
+// :x and :y are both of a->realsize 
 // The algorithm ensures that entries of :x and :y
-// with index >= :size are not accessed
+// with index >= a->realsize are not accessed
 // if clear_y is true y is initialized to 0, otherwise newly computed values are simply 
 // added to y (this is used for example in multithread matrix-vector multiplication) 
-void mvmult(size_t asize, const k2mat_t *a, size_t size, vfloat *x, vfloat *y, bool clear_y)
+void mvmult(const k2mat_t *a, vfloat *x, vfloat *y, bool clear_y)
 {
-  assert(size <= asize);
-  assert(asize>=2*MMsize);
-  assert(asize%2==0);
+  assert(a->fullsize>MMsize);
   assert(a!=NULL && x!=NULL && y!=NULL);
+  if(a->main_diag_1) quit("mvmult does not support input matrices with main_diag_1=true (yet)",__LINE__,__FILE__);
   // initialize y to 0 if required
-  if(clear_y) for(size_t i=0;i<size;i++) y[i]=0;
+  if(clear_y) for(size_t i=0;i<a->realsize;i++) y[i]=0;
   if(k2is_empty(a)) return; // if a is empty the result is 0
   // call recursive multiplication algorithm based on decoding
   size_t pos = 0;
-  mdecode_and_multiply(asize,a,&pos,x,y);
+  mdecode_and_multiply(a->fullsize,a,&pos,x,y);
 }
 
 
+#if 0
 // previous recursive version of mvmult based on matrix splitting: 
 // more than ten times slower than the new mvmult  
 void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double *y)
@@ -692,7 +691,7 @@ void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double 
   // call recursive multiplication algorithm
   mvmult_rec(asize,a,x,y);
 }
-
+#endif
 
 
 // ----------- static auxiliary functions ------------
@@ -803,6 +802,7 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
   }
 }
 
+
 // base case of matrix vector multiplication: matrix of size 2*MMmin
 // a be not all 0s (ie empty) or all 1s (these cases are handled at the previous level)
 // x and y are vectors of unknown size which are never accessed
@@ -810,6 +810,8 @@ static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat
 // Here we call the base matrix-vector multiplication function
 // using the following macro, change it to support additional sizes
 #define mvmultNxN(s,a,x,y) ((s)==2 ? mvmult2x2((a),(x),(y)) : mvmult4x4((a),(x),(y)))
+
+#if 0
 static void mvmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *y)
 {
   assert(size==2*MMsize);
@@ -830,13 +832,13 @@ static void mvmult_base(size_t size, const k2mat_t *a, const vfloat *x, vfloat *
   }
 }
 
-
-
 // recursive call for matrix-vector multiplication
 // compute :y += :a * :x
 // :a is a non empty k2 matrix of size :size >= 2*MMsize
 // :x and :y are vectors of unknown size which are never accessed
 // in indices corresponding to rows/columns of :a which are all 0s
+// used by mvmult_slow, but it is extremely slow probabvly because of the recursive splitting:
+// without subtree information splitting a matrix takes time proportional to the subtree size
 static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
 {
   assert(size>=2*MMsize);
@@ -868,7 +870,7 @@ static void mvmult_rec(size_t size, const k2mat_t *a, vfloat *x, vfloat *y)
     }
   }
 }
-
+#endif
 
 // recursively decode a k2 submatrix into a list of nonzero entries
 // and use each generated entry to update the matrix vector product
@@ -881,10 +883,17 @@ static void mdecode_and_multiply(size_t size, const k2mat_t *c, size_t *pos, vfl
   assert(size%2==0 && size>=2*MMsize);
   // read c root
   node_t rootc=k2read_node(c,*pos); *pos +=1;
-  if(rootc==ALL_ONES) { // all 1s matrix
+  if(c->backp==NULL && rootc==ALL_ONES) { // all 1s matrix
     double v = 0;
     for(size_t i=0;i<size;i++) v += x[i];
     for(size_t i=0;i<size;i++) y[i] += v;
+    return;
+  }
+  // if pointer node follow it by simply changing position 
+  if(c->backp!=NULL && rootc==POINTER) { // recall POINTER=ALL_NODES=0000 
+    k2pointer_t destp = k2get_backpointer(c,*pos-1); // -1 because we have already advanced pos
+    size_t posp = destp; // move position to the target subtree
+    mdecode_and_multiply(size,c,&posp,x,y);
     return;
   }
   // here we are assuming that the submatrices are in the order 00,01,10,11

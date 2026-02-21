@@ -130,7 +130,7 @@ Multiply two compressed matrices stored in infile1 and infile2
 ```
 When invoked with `-c`, after computing the product in k2 format, the program uncompresses the input matrices and the product and verify that the uncompressed product is identical to the product computed with the traditional $O(n^3)$ time algorithm applied to the uncompressed inputs. For large matrices this verification can be slow and space consuming. 
 
-For an explanation of the `-e`, `-i` and `-j` options see section *Enriched format* below. 
+For an explanation of the `-e`, `-i`, `-j`, `-I`, `-J` options see belows teh sections on teh different compression formats. 
 
 
 ### Example:
@@ -157,62 +157,90 @@ should eventually display the input matrix squared:
 
 ## Compression formats
 
+By default the representation consist of the traditional $k^2$-tree with each internal node represented by 4 bits denotin whether each of the four submatrices contains some nonzeros or not. The leaves of the tree store explicitly 2x2 matrices still using 4 bits.  
+In addition, since the nibble `0000` can never appear as node or leaf, we use it to denote that the correponding submatrix contains only `1`s: as a result such nodes are leaves. The speciality of this implementation is that the tree node are stored in depth first order; so we call this representation Plain Depth First (PDF) format. 
 
-### Enriched format
+Using the option `-x` in `k2sparse.x` one can prevent the use of `0000` to denote a submatrix of all `1`s which is therefore encoded with the usual rules, but there is no good reason to do that since representing compactly all `1`s submatrices saves space and running time for some operations. 
 
-In order to speedup operations on compressed matrices in k2 format it is possible to use some extra information on its largest subtrees. This information must be computed with `k2subtinfo.x`, for example:
-```bash
-k2subtinfo.x -vc m.k2 -o m.k2.sinfo 
+Using the option `-m4` in `k2sparse.x` on can force the use of 4x4 submatrices as the tree leaves. This will slightly degrade compression but usually improve the running time (there is one level less to traverse).
+
+One can look at the details of the compressed structure with the command `k2showinfo.x`. For example typing 
 ```
-computes the information for the compressed matrix `m.k2` and stores it in `m.k2.sinfo`. By default the information is computed for the subtrees whose size is at least the square root of the size of the k2 tree representing the whole matrix (here size is measured in number of nodes). 
-Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`. Alternatively use the option `-M` set the limit of to a fraction of the square root of the number of nodes, for example for a tree with 1.000.000 nodes, using `-M 0.2` will set the limit to 200 nodes. As an alternative to `-N` and `-M` one can use the option `-D d` to compute the info only for the subtree at depth up to `d`. 
+k2showinfo.x web/cnr80k.k2
+```
+shows the following information:
+```
+Matrix file: web/cnr80k.k2
+cnr80k.k2:
+ matrix size: 80000, leaf size: 2, k2_internal_size: 131072
+ Nonzeros: 820959, Nonzero x row: 10.261988
+ Levels: 17, Nodes: 391845, Minimats: 288040, 1's submats: 14816
+```
+We see that the leaves store 2x2 matrices and there are 288040 of them (the are callled Minimats). 
+Also there are `14816` submatrices containing all `1`'s which are represented with a single `0000` nibble.
+The total numer of nonzero elements of 
+The input is an 80000x80000 matrix containing 820959 nonzero elements. Since $k^2$-trees represent 
+matrices whose size is a power of 2, the input matrix is embedded in a matrix of size $2^{17}$ = 131072.
 
-At the moment this additional information can be used only to speed-up matrix-matrix multiplication. For example write
+
+
+### Enriched Depth First  (EDF) format
+
+In order to speedup operations on matrices in PDF format it is possible to store some extra information on its largest subtrees. This information must be computed with `k2subtinfo.x`, for example the command:
+```bash
+k2subtinfo.x -v m.k2 -o web/cnr80k.k2.sinfo web/cnr80k.k2 
+```
+computes the information for the compressed matrix `web/cnr80k.k2` and stores it in `web/cnr80k.k2.sinfo`. By default the information is computed for the subtrees whose size is at least the square root of the size of the k2 tree representing the whole matrix (here size is measured in number of nodes). Use the option `-N limit` to compute the info only for subtrees of size larger than `limit`. Alternatively, use the option `-M` set the limit to a fraction of the square root of the number of nodes. For example for a tree with 1.000.000 nodes, using `-M 0.2` will set the limit to 200 nodes. As an alternative to `-N` and `-M` one can use the option `-D d` to compute the info only for the subtree at depth up to `d`. 
+
+At the moment this additional information is used only to speed-up matrix-matrix multiplication. For example write
 ```bash
 k2mult.x m1.k2 m2.k2 -i m1.k2.sinfo -j m2.k2.sinfo 
 ```
 to compute the product `m1.k2` times `m2.k2` using the extra information `m1.k2.sinfo` for the compressed matrix `m1.k2`and `m2.k2.sinfo` for the compressed matrix `m2.k2` (the information can be specified also for only one of the two input matrices). 
 
-The option `-e` enables the "on the fly" computation of the subtree information: when the multiplication algorithm reaches a subtree for which no subtree information is available, the information is computed and later discarded.  
+The option `-e` for `k2mult.x` enables the "on the fly" computation of the subtree information: when the multiplication algorithm reaches a subtree for which no subtree information is available, the information is computed on the fly and later discarded.  
 
 NOTE: to see a real speed improvement in the matrix multiplication algorithm using subtree size info at the moment it is necessary to use the release version (`make release`) since the default version still performs many redundant checks. 
 
 
 
-### Compressed k2-tree
+### Subtree compressed k2-tree (CDF) format
+
+
+In some cases, the $k^2$-tree representation contains identical subtrees, corresponding to identical submatrices on the input matrix. 
+Taking advantage of the Depth First representation we can remove identical subtrees and replace them with a pointer to a previous occurrence of the same subtree. 
 
 The executable `k2cpdf.x` is used to compress a $k^2$-tree representation using subtree compression; run it without arguments to get basic usage instructions
 ```
 Usage:
-	  k2cpdf.x [options] infile
+	  k2cpdf.x [options] infile.k2
 
 Options:
-	-b      block size for rank 0000 operation (def. 64)
-	-t      smallest subtree size to be removed in bits (def. 32)
-	-c      check number of ones in the compressed matrix
-	-n      do not write the output file, only show stats
-	-h      show this help message
-	-v      verbose
+	-o out    outfile name (def. infile1.ck2)
+	-I info   infile backpointers file (optional)
+	-i info   infile subtree info file (not used)
+	-r size   block size for rank 0000 data structure (def. 64)
+	-t thrs   smallest subtree size in bits to be removed (def. 32)
+	-c        check number of ones in the compressed matrix
+	-n        do not write the output file, only show stats
+	-h        show this help message
+	-v        verbose
 
 Compress a k2 tree exploiting the presence of identical subtrees.
 Compute and store in separates files the compressed tree and
 its auxiliary information (pointers information)
 ```
 
-When invoked will generate three new files in the same directory as `infile`:
+The input file must be a $k^2$-tree representation of a matrix; the output consists of two files:
 
-* `infile.ck2`: file containing the compressed k2-tree: repeated subtree are  represented by the special node `0000`.
-* `infile.ck2.p`: a binary file holding a `uint64_t` array. Each value is the destination of a special pointer node `0000`.  
+* `infile.ck2`: containing the compressed k2-tree: pruned repeated subtree are represented by the special node `0000` which has the role of a *pointer node*
+* `infile.ck2.p`: a binary file holding a `uint32_t` array; each value is the destination of a pointer node.  
 
-
-When invoked with `-c` will check that the compressed representation contains the same amount of non-zero elements as the original k2tree representation.
-
-When invoked with `-n` will not write any file, only compress and show statistic.
-
+Since nibble `0000` is now used as a pointer node it cannot be used to represent a submatrix containing all `1`s. If `0000` nodes representin all `1`s submatrices are present in the input `infile.k2` they will be replaced by a full representation of 
 
 ### Enriched compressed format
 
-To compute subtree information for compressed k2-tree use `k2subtinfo.x` with the `-p` options as follows
+To compute subtree information for compressed k2-tree use `k2subtinfo.x` as follows
 ```bash
 k2subtinfo.x -p -vc m.ck2
 ```

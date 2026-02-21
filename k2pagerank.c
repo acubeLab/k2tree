@@ -251,7 +251,7 @@ int main (int argc, char **argv) {
   size_t asize;
   // init k2 matrices nblocks>1
   // blocks are sets of rows so that matrix multiplication can be parallelized
-  // each block is acutally a full matrix with the same size of the original matrix
+  // each block is actually a full matrix with the same size of the original matrix
   k2mat_t rblocks[nblocks];  
   for(int i=0;i<nblocks;i++) rblocks[i]=a; // struct with all fields set to 0 or NULL
 
@@ -259,7 +259,7 @@ int main (int argc, char **argv) {
     size_t msize = mload_from_file(&a, argv[1]); // also init k2 library
     asize = a.fullsize;
     if(msize!=size) quit("Matrix size mismatch", __LINE__, __FILE__);
-    if (verbose>1) mshow_stats(size,asize,&a,argv[1],stdout);
+    if (verbose>1) mshow_stats(&a,argv[1],stdout);
   }
   else {
     mload_from_file_multipart(&asize, size, rblocks, nblocks, argv[1], ext);
@@ -267,7 +267,7 @@ int main (int argc, char **argv) {
       for(int i=0;i<nblocks;i++) {
         char name[FILENAME_MAX];
         sprintf(name,"%s.%d.%d%s",argv[1],nblocks,i,ext);
-        mshow_stats(size,asize,&rblocks[i],name,stdout);
+        mshow_stats(&rblocks[i],name,stdout);
       }
     }
   }
@@ -324,7 +324,7 @@ int main (int argc, char **argv) {
     t1 = times(&ignored);
     #endif
     if (nblocks==1) 
-      mvmult(asize,&a,size,y->v,z->v, true);       // z = M*y
+      mvmult(&a,y->v,z->v, true);       // z = M*y
     else {
       #ifndef USE_BARRIER
       for(int i=0;i<nblocks;i++) xsem_post(&tsem_in,__LINE__,__FILE__);   // start threads
@@ -445,7 +445,7 @@ static void *block_main(void *v)
     #endif
     if(td->op<0) break;  // exit loop
     else if(td->op==0) { //right mult
-      mvmult(td->asize,td->a,td->size,td->rv->v,td->lv->v,false);
+      mvmult(td->a,td->rv->v,td->lv->v,false);
     }
     else quit("Unknown operation", __LINE__, __FILE__);
     // output ready
