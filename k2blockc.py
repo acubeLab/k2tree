@@ -8,8 +8,10 @@ K2EXT = ".k2"
 Description = """
 Quick and dirty tool that takes a text file containing the list of
 pairs of row/column indices of the nonzeros of a binary matrix
-and a parameter b, and splits the list into b files 
-(almost) equally distributing the nonzeros among them. 
+sorted by row index and a parameter b.
+The output is a set of b files in the same format each containing
+a set of consecutive rows. The splitting is done dividing almost 
+equally the number of nonzeros among the blocks.
 The files are later compressed individually with k2sparse.x
 
 The nonzeros are almost equally distributed since the nonzers of a given row 
@@ -20,7 +22,7 @@ of the row elements are not modified in the copy.
 If the number of nonzero is not provided with the -n option the program will
 get it counting the number of lines in the input file.
 
-The input file is assumed to be sorted by row: it is not necessary that 
+The input file is assumed to be simply sorted by row: it is not necessary that 
 elements in the same row are also sorted by column"""
 
 

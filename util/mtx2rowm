@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
 
+# Tool for preprocessing a binary sparse matrix for the pagerank computation.
+
+# The input matrix must be in .mtx format:
+#    https://networkrepository.com/format-info.php
+# more precisely, the header line must be: 
+#    %%MatrixMarket matrix coordinate pattern general
+# meaning a non-symmetric 0/1 matrix stored as the list
+# of nonero matrix entries 
+
+
 # sample invocation:
 #   mtx2rowm  infile
 
-# given the sparse matrix infile in mtx format, transforms it for 
-# the computation of the pagerank as follows:
+# transforms the input .mtx matrix as follows:
 
-# remove all comments from infile
-# remove self-loops 
-# transpose the matrix (so pagerank can be computed with a
-#   right matrix vector multiplication)
-# subtract 1 by all nodes id's (mtx format is 1-based)
-# sort the trasformed arcs in row-major order
-# for the transformed matrix compute the number of nonzero in each column
+#   remove all comments from infile
+#   remove self-loops 
+#   transpose the matrix (so pagerank can be computed with a
+#     right matrix vector multiplication)
+#   subtract 1 by all nodes id's (mtx format is 1-based)
+#   sort the trasformed arcs in row-major order
+#   for the transformed matrix compute the number of nonzero in each column
 
 # pagerank is usually computed removing self-loops from the input graph
 # however, if one is mainly interested in compressing the graph
@@ -21,9 +30,10 @@
 # -s to when calling edge2edge.py (currently at line 40)
 
 # The new set of sorted arcs is stored in infile.rowm 
-# The number of elements in each column is stored in infile.ccount
-# in binary form using 32bit unsigned int per column  
-# Store in infile.header some information about the processed matrix
+# The number of nonzero elements in each column is stored in infile.ccount
+# in binary form using a 32bit unsigned int per column  
+# Some information about the processed matrix is stored in infile.header 
+
 
  # check arguments
 if [ $# -ne 1 ]; 
@@ -39,8 +49,7 @@ outfile=$1.rowm
 exe_dir=$(dirname "$0")
 $exe_dir/edge2edge.py -ct -a -1 $1 | sort -uk1n -k2n > $outfile
 
-
-# get nodes and arcs from header file and delete it 
+# get nodes and arcs info from header file and delete it 
 matrix_data=(`tail -n1 $1.header | tr " " "\n"`)
 echo Matrix size: ${matrix_data[0]}
 echo Number of nonzeros ${matrix_data[2]}
@@ -52,30 +61,36 @@ echo PageRank computation is in file $outfile
 echo The column count file required by repagerank is $1.ccount
 
 # display suggestions for the next steps
-echo
-echo To compress with matrepair, assuming you are in the main directory 
-echo \(adjust paths otherwise\), use the command line:
-echo "  " ./matrepair --bool -r $outfile ${matrix_data[0]} ${matrix_data[0]}
-echo Then, to compute PageRank "(single thread)" use for example the command
-echo "  " pagerank/repagerank -e 1e-4 -v $outfile $1.ccount 
 
-echo
-echo To use for example 8 threads during the pagerank computation the
-echo input matrix has to be compressed in 8 blocks with the command line:
-echo "  " ./matrepair -b 8 --bool -r $outfile ${matrix_data[0]} ${matrix_data[0]}
-echo Then, to compute PageRank use for example the command
-echo "  " pagerank/repagerank -b 8 -e 1e-4 -v $outfile $1.ccount 
+# materepair info 
+# echo
+# echo To compress with matrepair, assuming you are in the main directory 
+# echo \(adjust paths otherwise\), use the command line:
+# echo "  " ./matrepair --bool -r $outfile ${matrix_data[0]} ${matrix_data[0]}
+# echo Then, to compute PageRank "(single thread)" use for example the command
+# echo "  " pagerank/repagerank -e 1e-4 -v $outfile $1.ccount 
+
+# echo
+# echo To use for example 8 threads during the pagerank computation the
+# echo input matrix has to be compressed in 8 blocks with the command line:
+# echo "  " ./matrepair -b 8 --bool -r $outfile ${matrix_data[0]} ${matrix_data[0]}
+# echo Then, to compute PageRank use for example the command
+# echo "  " pagerank/repagerank -b 8 -e 1e-4 -v $outfile $1.ccount 
 
 echo 
-echo If you are using k2-dfs single thread, compress with
+echo To use the k2 format compress with
 echo "  " ./k2sparse.x -s ${matrix_data[0]} $outfile
 echo and compute pagerank with
 echo "  " ./k2pagerank.x -v $outfile.k2 $1.ccount
 echo
-echo To use for example 8 threads for computing 
-echo matrix-vector multiplication with k2-dfs, compress with
-echo "  " ./k2blockc.py -s ${matrix_data[0]} $outfile 8
+echo Use -h option for both programs to see further options 
+echo or use k2cpdf.c to use subtree compression
+
+echo The computation can be parallelized by splitting
+echo input matrix into sets of contiguos rows.
+echo To use for example 4 threads, compress with
+echo "  " ./k2blockc.py -s ${matrix_data[0]} $outfile 4
 echo and compute pagerank with
-echo "  " ./k2pagerank.x -v -b 8 $outfile $1.ccount
+echo "  " ./k2pagerank.x -v -b 4 $outfile $1.ccount
 echo
 exit 0

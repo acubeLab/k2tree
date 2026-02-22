@@ -45,11 +45,11 @@ in textual form, one nonzero per row.
 
 Since all matrices are binary, the uncompressed format consists of a text file containing only the positions of the nonzero entries. Each line should contain the row and column indexes of a single entry written in decimal and separated by a whitespace character.  The same entry should not appear twice, but the order of entries can be arbitrary. Indexes are 0-based see the file `t8.txt` for an 8x8 example. 
 
-For small sizes the tool `asc2sparse.py` can be used to obtain a more human readable representation. For example typing
+For small sizes the tool `util/asc2sparse.py` can be used to obtain a more human readable representation. For example typing
 ```
-asc2sparse.py -r -o t8.asc t8.txt 
+util/asc2sparse.py -r -o t8.asc t8.txt 
 ```
-produces the file `t8.asc` containing the dense ascii representation of the matric:
+produces the file `t8.asc` containing the dense ascii representation of the matrix:
 ```
 00000111
 00000010
@@ -234,7 +234,7 @@ The following sequence of compression, matrix multiplication, decompression and 
 k2sparse.x t8.txt
 k2mult.x t8.txt.k2 t8.txt.k2 -o t8sq.k2
 k2sparse.x -d t8sq.k2 -o t8sq.txt
-asc2sparse.py -r -o t8sq.asc t8sq.txt
+util/asc2sparse.py -r -o t8sq.asc t8sq.txt
 cat t8sq.asc
 ```
 should eventually display the input matrix squared:

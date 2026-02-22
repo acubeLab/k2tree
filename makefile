@@ -5,10 +5,11 @@ CC=gcc
 
 
 # main executables 
-K2EXECS=k2sparse.x k2mult.x k2showinfo.x k2subtinfo.x k2cpdf.x k2unary.x k2sum.x
-# B128EXECS=b128bbm.x b128sparse.x b128mult.x b128showinfo.x
-EXECS= $(K2EXECS) $(B128EXECS) bbmmult.x matrixcmp.x 
-
+K2EXECS=k2sparse.x k2mult.x k2showinfo.x k2subtinfo.x k2cpdf.x k2unary.x k2sum.x k2pagerank.x
+# no longer relevant
+BBMEXECS=bbmmult.x k2bbm.x b128bbm.x 
+# B128EXECS=b128sparse.x b128mult.x b128showinfo.x
+EXECS= $(K2EXECS) $(B128EXECS)  matrixcmp.x 
 
 
 # targets not producing a file declared phony

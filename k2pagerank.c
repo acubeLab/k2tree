@@ -96,8 +96,9 @@ typedef b128mat_t k2mat_t;
 #endif
 // used by both matrix type
 #include "bbm.h"
+#ifndef USE_BARRIER
 #include "extra/xerrors.h"
-
+#endif
 
 
 // for compatibilty with matrepair
@@ -115,7 +116,7 @@ static void vector_destroy(vector *v)
 
 // input/output data for each thread 
 typedef struct {
-  k2mat_t *a;    // matrix block (but with same size whole martix)
+  k2mat_t *a;    // matrix block (but with same size whole matrix)
   vector *rv;    // right vector  
   vector *lv;    // left vector
   size_t size;   // size of the input/output vectors
@@ -271,7 +272,6 @@ int main (int argc, char **argv) {
   if(nblocks==1) {
     #ifdef K2MAT
     size_t msize = mload_extended(&a, argv[1], infofile1, backpfile1, rank_block_size);
-    size_t asize = a.fullsize;
     #else
     size_t msize = mload_from_file(&a, argv[1]); // also init k2 library
     #endif
