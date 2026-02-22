@@ -50,22 +50,14 @@
  *   3. compute the new rank values but do not store them, instead
  *      compute the error, dnr, and Y for the next iteration
  
- * Note: the program can be compiled with -DUSE_BARRIER to use pthread barriers
- *       instead of semaphores for synchronization between the main thread and
- *       the worker threads. Experiments show that the barrier version is
- *       minimally faster than the semaphore version (183 vs 185 for it-2004) 
- *       using 8 threads on a machine with plenty of cores. 
- *       Compiling with -DDETAILED_TIMING provides the time spent in matrix
+ * Note: Compiling with -DDETAILED_TIMING provides the time spent in matrix
  *       multiplication only which turns out to use roughly 90% of the total time
  *       (168 out of 184 for it-2004 8 threads) this suggests that 
  *       parallelizing the vector update and error computation beween 
  *       multiplications would not provide a significant speedup.
  *       Similar results are obtained for arabic-2005.
  *       Experiments for 16 threads on it-2004 confirm this trend:
- *          semaphores:  elapsed 107, multiplication only: 89 secs
- *          barriers:    elapsed 106, multiplication only: 90 secs
- *       I tried to measure the memory usage with malloc_count but it seems
- *       that the library is no longer working properly.
+ *          elapsed 106, multiplication only: 90 secs
  * 
  *       Although the code contains macros referring to the b128mat econding
  *       it cannot be compiled with -DB128MAT because the b128 library is
@@ -94,11 +86,6 @@
 #define K2MAT_INITIALIZER B128MAT_INITIALIZER
 typedef b128mat_t k2mat_t;
 #endif
-// used by both matrix type
-#include "bbm.h"
-#ifndef USE_BARRIER
-#include "extra/xerrors.h"
-#endif
 
 
 // for compatibilty with matrepair
@@ -119,15 +106,8 @@ typedef struct {
   k2mat_t *a;    // matrix block (but with same size whole matrix)
   vector *rv;    // right vector  
   vector *lv;    // left vector
-  size_t size;   // size of the input/output vectors
-  size_t asize;  // internal size of the matrix block
   int op;        // operation to execute
-  #ifndef USE_BARRIER
-  sem_t *in;     // semaphore for input shared with the main thread
-  sem_t *out;    // semaphore for output shared with the main thread
-  #else
   pthread_barrier_t *barrier; // barrier for synchronization
-  #endif
 } tdata;
 
 
@@ -297,34 +277,21 @@ int main (int argc, char **argv) {
   // data structures for multithread computation (nblocks>1)
   tdata td[nblocks];
   pthread_t t[nblocks];
-  #ifndef USE_BARRIER
-  sem_t tsem_in, tsem_out;
-  #else
   pthread_barrier_t tbarrier;
-  #endif
+
 
   // initialize thread data and start threads
   if(nblocks>1) {
-    #ifndef USE_BARRIER
-    xsem_init(&tsem_in,0,0,__LINE__,__FILE__);
-    xsem_init(&tsem_out,0,0,__LINE__,__FILE__);
-    #else
-    pthread_barrier_init(&tbarrier,NULL,nblocks+1);
-    #endif
+    if(pthread_barrier_init(&tbarrier,NULL,nblocks+1))
+      quit("Error initializing barrier", __LINE__, __FILE__);
     for(int i=0;i<nblocks;i++) {
       td[i].a = &rblocks[i];
-      td[i].size = size;
-      td[i].asize = asize;
       td[i].rv = y;      // right vector
       td[i].lv = z;      // left vector
       td[i].op = 0;      // right multiplication
-      #ifndef USE_BARRIER
-      td[i].in = &tsem_in;
-      td[i].out = &tsem_out;
-      #else
       td[i].barrier = &tbarrier;
-      #endif
-      xpthread_create(&t[i],NULL,&block_main,&td[i],__LINE__,__FILE__);
+      if(pthread_create(&t[i],NULL,&block_main,&td[i]))
+        quit("Error creating thread", __LINE__, __FILE__);
     }
   }
 
@@ -344,13 +311,8 @@ int main (int argc, char **argv) {
     if (nblocks==1) 
       mvmult(&a,y->v,z->v, true);       // z = M*y
     else {
-      #ifndef USE_BARRIER
-      for(int i=0;i<nblocks;i++) xsem_post(&tsem_in,__LINE__,__FILE__);   // start threads
-      for(int i=0;i<nblocks;i++) xsem_wait(&tsem_out,__LINE__,__FILE__);  // wait threads 
-      #else
       pthread_barrier_wait(&tbarrier);
       pthread_barrier_wait(&tbarrier);
-      #endif
     }
     #ifdef DETAILED_TIMING
     t2 = times(&ignored);
@@ -381,15 +343,10 @@ int main (int argc, char **argv) {
   if(nblocks>1) {
     for(int i=0;i<nblocks;i++) {
       td[i].op = -1;
-      #ifndef USE_BARRIER 
-      xsem_post(&tsem_in,__LINE__,__FILE__);
-      #endif
     }
-    #ifdef USE_BARRIER
     pthread_barrier_wait(&tbarrier);
-    #endif
     for(int i=0;i<nblocks;i++)
-      xpthread_join(t[i],NULL,__LINE__,__FILE__);
+      if(pthread_join(t[i],NULL)) quit("Error joining thread", __LINE__, __FILE__);
   }
   // retrieve the actual rank vector from the last iteration
   for(int i=0;i<size;i++) 
@@ -406,7 +363,10 @@ int main (int argc, char **argv) {
   }  
   // free k2 matrices
   if(nblocks==1) matrix_free(&a);
-  else for(int i=0;i<nblocks;i++) matrix_free(&rblocks[i]);
+  else {
+    for(int i=0;i<nblocks;i++) matrix_free(&rblocks[i]);
+    pthread_barrier_destroy(&tbarrier);
+  }
   minimat_reset(); // reset the minimat library and free minimat product table
   // deallocate z and outd: we may need space for the topk array
   vector_destroy(z);
@@ -453,25 +413,16 @@ static void *block_main(void *v)
   tdata *td = (tdata *) v;
   assert(td->rv!=NULL); // 
   assert(td->lv!=NULL); //  
-  assert(td->size <= td->asize);
   while(true) {
     // wait for input
-    #ifndef USE_BARRIER 
-    xsem_wait(td->in,__LINE__,__FILE__);
-    #else
     pthread_barrier_wait(td->barrier);
-    #endif
     if(td->op<0) break;  // exit loop
     else if(td->op==0) { //right mult
       mvmult(td->a,td->rv->v,td->lv->v,false);
     }
     else quit("Unknown operation", __LINE__, __FILE__);
     // output ready
-    #ifndef USE_BARRIER 
-    xsem_post(td->out,__LINE__,__FILE__);
-    #else
     pthread_barrier_wait(td->barrier);
-    #endif
   }
   return NULL;
 }

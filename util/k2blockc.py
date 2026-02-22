@@ -2,22 +2,21 @@
 
 import sys, argparse, subprocess, os, concurrent.futures
 
-K2TOOL = "k2sparse.x"
+K2TOOL = "../k2sparse.x"
 K2EXT = ".k2"
 
-Description = """
-Quick and dirty tool that takes a text file containing the list of
-pairs of row/column indices of the nonzeros of a binary matrix
-sorted by row index and a parameter b.
-The output is a set of b files in the same format each containing
+Description = f"""
+Takes as input a text file in .rowm format containing pairs of row/column 
+indices of the nonzero elements sorted by row index and a parameter b.
+Outputs b files in the same textual format each containing
 a set of consecutive rows. The splitting is done dividing almost 
 equally the number of nonzeros among the blocks.
-The files are later compressed individually with k2sparse.x
+The files are later compressed individually invoking {K2TOOL}
 
 The nonzeros are almost equally distributed since the nonzers of a given row 
-always go together in the same file: we are splitting the matrix by rows 
-since this simplifies the matrix-vector multiplication. Note that the index 
-of the row elements are not modified in the copy.
+always go together in the same file. Note that the index of the elements 
+are not modified in the copy so formally the output matrices all have the same
+size of the input matrix even if most of the rows will be empty. 
 
 If the number of nonzero is not provided with the -n option the program will
 get it counting the number of lines in the input file.

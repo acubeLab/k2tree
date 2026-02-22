@@ -254,19 +254,42 @@ should eventually display the input matrix squared:
 
 The Pagerank computation is ideal for testing the speed of the matrix-vector product in a real-world scenario.
 Assuming that the input (web) matrix is given in mtx format it is first necessary to preprocess 
-it using the `mtx2rowm` tool that after the conversion provides some minimal instructions to
-compress the input matrix (using `k2sparse.x` or `k2blockc.py`) and later compute the Pagerank
+it using the `util/mtx2rowm` tool that after the conversion provides some minimal instructions to
+compress the input matrix (using `k2sparse.x` or `util/k2blockc.py`) and later compute the Pagerank
 vector (using `k2pagerank.x`) possibly using multiple threads. 
+
+For example starting with the web graph [cnr-2000.mtx](https://networkrepository.com/web-italycnr-2000.php) 
+we proceed as follows:
+```
+util/mtx2rowm cnr-2000.mtx
+./k2sparse.x -s 325557 cnr-2000.mtx.rowm
+./k2pagerank.x -v cnr-2000.mtx.rowm.k2 cnr-2000.mtx.ccount
+```
+should produce the following output
+```
+==== Command line:
+ ./k2pagerank.x -v cnr-2000.mtx.rowm.k2 cnr-2000.mtx.ccount
+Number of nodes: 325557
+Number of dandling nodes: 78056
+Number of arcs: 3216152
+Stopped after 100 iterations, delta=4.12028e-07
+Sum of ranks: 1.000000 (should be 1)
+Top 3 ranks:
+  60597 0.023615
+  60595 0.023615
+  285152 0.009883
+Top: 60597 60595 285152
+Elapsed time: 8 secs
+```
 
 
 ## Additional tools 
-
 
 The program `k2showinfo.x` display statics on the k2-compressed files passed on the command line.
 
 The script `submatrix.py` can be used to extract a square submatrix form a matrix in textual form.
 
-The files `k2test.sh`, `k2btest.sh`, `k2square.sh` are bash script designed to test `k2sparse.x`, `k2bbm.x` and `k2mult.x` on a set of input files.  
+The files `k2test.sh`, `k2btest.sh`, `k2square.sh` in the directory `utils` are bash scripts designed to test `k2sparse.x`, `k2bbm.x` and `k2mult.x` on a set of input files.  
 
 ## Matrices represented as bitarrays
 

@@ -31,19 +31,13 @@ k2%.x: k2%.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
 k2%.o: k2%.c k2.h bbm.h
 	$(CC) $(CFLAGS) -DK2MAT -c -o $@ $< 
 
-k2cpdf.o: k2cpdf.c k2.h bbm.h extra/xerrors.h libsais/liblibsais.a
+k2cpdf.o: k2cpdf.c k2.h libsais/liblibsais.a
 	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $< 
 
-k2pagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
+k2pagerank.o: k2pagerank.c k2.h 
 	$(CC) $(CFLAGS) -DK2MAT -c -o $@ $< 
 
-k2bpagerank.o: k2pagerank.c k2.h bbm.h extra/xerrors.h 
-	$(CC) $(CFLAGS) -DK2MAT -c -o $@ $< -DUSE_BARRIER -DDETAILED_TIMING 
-
 k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o  pointers.o rank_0000.o libsais/liblibsais.a
-	$(CC) $(LDFLAGS) -o $@ $^ 
-
-k2bpagerank.x: k2bpagerank.o k2ops.o bbm.o vu64.o pointers.o rank_0000.o libsais/liblibsais.a
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
 k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h
