@@ -210,7 +210,7 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
   size_t posa=0,posb=0;
   int eq = k2tree_equals_rec(size,a,&posa,b,&posb);
   // do extra checks if the matrices are equal
-  assert(eq>=0 || (posa==k2pos(a) && posb==k2pos(b) && (posa==posb) ) );
+  assert(eq<0 || (posa==k2pos(a) && posb==k2pos(b) && (posa==posb) ) );
   return eq;
 }
 

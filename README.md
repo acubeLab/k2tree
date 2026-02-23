@@ -249,6 +249,15 @@ should eventually display the input matrix squared:
 11110111
 ```
 
+## Transitive closure
+
+The `k2tclosure.x` tool can be used to compute the transitive closure of the graph associated  
+to a given binary matrix. The computation consists of the repeated iteration of the formula
+$A \gets (A+I)A$ until a fixed point is reached (this occurs after at most a logarithmic number of iterations).
+
+
+
+
 
 ## Pagerank computation 
 

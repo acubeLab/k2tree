@@ -8,6 +8,7 @@ CC=gcc
 K2EXECS=k2sparse.x k2mult.x k2showinfo.x k2subtinfo.x k2cpdf.x k2unary.x k2sum.x k2pagerank.x k2tclosure.x
 # no longer relevant
 BBMEXECS=bbmmult.x k2bbm.x b128bbm.x 
+# b128 format executables 
 # B128EXECS=b128sparse.x b128mult.x b128showinfo.x
 EXECS= $(K2EXECS) $(B128EXECS)  matrixcmp.x 
 

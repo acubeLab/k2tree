@@ -47,9 +47,9 @@ int main (int argc, char **argv) {
   int c;
   char iname1[PATH_MAX], oname[PATH_MAX];
   #ifdef K2MAT
-  char *infofile1=NULL;
-  char *backpfile1=NULL; // file with backpointers
-  uint32_t rank_block_size = 64; // block size for rank DS  
+  // char *infofile1=NULL;
+  // char *backpfile1=NULL; // file with backpointers
+  // uint32_t rank_block_size = 64; // block size for rank DS  
   int32_t depth_subtree = 0;
   long node_limit = 0;
   double node_limit_multiplier = 1;
@@ -60,22 +60,24 @@ int main (int argc, char **argv) {
   opterr = 0;
   char *outfile = NULL;
   Use_all_ones_node = true; Extended_edf = false;
-  while ((c=getopt(argc, argv, "i:r:I:o:N:M:D:hvxe")) != -1) {
+
+  while ((c=getopt(argc, argv, "o:N:M:D:hvxe")) != -1) { 
+    // options r:i:I: currently not supported since they would apply to the first iteration only
     switch (c) 
-      {
+    {
       case 'o':
         outfile = optarg; break;                 
       #ifdef K2MAT
-      case 'I':
-        backpfile1 = optarg; break;                 
-      case 'i':
-        infofile1 = optarg; break;                 
+      // case 'I':
+      //   backpfile1 = optarg; break;                 
+      // case 'i':
+      //   infofile1 = optarg; break;                 
+      // case 'r':
+      //   rank_block_size = atoi(optarg); break; // block size of rank structure
       case 'e':
         Extended_edf = true; break; // compute subtree info on the fly                 
       case 'x':
         Use_all_ones_node = false; break;
-      case 'r':
-        rank_block_size = atoi(optarg); break; // block size of rank structure
       case 'N':
         node_limit = atol(optarg); break;
       case 'M':
@@ -120,48 +122,53 @@ int main (int argc, char **argv) {
   k2mat_t b=a,aIa=a;
 
   // load first matrix possibly initializing k2 library
-  #ifdef K2MAT
-  mload_extended(&a, iname1, infofile1, backpfile1, rank_block_size);
-  #else
   mload_from_file(&a, iname1);
+  #ifdef K2MAT
+  if(a.main_diag_1) quit("Input matrix with main_diag_1=true not supported (yet)",__LINE__,__FILE__);
+  if(a.is_pointer) quit("Input matrix with backpointers not supported (yet)",__LINE__,__FILE__);
+  assert(a.subtinfo==NULL);
+  assert(a.backp==NULL);
   #endif
 
-
   while(true) {
-    if(a.subtinfo==NULL) {
-      if(depth_subtree!=0  || node_limit!=0 || node_limit_multiplier!=1) {
-        // compute subtree info and write to file
-        vu64_t z;      // resizable array to contain the subtree sizes
-        vu64_init(&z);
-        uint64_t p;
-        size_t pos=0;
-        // check if the limit is on the subtree depth or node count
-        if(depth_subtree > 0) {
-          if(verbose) printf("Computing subtree sizes up to level: %d\n", depth_subtree);
-          p = k2dfs_sizes(a.fullsize,&a,&pos,&z,depth_subtree); // visit tree, compute and save subtree sizes in z 
-        }
-        else {
-          if(node_limit==0) node_limit = intsqrt(a.pos);
-          node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
-          size_t min_node_limit = 1 + 4*Minimat_node_ratio;
-          if(node_limit < min_node_limit) node_limit = min_node_limit; // minimum node limit (ensure at least 2 levels)
-          if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
-          p = k2dfs_sizes_limit(a.fullsize,&a,&pos,&z,(size_t)node_limit); // visit tree, compute and save subtree sizes in z 
-        }
-        a.subtinfo_size = z.n; 
-        a.subtinfoarray = a.subtinfo = z.v; // save subtree info in a
-        assert(pos==a.pos);         // check visit was complete
-        assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
+    #ifdef K2MAT
+      // compute subtree info and write to file
+      vu64_t z;      // resizable array to contain the subtree sizes
+      vu64_init(&z);
+      uint64_t p;
+      size_t pos=0;
+      // check if the limit is on the subtree depth or node count
+      if(depth_subtree > 0) {
+        if(verbose) printf("Computing subtree sizes up to level: %d\n", depth_subtree);
+        p = k2dfs_sizes(a.fullsize,&a,&pos,&z,depth_subtree); // visit tree, compute and save subtree sizes in z 
       }
-    }
+      else {
+        if(node_limit==0) node_limit = intsqrt(a.pos);
+        node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
+        size_t min_node_limit = 1 + 4*Minimat_node_ratio;
+        if(node_limit < min_node_limit) node_limit = min_node_limit; // minimum node limit (ensure at least 2 levels)
+        if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
+        p = k2dfs_sizes_limit(a.fullsize,&a,&pos,&z,(size_t)node_limit); // visit tree, compute and save subtree sizes in z 
+      }
+      a.subtinfo_size = z.n; 
+      a.subtinfoarray = a.subtinfo = z.v; // save subtree info in a
+      assert(pos==a.pos);         // check visit was complete
+      assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
+    #endif  
     if(verbose) mshow_stats(&a,"Current matrix",stdout);
     mmake_pointer(&a,&b); 
     madd_identity(&b); // b = a + I
     if(verbose) printf("Multiplying (A+I)A\n");
     mmult(&b,&a,&aIa); // aIa = (a+I)a
-    if(verbose)  mshow_stats(&aIa,oname,stdout);
-    break;
+    if(verbose) printf("Checking if fixed point\n");
+    int eq = mequals(a.fullsize, &a,&aIa);
+    printf("mequals: %d\n", eq);
+    if(eq <0) break;
+    k2mat_t temp = a; a = aIa; aIa = temp; // swap a and aIa for the next iteration
+    matrix_free(&aIa);
   }
+  if(verbose) printf("Fixed point reached, stopping\n");
+  if(verbose)  mshow_stats(&aIa,"Transitive closure matrix",stdout);  
   // done
   matrix_free(&aIa);  
   matrix_free(&a);    
@@ -181,9 +188,9 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
     fprintf(stderr,"\t-o out    outfile name (def. infile%s)\n",default_ext);
     #ifdef K2MAT
-    fprintf(stderr,"\t-i info   infile subtree info file\n");
-    fprintf(stderr,"\t-I info   infile backpointers file\n");
-    fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
+    // fprintf(stderr,"\t-i info   infile subtree info file\n");
+    // fprintf(stderr,"\t-I info   infile backpointers file\n");
+    // fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
     fprintf(stderr,"\t-x        do not compact new 1's submatrices in the result matrix\n");    
     fprintf(stderr,"\t-D D      depth limit for subtree information (def. ignore depth)\n");

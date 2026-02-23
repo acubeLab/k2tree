@@ -83,7 +83,7 @@ void k2make_empty(k2mat_t *m)
 // free mem, *m still reusable if needed 
 static void k2_free(k2mat_t *m)
 {
-  if(m->is_pointer) // canno free pointers to other matrices
+  if(m->is_pointer) // cannot free pointers to other matrices
     quit("Illegal operation: freeing a pointer k2-matrix",__LINE__,__FILE__); 
   if(m->b!=NULL) free(m->b);
   m->b=NULL;
