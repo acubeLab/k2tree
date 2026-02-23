@@ -6,7 +6,7 @@
 typedef struct {
   uint64_t *v;       // array of u64's
   size_t n;          // number of elements 
-  size_t nmax;       // maximumt capacity 
+  size_t nmax;       // maximum capacity 
 } vu64_t;
 
 // create small vector

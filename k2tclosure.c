@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <time.h>
 #include <limits.h>
+#include <math.h>
 // definitions to be used for b128 vs k2t-encoded matrices 
 #ifdef K2MAT
  #include "k2.h"
@@ -29,13 +30,15 @@
  bool Use_all_ones_node; // not used: added for compatibility with k2mat
  bool Extended_edf;      // not used: added for compatibility with k2mat
 #endif
-// used by both matrix types
-#include "bbm.h"
-#define default_ext ".unary"
+#define default_ext ".tc.k2"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
+static void quit(const char *msg, int line, char *file);
+static size_t intsqrt(size_t n);
 
+// global from minimats.c
+extern uint32_t Minimat_node_ratio;
 
 int main (int argc, char **argv) { 
   extern char *optarg;
@@ -47,6 +50,9 @@ int main (int argc, char **argv) {
   char *infofile1=NULL;
   char *backpfile1=NULL; // file with backpointers
   uint32_t rank_block_size = 64; // block size for rank DS  
+  int32_t depth_subtree = 0;
+  long node_limit = 0;
+  double node_limit_multiplier = 1;
   #endif
   time_t start_wc = time(NULL);
 
@@ -54,7 +60,7 @@ int main (int argc, char **argv) {
   opterr = 0;
   char *outfile = NULL;
   Use_all_ones_node = true; Extended_edf = false;
-  while ((c=getopt(argc, argv, "i:r:I:o:hvxe")) != -1) {
+  while ((c=getopt(argc, argv, "i:r:I:o:N:M:D:hvxe")) != -1) {
     switch (c) 
       {
       case 'o':
@@ -70,6 +76,12 @@ int main (int argc, char **argv) {
         Use_all_ones_node = false; break;
       case 'r':
         rank_block_size = atoi(optarg); break; // block size of rank structure
+      case 'N':
+        node_limit = atol(optarg); break;
+      case 'M':
+        node_limit_multiplier = atof(optarg); break;
+      case 'D':  
+        depth_subtree = atoi(optarg); break;
       #endif          
       case 'h':
         usage_and_exit(argv[0]); break;        
@@ -86,6 +98,12 @@ int main (int argc, char **argv) {
      fprintf(stdout," %s",argv[i]);
     fputs("\n",stdout);  
   }
+  if(depth_subtree!=0 && (node_limit!=0 || node_limit_multiplier!=1))  
+    quit("Options -D and -N/-M are incompatible",__LINE__,__FILE__);
+  if(node_limit!=0 && node_limit_multiplier!=1)  
+    quit("Options -N and -M are incompatible",__LINE__,__FILE__);
+  if(depth_subtree<0 || node_limit<0) 
+    quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
 
   // virtually get rid of options from the command line 
   optind -=1;
@@ -94,10 +112,12 @@ int main (int argc, char **argv) {
   
   // create file names
   sprintf(iname1,"%s",argv[1]);
-  if(outfile==NULL) outfile = argv[1];
+  if(outfile==NULL) sprintf(oname,"%s.tc.k2",argv[1]);
+  else sprintf(oname,"%s",outfile);
 
   // init matrix variables (valid for b128 and k2tree)
   k2mat_t a=K2MAT_INITIALIZER;
+  k2mat_t b=a,aIa=a;
 
   // load first matrix possibly initializing k2 library
   #ifdef K2MAT
@@ -105,29 +125,45 @@ int main (int argc, char **argv) {
   #else
   mload_from_file(&a, iname1);
   #endif
-  if (verbose) mshow_stats(&a,iname1,stdout);
 
-  // add zero matrix 
-  k2mat_t b=mat_zero(a.realsize), a0=mat_zero(a.realsize);
-  msum(&b,&a,&a0); // a0 = b+a = 0+a = a
-  sprintf(oname,"%s.0.txt",outfile);
-  if(verbose)  mshow_stats(&a0,oname,stdout);
-  mwrite_to_textfile(&a0, oname);
-  
-  // add main diagonal 1's
-  madd_identity(&a);
-  // printf("Caution: madd_identity may add 1's also outside the original matrix size!\n");
-  sprintf(oname,"%s.1.txt",outfile);
-  mwrite_to_textfile(&a, oname);
 
-  // squaring 
-  k2mat_t asq = K2MAT_INITIALIZER;
-  mmult(&a,&a,&asq);
-  if(verbose)   mshow_stats(&asq,"(A+I)^2",stdout);
-  sprintf(oname,"%s.1sq.txt",outfile);
-  msave_to_file(&asq,oname);
-
+  while(true) {
+    if(a.subtinfo==NULL) {
+      if(depth_subtree!=0  || node_limit!=0 || node_limit_multiplier!=1) {
+        // compute subtree info and write to file
+        vu64_t z;      // resizable array to contain the subtree sizes
+        vu64_init(&z);
+        uint64_t p;
+        size_t pos=0;
+        // check if the limit is on the subtree depth or node count
+        if(depth_subtree > 0) {
+          if(verbose) printf("Computing subtree sizes up to level: %d\n", depth_subtree);
+          p = k2dfs_sizes(a.fullsize,&a,&pos,&z,depth_subtree); // visit tree, compute and save subtree sizes in z 
+        }
+        else {
+          if(node_limit==0) node_limit = intsqrt(a.pos);
+          node_limit = lround((double)node_limit*node_limit_multiplier); // apply multiplier
+          size_t min_node_limit = 1 + 4*Minimat_node_ratio;
+          if(node_limit < min_node_limit) node_limit = min_node_limit; // minimum node limit (ensure at least 2 levels)
+          if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
+          p = k2dfs_sizes_limit(a.fullsize,&a,&pos,&z,(size_t)node_limit); // visit tree, compute and save subtree sizes in z 
+        }
+        a.subtinfo_size = z.n; 
+        a.subtinfoarray = a.subtinfo = z.v; // save subtree info in a
+        assert(pos==a.pos);         // check visit was complete
+        assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
+      }
+    }
+    if(verbose) mshow_stats(&a,"Current matrix",stdout);
+    mmake_pointer(&a,&b); 
+    madd_identity(&b); // b = a + I
+    if(verbose) printf("Multiplying (A+I)A\n");
+    mmult(&b,&a,&aIa); // aIa = (a+I)a
+    if(verbose)  mshow_stats(&aIa,oname,stdout);
+    break;
+  }
   // done
+  matrix_free(&aIa);  
   matrix_free(&a);    
   minimat_reset(); // reset the minimat library and free minimat product table
   // report running time
@@ -150,9 +186,36 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
     fprintf(stderr,"\t-x        do not compact new 1's submatrices in the result matrix\n");    
+    fprintf(stderr,"\t-D D      depth limit for subtree information (def. ignore depth)\n");
+    fprintf(stderr,"\t-N N      node limit for subtree information (def. sqrt(tot_nodes))\n");
+    fprintf(stderr,"\t-M M      multiplier for node limit (def. 1)\n");
     #endif  
-    fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-h        show this help message\n");    
     fprintf(stderr,"\t-v        verbose\n\n");
     exit(1);
 }
+
+// compute integer square root
+static size_t intsqrt(size_t n) {
+  // assert(n>=0);
+  size_t x = n;
+  size_t y = (x + 1) / 2;
+  while (y < x) {
+    x = y;
+    y = (x + n / x) / 2;
+  }
+  assert(x*x <= n && (x+1)*(x+1) > n);
+  return x;
+}
+
+
+
+// write error message and exit
+static void quit(const char *msg, int line, char *file) {
+  if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), msg,
+               strerror(errno));
+  fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
+  exit(1);
+}
+

@@ -104,7 +104,7 @@ By default the input matrix is assumed to be of size 1+(largest index in the inp
 
 ## Compression formats
 
-By default the representation consist of the traditional $k^2$-tree with each internal node represented by 4 bits denotin whether each of the four submatrices contains some nonzeros or not. The leaves of the tree store explicitly 2x2 matrices still using 4 bits.  
+By default the representation consist of the traditional $k^2$-tree with each internal node represented by 4 bits denoting whether each of the four submatrices contains some nonzeros or not. The leaves of the tree store explicitly 2x2 matrices still using 4 bits.  
 In addition, since the nibble `0000` can never appear as node or leaf, we use it to denote that the correponding submatrix contains only `1`s: as a result such nodes are leaves. The speciality of this implementation is that the tree node are stored in depth first order; so we call this representation Plain Depth First (PDF) format. 
 
 Using the option `-x` in `k2sparse.x` one can prevent the use of `0000` to denote a submatrix of all `1`s which is therefore encoded with the usual rules, but there is no good reason to do that since representing compactly all `1`s submatrices saves space and running time for some operations. 
