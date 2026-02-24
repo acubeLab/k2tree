@@ -116,7 +116,7 @@ static int k2tree_equals_rec(size_t size, const k2mat_t *a, size_t *posa,
 // note: here all 0's matrices are considered of depth 1 even if they are empty
 // only the tree strucure is considered, not the main diagonal flag or backpointers
 // TODO: use k2copy_normalize to compare any pair of matrices 
-int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
+int mequals_plain(size_t size, const k2mat_t *a, const k2mat_t *b)
 {
   assert(size>=2*MMsize);
   assert(a!=NULL && b!=NULL);
@@ -138,6 +138,15 @@ int mequals(size_t size, const k2mat_t *a, const k2mat_t *b)
   return eq;
 }
 
+
+// as above but return true if a and b are equal, false otherwise
+// todo: delete mequals_plain and use this one everywhere
+bool mequals(const k2mat_t *a, const k2mat_t *b) {
+  assert(a!=NULL && b!=NULL);
+  if(a->fullsize != b->fullsize) return false; 
+    if(a->realsize != b->realsize) return false; 
+  return mequals_plain(a->fullsize, a, b) < 0;
+}
 
 // return number of levels in the k2_tree storing matrix :a
 // only the tree structure is considered, not the main_diagonal flag or backpointers

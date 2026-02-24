@@ -164,7 +164,7 @@ int main(int argc, char* argv[]) {
           printf("   %zd (input) vs %zd (decompressed)\n",nz,nz_check_a);
           exit(1);
         }
-        int d = mequals(a.fullsize, &a, &check_a);
+        int d = mequals_plain(a.fullsize, &a, &check_a);
         if(d < 0) {
             if(verbose) printf("## Correct decompression!\n");
         } else {

@@ -159,14 +159,21 @@ size_t mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mn
 // check if two b128 compressed matrices :a and :b are equal
 // if a==b return -1
 // if a!=b return the row index>=0 containing the first difference
-int mequals(size_t size, const b128mat_t *a, const b128mat_t *b)
+int mequals_plain(size_t size, const b128mat_t *a, const b128mat_t *b)
 {
   (void) size;
   assert(a!=NULL && b!=NULL);
-  assert(a->size!=b->size);
+  assert(a->size==b->size);
   for(size_t i=0; i<a->size*a->colb; i++)
     if(a->b[i]!=b->b[i]) return (int) (i/a->colb); // return row number of first difference
   return -1;
+}
+
+// as above but return true if a and b are equal, false otherwise
+bool mequals(const b128mat_t *a, const b128mat_t *b) {
+  assert(a!=NULL && b!=NULL);
+  if(a->size != b->size) return false; // cannot say
+  return mequals_plain(0, a, b) < 0;
 }
 
 

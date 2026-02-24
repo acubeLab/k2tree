@@ -130,7 +130,9 @@ int main (int argc, char **argv) {
   assert(a.backp==NULL);
   #endif
 
+  int iter=0;
   while(true) {
+    if(verbose) printf("## Iteration %d\n", iter); iter++;
     #ifdef K2MAT
       // compute subtree info and write to file
       vu64_t z;      // resizable array to contain the subtree sizes
@@ -149,6 +151,7 @@ int main (int argc, char **argv) {
         if(node_limit < min_node_limit) node_limit = min_node_limit; // minimum node limit (ensure at least 2 levels)
         if(verbose) printf("Computing sizes for subtrees larger than %zu nodes\n", node_limit);
         p = k2dfs_sizes_limit(a.fullsize,&a,&pos,&z,(size_t)node_limit); // visit tree, compute and save subtree sizes in z 
+        node_limit =0; // reset for next iterqation
       }
       a.subtinfo_size = z.n; 
       a.subtinfoarray = a.subtinfo = z.v; // save subtree info in a
@@ -162,13 +165,13 @@ int main (int argc, char **argv) {
     if(verbose) printf("Multiplying (A+I)A\n");
     mmult(&b,&a,&aIa); // aIa = (a+I)a
     if(verbose) printf("Checking if fixed point\n");
-    int eq = mequals(a.fullsize, &a,&aIa);
-    if(eq <0) break;
+    if(mequals(&a,&aIa)==true) break;
     k2mat_t temp = a; a = aIa; aIa = temp; // swap a and aIa for the next iteration
     matrix_free(&aIa);   
   }
   if(verbose) printf("Fixed point reached, stopping\n");
   if(verbose)  mshow_stats(&aIa,"Transitive closure matrix",stdout);  
+  msave_to_file(&aIa, oname);
   // done
   matrix_free(&aIa);  
   matrix_free(&a);    

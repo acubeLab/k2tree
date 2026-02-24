@@ -49,7 +49,7 @@ size_t mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mn
 // check if two b128 compressed matrices :a and :b are equal
 // if a==b return -1
 // if a!=b return the row index>=0 containing the first difference
-int mequals(size_t size, const b128mat_t *a, const b128mat_t *b);
+int mequals_plain(size_t size, const b128mat_t *a, const b128mat_t *b);
 // sum two b128 matrices a and b writing the result to c
 // multiplication is done replacing scalar + by logical or 
 void msum(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c);

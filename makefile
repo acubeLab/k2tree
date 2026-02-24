@@ -41,7 +41,7 @@ k2pagerank.o: k2pagerank.c k2.h
 k2cpdf.x: k2cpdf.o k2ops.o bbm.o vu64.o  pointers.o rank_0000.o libsais/liblibsais.a
 	$(CC) $(LDFLAGS) -o $@ $^ 
 
-k2ops.o: k2ops.c k2text.c k2aux.c minimats.c k2.h bbm.h
+k2ops.o: k2ops.c k2text.c k2aux.c k2io.c minimats.c k2.h bbm.h
 	$(CC) $(CFLAGS) $(EXTRA) -c -o $@ $<
 
 pointers.o:  pointers.c pointers.h

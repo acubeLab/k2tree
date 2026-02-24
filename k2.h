@@ -136,8 +136,10 @@ void mmake_pointer(const k2mat_t *a, k2mat_t *c);
 // if :a or :b have backp or main_diag, result is unknow and return INT32_MAX
 // otherwise if a==b return -d, where d>0 is the number of levels traversed  
 //           if a!=b return the level>=0 containing the first difference
-// Note that the results of sum and product operations never have backpoiners
-int mequals(size_t size, const k2mat_t *a, const k2mat_t *b);
+// Note that the results of sum and product operations never have backpointers
+int mequals_plain(size_t size, const k2mat_t *a, const k2mat_t *b);
+// as above but return a bool
+bool mequals(const k2mat_t *a, const k2mat_t *b);
 // return number of levels in the k2tree associated to a
 int k2tree_levels(size_t size, const k2mat_t *a);
 // copy the (submatrix) :a to :b resolving all backpointers and main_diag_1 flag

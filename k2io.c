@@ -100,7 +100,7 @@ size_t mshow_stats(const k2mat_t *a, const char *mname,FILE *file) {
   fprintf(file," Tree size: %zu bytes, %zu bits, Bits x nonzero: %lf\n",
           (pos+1)/2 , 4*pos, 4.0*(double)(pos)/(double) nz);
   fprintf(file, " Total space (bits): %zu, Bits x nonzero: %lf\n", 
-      pos * 4 + bits_r + bits_p, (double) (pos * 4 + bits_r + bits_p) / (double) nz);
+      pos * 4 + bits_r + bits_p + bits_sub, (double) (pos * 4 + bits_r + bits_p + bits_sub) / (double) nz);
   return nz;
 }
 
