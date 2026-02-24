@@ -59,6 +59,35 @@
       "miDebuggerPath": "/usr/bin/gdb"
     },
     {
+      "name": "k2tclosure: make all and debug",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirname}/k2tclosure.x",
+      //"args": [ "-o", "tmp/poli3.2", "-I", "tmp/poli3.ck2.p", "tmp/poli3.ck2"
+      // "args": [ "-o", "web/cnr80k.txt.2", "web/cnr80k.txt.k2"
+      "args": [ "-v", "web/cnr80k.k2"
+      ],
+      "stopAtEntry": true,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Set Disassembly Flavor to Intel",
+          "text": "-gdb-set disassembly-flavor intel",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "make gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    },
+    {
       "name": "k2cpdf: make all and debug",
       "type": "cppdbg",
       "request": "launch",

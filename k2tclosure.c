@@ -119,7 +119,7 @@ int main (int argc, char **argv) {
 
   // init matrix variables (valid for b128 and k2tree)
   k2mat_t a=K2MAT_INITIALIZER;
-  k2mat_t b=a,aIa=a;
+  k2mat_t aIa=a;
 
   // load first matrix possibly initializing k2 library
   mload_from_file(&a, iname1);
@@ -156,16 +156,16 @@ int main (int argc, char **argv) {
       assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
     #endif  
     if(verbose) mshow_stats(&a,"Current matrix",stdout);
+    k2mat_t b=K2MAT_INITIALIZER;
     mmake_pointer(&a,&b); 
     madd_identity(&b); // b = a + I
     if(verbose) printf("Multiplying (A+I)A\n");
     mmult(&b,&a,&aIa); // aIa = (a+I)a
     if(verbose) printf("Checking if fixed point\n");
     int eq = mequals(a.fullsize, &a,&aIa);
-    printf("mequals: %d\n", eq);
     if(eq <0) break;
     k2mat_t temp = a; a = aIa; aIa = temp; // swap a and aIa for the next iteration
-    matrix_free(&aIa);
+    matrix_free(&aIa);   
   }
   if(verbose) printf("Fixed point reached, stopping\n");
   if(verbose)  mshow_stats(&aIa,"Transitive closure matrix",stdout);  
