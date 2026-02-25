@@ -1,5 +1,5 @@
 # compilation flags
-CFLAGS=-Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined -DK2MAT
+CFLAGS=-Wall -std=c11 -g -Wconversion -Wno-sign-conversion -Wtype-limits -fsanitize=undefined
 LDFLAGS=-fsanitize=undefined
 CC=gcc
 
@@ -9,7 +9,7 @@ K2EXECS=k2sparse.x k2mult.x k2showinfo.x k2subtinfo.x k2cpdf.x k2unary.x k2sum.x
 # no longer relevant
 BBMEXECS=bbmmult.x k2bbm.x b128bbm.x 
 # b128 format executables 
-# B128EXECS=b128sparse.x b128mult.x b128showinfo.x
+B128EXECS=b128sparse.x b128mult.x b128showinfo.x b128unary.x
 EXECS= $(K2EXECS) $(B128EXECS)  matrixcmp.x 
 
 

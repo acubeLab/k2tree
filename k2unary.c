@@ -1,15 +1,15 @@
-/* Demo of unary operations onboolean matrices represented as k2 trees
+/* Demo of unary operations on boolean matrices represented as k2 trees
 
-   Note: internally matrix dimensions are always of the form 2^k times the size 
-   of a minimatrix (those stored at the leaves of the tree), with k>0, 
-   but the input can be also of a smaller size, and the matrix will be padded with 0's 
-
+   if compiled with the K2MAT constant
+   undefined it generates the executable b128sparse.x which (de)compress matrices 
+   in text form to/from the B128 format (one bit x entry)
 
    Copyright August 2025-today   ---  giovanni.manzini@unipi.it
 */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -30,7 +30,6 @@
  bool Extended_edf;      // not used: added for compatibility with k2mat
 #endif
 // used by both matrix types
-#include "bbm.h"
 #define default_ext ".unary"
 
 // static functions at the end of the file
@@ -108,7 +107,7 @@ int main (int argc, char **argv) {
   if (verbose) mshow_stats(&a,iname1,stdout);
 
   // add zero matrix 
-  k2mat_t b=mat_zero(a.realsize), a0=mat_zero(a.realsize);
+  k2mat_t b=mat_zero(&a), a0=mat_zero(&a);
   msum(&b,&a,&a0); // a0 = b+a = 0+a = a
   sprintf(oname,"%s.0.txt",outfile);
   if(verbose)  mshow_stats(&a0,oname,stdout);

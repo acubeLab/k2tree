@@ -116,7 +116,7 @@ size_t mload_from_file(k2mat_t *a, const char *filename);
 // load a k2-matrix from file, possibly with subtree info and backpointers
 size_t mload_extended(k2mat_t *a, char *fname, char *subtname, const char *backpname, uint32_t rank_block_size);
 // write the content of a k2 matrix in a bbm matrix
-void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a);
+void mwrite_to_bbm(uint8_t *m, const k2mat_t *a);
 // read the uncompressed matrix *m of size msize into the k2mat_t structure *a 
 size_t mread_from_bbm(uint8_t *m, size_t msize, k2mat_t *a);
 // return statistics on matrix a
@@ -145,9 +145,9 @@ int k2tree_levels(size_t size, const k2mat_t *a);
 // copy the (submatrix) :a to :b resolving all backpointers and main_diag_1 flag
 void k2copy_normalise(const k2mat_t *a, k2mat_t *b);
 // creates a size x size zero matrix
-k2mat_t mat_zero(size_t size);
+k2mat_t mat_zero(const k2mat_t *a);
 //creates a size x size identity matrix
-k2mat_t mat_identity(size_t size);
+k2mat_t mat_identity(const k2mat_t *a);
 // add indentity matrix to a
 void madd_identity(k2mat_t *a);
 // sum (logical or) of two k2 matrices a and b writing the result to c

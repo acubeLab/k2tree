@@ -233,19 +233,19 @@ void madd_identity(k2mat_t *a)
 
 
 // creates a size x size zero matrix
-k2mat_t mat_zero(size_t size) {
+k2mat_t mat_zero(const k2mat_t *b) {
   k2mat_t a = K2MAT_INITIALIZER;
-  a.realsize = size;
-  a.fullsize = k2get_k2size(size);
+  a.realsize = b->realsize;
+  a.fullsize = b->fullsize;
   return a;
 }
 
 
 // creates a size x size identity matrix
-k2mat_t mat_identity(size_t size) {
+k2mat_t mat_identity(const k2mat_t *b) {
   k2mat_t a = K2MAT_INITIALIZER;
-  a.realsize = size;
-  a.fullsize = k2get_k2size(size);
+  a.realsize = b->realsize;
+  a.fullsize = b->fullsize;
   madd_identity(&a);
   return a;
 }

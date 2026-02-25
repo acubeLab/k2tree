@@ -23,16 +23,16 @@ static void mencode_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t siz
 // BBM support will be removed in future versions
 // write the content of the :size x :size k2 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
-void mwrite_to_bbm(uint8_t *m, size_t msize, size_t size, const k2mat_t *a)
+void mwrite_to_bbm(uint8_t *m, const k2mat_t *a)
 {
-  assert(size>=msize);
+  size_t msize = a->realsize;
   if(k2is_empty(a)) {  // an empty k2 matrix is all 0s
     byte_to_bbm(m,msize,0,0,msize,0); // fill m with 0s
     return;
   }
   byte_to_bbm(m,msize,0,0,msize,2); // fill m with illegal value 2
   size_t pos = 0;
-  mdecode_bbm(m,msize,0,0,size,a,&pos);
+  mdecode_bbm(m,msize,0,0,a->fullsize,a,&pos);
   assert(pos==k2pos(a)); // check we read all the k2mat_t structure
 }
 

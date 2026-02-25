@@ -2,8 +2,8 @@
 
    k2sparse: (de)compress matrices in text form: one entry (two indices) per line
 
-   Generates the executable k2sparse.x; if compiled with the B128MAT constant
-   defined it generates the executable b128sparse.x which (de)compress matrices 
+   Generates the executable k2sparse.x; if compiled with the K2MAT constant
+   undefined it generates the executable b128sparse.x which (de)compress matrices 
    in text form to/from the B128 format (one bit x entry)
 
    For details of the k2 format see how the encoding is done in 
@@ -15,6 +15,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
@@ -150,9 +151,7 @@ int main (int argc, char **argv) {
   }
   else { // compression
     minimat_init(mmsize);     // init k2 library
-    size_t asize = mread_from_textfile(&a,iname,xsize);
-    size = a.realsize;
-    assert(asize == a.fullsize);
+    size = mread_from_textfile(&a,iname,xsize);
     assert(xsize==0 || (size==xsize));
     if (verbose || !write)  
       mshow_stats(&a,iname,stdout);

@@ -43,7 +43,7 @@ static void b128_init(size_t size, b128mat_t *a);
 // the old content of :a is lost
 // for compatibilty with k2mats return the size of the b128 matrix (ie msize)
 // and store the same value to *msize
-size_t mread_from_textfile(size_t *msize, b128mat_t *a, char *iname, size_t xsize) {
+size_t mread_from_textfile(b128mat_t *a, char *iname, size_t xsize) {
   assert(a!=NULL && iname!=NULL);
   b128_free(a); // free previous content of a
   if(xsize<=0) quit("mread_from_textfile: illegal matrix size",__LINE__,__FILE__);;
@@ -76,24 +76,22 @@ size_t mread_from_textfile(size_t *msize, b128mat_t *a, char *iname, size_t xsiz
     a->b[i*a->colb + j/128] |= (one << (j%128));
   }
   fclose(f);
-  *msize = xsize;
+  a->size = xsize;
   return xsize;
 }
 
 // write the content of a b128 matrix :a to 
 // text file in one entry per line format
-void mwrite_to_textfile(size_t msize, size_t asize, const b128mat_t *a, char *outname)
+void mwrite_to_textfile(const b128mat_t *a, char *outname)
 {
-  (void) asize;
   assert(outname!=NULL && a!=NULL);
-  assert(asize>=msize);
   FILE *f = fopen(outname,"wt");
   if(f==NULL) quit("mwrite_to_file: cannot open output file",__LINE__,__FILE__);
   
   uint128_t one = 1;
-  for(size_t i=0;i<msize;i++) {  // row index 
+  for(size_t i=0;i<a->size;i++) {  // row index 
     size_t offset = i*a->colb;   // start of row i in a->b
-    for(size_t j=0;j<msize;j++) 
+    for(size_t j=0;j<a->size;j++) 
       if(a->b[offset + j/128] & (one << (j%128)))
         fprintf(f,"%zu %zu\n",i,j);
   }
@@ -104,11 +102,11 @@ void mwrite_to_textfile(size_t msize, size_t asize, const b128mat_t *a, char *ou
 
 // write the content of a b128 matrix :a to the bbm matrix :m 
 // of size msize*msize. It is assumed m was already correctly initialized and allocated
-void mwrite_to_bbm(uint8_t *m, size_t msize, size_t asize, const b128mat_t *a)
+void mwrite_to_bbm(uint8_t *m, const b128mat_t *a)
 {
-  (void) asize;
+
   assert(a!=NULL);
-  if(msize!=a->size) quit("mwrite_to_bbm: matrix size mismatch", __LINE__,__FILE__);
+  size_t msize = a->size;
   byte_to_bbm(m,msize,0,0,msize,2); // fill m with illegal value 2
   uint128_t one = 1;
   for(size_t i=0;i<msize;i++) {  // row index 
@@ -147,11 +145,9 @@ size_t mread_from_bbm(uint8_t *m, size_t msize, b128mat_t *a)
 }
 
 // write to :file statistics for b128_mat :a with an arbitrary :name as identifier
-size_t mshow_stats(size_t size, size_t asize, const b128mat_t *a, const char *mname,FILE *file) {
-  (void) asize;
-  if(size!=a->size) quit("mshow_stats: size mismatch",__LINE__,__FILE__);
+size_t mshow_stats(const b128mat_t *a, const char *mname,FILE *file) {
   fprintf(stderr,"%s:\n matrix size: %zu, block size: %zu, column blocks: %u\n",
-          mname,size,8*sizeof(*(a->b)), a->colb);  
+          mname,a->size,8*sizeof(*(a->b)), a->colb);  
   return 0; // integer returned for compatibilty with k2mat (should be # nonzeros)
 }
 
@@ -176,6 +172,32 @@ bool mequals(const b128mat_t *a, const b128mat_t *b) {
   return mequals_plain(0, a, b) < 0;
 }
 
+// add indentity matrix to a
+void madd_identity(b128mat_t *a)
+{
+  uint128_t one = 1;
+  for(size_t i=0; i<a->size; i++) 
+    a->b[i*a->colb + i/128] |= (one << (i%128));
+}
+
+
+// creates a size x size zero matrix
+b128mat_t mat_zero(b128mat_t *b) {
+  b128mat_t a = B128MAT_INITIALIZER;
+  b128_init(b->size,&a);
+  bzero(a.b,a.size*a.colb*sizeof(uint128_t));
+  return a;
+}
+
+
+// creates a size x size identity matrix
+b128mat_t mat_identity(b128mat_t *b) {
+  b128mat_t a = B128MAT_INITIALIZER;
+  b128_init(b->size,&a);
+  bzero(a.b,a.size*a.colb*sizeof(uint128_t));
+  madd_identity(&a);
+  return a;
+}
 
 
 // matrix addition
@@ -183,9 +205,8 @@ bool mequals(const b128mat_t *a, const b128mat_t *b) {
 // the result in c, old content of c is discarded
 // :a and :b must be of the same size
 // Not tested!
-void msum(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
+void msum(const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 {
-  (void) asize;
   assert(a!=NULL && b!=NULL && c!=NULL);
   if(a->size != b->size)
     quit("msum: matrix size mismatch",__LINE__,__FILE__);
@@ -203,9 +224,8 @@ void msum(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 // multiply size x size b128 compressed matrices :a and :b storing
 // the result in c, old content of c is discarded
 // :a and :b must be of the same size
-void mmult(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
+void mmult(const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 {
-  (void) asize;
   assert(a!=NULL && b!=NULL && c!=NULL);
   if(a->size != b->size)
     quit("mmult: matrix size mismatch",__LINE__,__FILE__);
@@ -231,11 +251,10 @@ void mmult(size_t asize, const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
 // the format is
 // 1) the size of the matrix (a size_t)
 // 2) the bit array (an uint128_t array of size a->size*a->colb)
-void msave_to_file(size_t size, size_t asize, const b128mat_t *a, const char *filename)
+void msave_to_file(const b128mat_t *a, const char *filename)
 {
-  (void) asize;
   assert(a!=NULL);
-  if(size!=a->size) quit("msave_to_file: matrix size mismatch", __LINE__,__FILE__);
+  size_t size = a->size;
   FILE *f = fopen(filename,"w");
   if(f==NULL) quit("msave_to_file: cannot open file", __LINE__,__FILE__);
   size_t e = fwrite(&size,sizeof(size),1,f);
@@ -251,9 +270,8 @@ void msave_to_file(size_t size, size_t asize, const b128mat_t *a, const char *fi
 // load a b128 matrix stored in file :filename into the b128mat_t structure :a
 // return the actual size of the matrix, see msave_to_file() for the file format
 // :a old content is discarded
-size_t mload_from_file(size_t *asize, b128mat_t *a, const char *filename)
+size_t mload_from_file(b128mat_t *a, const char *filename)
 {
-  (void) *asize;
   assert(a!=NULL);
   b128_free(a);
   FILE *f = fopen(filename,"r");

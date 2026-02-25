@@ -64,7 +64,7 @@ static inline bool a_lt_b2(uint64_t a, uint64_t b);
 // and store it in k2 format
 // the compressed matrix is stored to :a and its size to a->realsize
 // if :xsize>0 that value is forced to be the size of k2 matrix
-// return the internal size of the k2 matrix (which has the form 2**k*MMsize)
+// return the actual size of the k2 matrix
 // since entries are encoded in 64 bits, each index can be at most 32 bits
 // so the maximum matrix size is 2^32 (change ia[],imin,imax type to go further)
 size_t mread_from_textfile(k2mat_t *a, char *iname, size_t xsize)
@@ -84,7 +84,7 @@ size_t mread_from_textfile(k2mat_t *a, char *iname, size_t xsize)
   size_t asize = mread_from_ia(ia,n,msize,a);
   free(ia);
   a->realsize = msize; a->fullsize = asize;
-  return asize; // return the size of the k2_matrix
+  return msize; // return the real size of the k2_matrix
 }
 
 

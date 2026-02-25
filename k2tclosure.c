@@ -132,7 +132,8 @@ int main (int argc, char **argv) {
 
   int iter=0;
   while(true) {
-    if(verbose) printf("## Iteration %d\n", iter); iter++;
+    if(verbose) printf("## Iteration %d\n", iter); 
+    iter++;
     #ifdef K2MAT
       // compute subtree info and write to file
       vu64_t z;      // resizable array to contain the subtree sizes

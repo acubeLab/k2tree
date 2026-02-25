@@ -171,20 +171,20 @@ int main (int argc, char **argv) {
   if(check) {
     uint8_t *m2, *m1 = bbm_alloc(size), *m3 = bbm_alloc(size);
     // read m1 
-    mwrite_to_bbm(m1,size,a.fullsize,&a);
+    mwrite_to_bbm(m1,&a);
     if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
     // read m2 if different from m2
     if(strcmp(iname1,iname2)==0) m2=m1;
     else {
       m2 = bbm_alloc(size);
-      mwrite_to_bbm(m2,size,b.fullsize,&b);
+      mwrite_to_bbm(m2,&b);
       if(verbose>1) bbm_to_ascii(m2,size,0,0,size,stdout);
     }
     // compute product to m3 = m1 * m2
     // consider using fast_mmult_bbm, but that would require opm
     mmult_bbm(m1,size,m2,m3);
     // uncompress product to m1
-    mwrite_to_bbm(m1,size,ab.fullsize,&ab);
+    mwrite_to_bbm(m1,&ab);
     if(verbose>1) bbm_to_ascii(m1,size,0,0,size,stdout);
     ssize_t eq = mequals_bbm(m1,size,m3);
     if(eq<0) fprintf(stdout,"Product matches the one computed using byte matrices!\n");

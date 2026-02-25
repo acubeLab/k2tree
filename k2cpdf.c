@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
     puts("## Original matrix has ALL_ONES submatrices, need to be normalized");
   if(a.main_diag_1 || a.backp!=NULL || all1>0) {
     puts("## Normalizing input matrix");
-    k2mat_t b = mat_zero(a.realsize);
+    k2mat_t b = mat_zero(&a);
     k2copy_normalise(&a,&b);
     matrix_free(&a);
     a = b;
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
   else nz = mget_nonzeros(&a);
 
   // execute subtree compression
-  k2mat_t ca = mat_zero(a.realsize);
+  k2mat_t ca = mat_zero(&a);
   k2compress(&a, &ca, threshold, rank_block_size); 
 
   if(ca.backp==NULL) {
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
       }
       if(check) {
         if(verbose) printf("## Decompressing the k2tree and comparing it with the original\n");
-        k2mat_t check_a = mat_zero(ca.realsize);
+        k2mat_t check_a = mat_zero(&ca);
         size_t pos = 0;
         k2decompress(ca.fullsize, &ca, &pos, &check_a);
         size_t nz_check_a = mshow_stats(&check_a, "Decompressed matrix", stdout);
