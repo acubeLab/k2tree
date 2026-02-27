@@ -267,7 +267,7 @@ void minimat_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, m
 // :size is the size of the minimat :a
 void minimat_to_text(FILE *f, size_t msize, size_t i, size_t j, size_t size, minimat_t a) {
   assert(size==MMsize);
-  assert(i<msize+2*size && j<msize+2*size);
+  assert(i<msize+2*size && j<msize+2*size); // again, why the + 2*size
   for(size_t ii=0; ii<size; ii++)
     for(size_t jj=0; jj<size; jj++)
       if(i+ii<msize && j+jj<msize) {       // inside the matrix

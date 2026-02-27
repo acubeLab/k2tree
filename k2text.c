@@ -970,7 +970,8 @@ static void mdecode_to_textfile(FILE *outfile, size_t msize, size_t i, size_t j,
   assert(c->offset==0);   // we are never working on submatrices 
   assert(size%2==0 && size>=2*MMsize);
   assert(i%MMsize==0 && j%MMsize==0);
-  assert(i<msize+2*size && j<msize+2*size);
+  // assert(i<msize+2*size && j<msize+2*size); // I can remember why the +2*size was needed, see following line
+  assert(i<msize && j<msize);
   assert(!c->main_diag_1 || i==j); // if main_diag_1 is on we must be on a diagonal submatrix
 
   if(size==2*MMsize) { // base case

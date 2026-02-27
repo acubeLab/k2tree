@@ -43,13 +43,13 @@ do
 
   # testing k2unary.x ie A+0 and A+I
   echo "===== add diagonal to sparse matrix: $f"  
-  $timecmd -f"$tf" ./sparsetr.py -d -o $f.sparse.1 $f
+  $timecmd -f"$tf" util/sparsetr.py -d -o $f.sparse.1 $f
 
   echo "===== compress and check matrix $f in formats k2 and k4"
   $timecmd -f"$tf" ./k2sparse.x -cv -o $f.k2  $f 
   $timecmd -f"$tf" ./k2sparse.x -c -o $f.k4 -m4 $f 
 
-  echo "==== add 0, add I and compute (A+I)^2==="
+  echo "==== add 0, add I and compute (A+I)^2  ==="
   $timecmd -f"$tf" ./k2unary.x -o $f.2  $f.k2 
   $timecmd -f"$tf" ./k2unary.x -o $f.4  $f.k4 
 
@@ -68,10 +68,10 @@ do
 
   # testing k2sum.x A+A^t
   echo "===== transpose sparse matrix: $f"  
-  $timecmd -f"$tf" ./sparsetr.py -t -o sparse.tr $f
+  $timecmd -f"$tf" util/sparsetr.py -t -o sparse.tr $f
   # this is A+A^t = A^t + A
   echo "===== make symmetric sparse matrix: $f"  
-  $timecmd -f"$tf" ./sparsetr.py -S -o sparse.sym $f
+  $timecmd -f"$tf" util/sparsetr.py -S -o sparse.sym $f
 
   echo "===== compress transposed matrix $f in formats k2 and k4"
   $timecmd -f"$tf" ./k2sparse.x -o $f.tr.k2  sparse.tr 

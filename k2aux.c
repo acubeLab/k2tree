@@ -529,7 +529,7 @@ k2mat_t k2jump(size_t size, const k2mat_t *a)
 // the submatrices are not minimats since we are not at the last level of the tree
 // :a is not all 0's, it could be all 1's 
 // note: a could be open ended
-// backpointer should have been already followed
+// backpointers should have been already followed
 // main_diag_1 if present is transmitted to the diagonmal submatrices 
 void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
 {
@@ -537,7 +537,7 @@ void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
   size_t size = a->fullsize;
   assert(size>2*MMsize);
   assert(size%2==0);
-  assert(a->main_diag_1==false || a->realsize>0); // if main_dag real size mus be well defined 
+  assert(a->main_diag_1==false || a->realsize>0); // if main_diag real size mus be well defined 
   assert(a->open_ended || !k2is_empty(a)); // k2is_empty cannot be called for an open ended matrix
   // init size 
   for(int i=0;i<4;i++) {
@@ -618,7 +618,7 @@ void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
       subt_size[0] = k2treesize(a)-1;
     else { // if treesize not available compute subtree size with a visit 
       size_t next=pos;
-      k2dfs_visit_fast(size/2,a,&next);
+      k2dfs_visit_fast(size/2,a,&next); // it would do the same visit later
       subt_size[0] = next - pos;
     }    
   }
@@ -629,9 +629,9 @@ void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
     int i=k/2; int j=k%2;
     if(root & (1<<k)) { // k-th child is non empty
       if(a->subtinfo || nchildren==1) next = pos + subt_size[child]; // jump to end of submatrix
-      else k2dfs_visit_fast(size/2,a,&next);  // move to end of submatrix
-      k2clone_submatrix(a, pos, next, &b[i][j]);        // create pointer to submatrix
-      pos = next;                             // advance to next item
+      else k2dfs_visit_fast(size/2,a,&next);      // move to end of submatrix
+      k2clone_submatrix(a, pos, next, &b[i][j]);  // create pointer to submatrix
+      pos = next;                                 // advance to next item
       if(a->subtinfo) {
         b[i][j].subtinfo = subt_info[child];    // save subtinfo if available
         b[i][j].subtinfo_size = subt_info_size[child++];  // save subtinfo_size and advance child
@@ -650,7 +650,7 @@ void k2split_k2(const k2mat_t *a, k2mat_t b[2][2])
       b[1][1].realsize = a->realsize - size/2;
     }
     else {
-      b[0][0].realsize = size/2; // b[1][1] has not main_diag_1
+      b[0][0].realsize = a->realsize; // b[1][1] has not main_diag_1
     }
     assert(b[0][0].realsize <= b[0][0].fullsize);
     assert(b[1][1].realsize <= b[1][1].fullsize);

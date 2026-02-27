@@ -29,8 +29,6 @@
  bool Use_all_ones_node; // not used: added for compatibility with k2mat
  bool Extended_edf;      // not used: added for compatibility with k2mat
 #endif
-// used by both matrix types
-#define default_ext ".unary"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
@@ -115,16 +113,16 @@ int main (int argc, char **argv) {
   
   // add main diagonal 1's
   madd_identity(&a);
-  // printf("Caution: madd_identity may add 1's also outside the original matrix size!\n");
   sprintf(oname,"%s.1.txt",outfile);
+  if(verbose)  mshow_stats(&a,oname,stdout);
   mwrite_to_textfile(&a, oname);
 
-  // squaring 
+  // squaring (using a single copy of the :a matrix)
   k2mat_t asq = K2MAT_INITIALIZER;
   mmult(&a,&a,&asq);
   if(verbose)   mshow_stats(&asq,"(A+I)^2",stdout);
   sprintf(oname,"%s.1sq.txt",outfile);
-  msave_to_file(&asq,oname);
+  mwrite_to_textfile(&asq,oname);
 
   // done
   matrix_free(&a);    
@@ -141,8 +139,7 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
     fprintf(stderr,"Demo of unary operations on the compressed matrices stored in infile\n\n");
     fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
-    fprintf(stderr,"\t-o out    outfile name (def. infile%s)\n",default_ext);
+    fprintf(stderr,"\t-o out    outfile base name (def. infile)\n");
     #ifdef K2MAT
     fprintf(stderr,"\t-i info   infile subtree info file\n");
     fprintf(stderr,"\t-I info   infile backpointers file\n");
@@ -150,7 +147,6 @@ static void usage_and_exit(char *name)
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
     fprintf(stderr,"\t-x        do not compact new 1's submatrices in the result matrix\n");    
     #endif  
-    fprintf(stderr,"\t-q        use a single copy when squaring a matrix\n");
     fprintf(stderr,"\t-h        show this help message\n");    
     fprintf(stderr,"\t-v        verbose\n\n");
     exit(1);

@@ -24,12 +24,22 @@ jobs:
     - name: run
       run: ./prodtest.sh web cnr80k eu80k goo80k goo120k
 
-    - name: uncomporess
+    - name: uncompress 
       run: |
           ./k2sparse.x -d web/cnr80k.k2 -o web/cnr80k.txt   
           ./k2sparse.x -d web/eu80k.k2 -o web/eu80k.txt   
           ./k2sparse.x -d web/goo80k.k2 -o web/goo80k.txt   
-          ./k2sparse.x -d web/goo120k.k2 -o web/goo120k.txt   
+          ./k2sparse.x -d web/goo120k.k2 -o web/goo120k.txt  
+
+    - name: b128 test
+          util/sparsetr -s 40000 web/cnr80k.txt -o web/cnr40k.txt  
+          ./b128sparse.x -s 40000 web/cnr40k.txt -o web/cnr40k.b128
+          ./b128unary.x web/cnr40k.b128    
+          ./matrixcmp.x web/cnr40k.txt web/cnr40k.b128.0.txt
+          ./k2sparse.x web/cnr40k.txt -o web/cnr40k.k2
+          ./k2unary.x web/cnr40k.k2
+          ./matrixcmp.x web/cnr40k.txt web/cnr40k.k2.0.txt
+          ./matrixcmp.x web/cnr40k.b128.1sq.txt web/cnr40k.k2.1sq.txt
 
     - name: big transpose test 
       run: ./sumtest.sh web/*.txt

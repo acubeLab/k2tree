@@ -210,7 +210,7 @@ void k2copy_normalise(const k2mat_t *a, k2mat_t *b)
   // if :a has main diag build ad-hoc identity 
   // and normalize by multiplication
   if(a->main_diag_1) {
-    k2mat_t c = mat_identity(a->realsize);
+    k2mat_t c = mat_identity(a);
     mmult(a,&c,b); 
     k2_free(&c);
   }
@@ -243,9 +243,7 @@ k2mat_t mat_zero(const k2mat_t *b) {
 
 // creates a size x size identity matrix
 k2mat_t mat_identity(const k2mat_t *b) {
-  k2mat_t a = K2MAT_INITIALIZER;
-  a.realsize = b->realsize;
-  a.fullsize = b->fullsize;
+  k2mat_t a = mat_zero(b);
   madd_identity(&a);
   return a;
 }
@@ -714,7 +712,7 @@ void mvmult_slow(size_t asize, const k2mat_t *a, size_t size, double *x, double 
 // the case in which :a or b: are empty (all 0's or Identity) is handled in the caller
 // the case size==2*MMsize is handled in the caller 
 // main_diag_1 flag is handled by k2split_k2() 
-// :a or b: can be backpointers, the are habdled by k2jump
+// :a or b: can be backpointers, they are handled by k2jump
 static void split_and_rec(size_t size, const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
 {
   assert(size>2*MMsize);
