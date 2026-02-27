@@ -155,7 +155,7 @@ size_t mshow_stats(const b128mat_t *a, const char *mname,FILE *file) {
 // check if two b128 compressed matrices :a and :b are equal
 // if a==b return -1
 // if a!=b return the row index>=0 containing the first difference
-int mequals_plain(size_t size, const b128mat_t *a, const b128mat_t *b)
+static int mequals_aux(size_t size, const b128mat_t *a, const b128mat_t *b)
 {
   (void) size;
   assert(a!=NULL && b!=NULL);
@@ -169,7 +169,7 @@ int mequals_plain(size_t size, const b128mat_t *a, const b128mat_t *b)
 bool mequals(const b128mat_t *a, const b128mat_t *b) {
   assert(a!=NULL && b!=NULL);
   if(a->size != b->size) return false; // cannot say
-  return mequals_plain(0, a, b) < 0;
+  return mequals_aux(0, a, b) < 0;
 }
 
 // add indentity matrix to a
@@ -219,6 +219,21 @@ void msum(const b128mat_t *a, const b128mat_t *b, b128mat_t *c)
     c->b[i] = a->b[i] | b->b[i]; 
   return;
 }
+
+// logically add matrix b to a 
+void madd(b128mat_t *a, const b128mat_t *b)
+{
+  assert(a!=NULL && b!=NULL);
+  if(a->size != b->size)
+    quit("madd: matrix size mismatch",__LINE__,__FILE__);
+
+  for(size_t i=0; i<a->size*a->colb; i++)
+    a->b[i] = a->b[i] | b->b[i]; 
+  return;
+}
+
+
+
 
 // main entry point for matrix multiplication. 
 // multiply size x size b128 compressed matrices :a and :b storing

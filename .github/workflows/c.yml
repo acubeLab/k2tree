@@ -32,6 +32,7 @@ jobs:
           ./k2sparse.x -d web/goo120k.k2 -o web/goo120k.txt  
 
     - name: b128 test
+      run: |
           util/sparsetr -s 40000 web/cnr80k.txt -o web/cnr40k.txt  
           ./b128sparse.x -s 40000 web/cnr40k.txt -o web/cnr40k.b128
           ./b128unary.x web/cnr40k.b128    
