@@ -33,7 +33,7 @@ jobs:
 
     - name: b128 test
       run: |
-          util/sparsetr -s 40000 web/cnr80k.txt -o web/cnr40k.txt  
+          util/sparsetr.py -s 40000 web/cnr80k.txt -o web/cnr40k.txt  
           ./b128sparse.x -s 40000 web/cnr40k.txt -o web/cnr40k.b128
           ./b128unary.x web/cnr40k.b128    
           ./matrixcmp.x web/cnr40k.txt web/cnr40k.b128.0.txt

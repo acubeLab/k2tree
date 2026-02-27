@@ -18,6 +18,7 @@
 #include <time.h>
 #include <limits.h>
 #include <math.h>
+
 // definitions to be used for b128 vs k2t-encoded matrices 
 #ifdef K2MAT
  #include "k2.h"
@@ -100,12 +101,14 @@ int main (int argc, char **argv) {
      fprintf(stdout," %s",argv[i]);
     fputs("\n",stdout);  
   }
+  #ifdef K2MAT
   if(depth_subtree!=0 && (node_limit!=0 || node_limit_multiplier!=1))  
     quit("Options -D and -N/-M are incompatible",__LINE__,__FILE__);
   if(node_limit!=0 && node_limit_multiplier!=1)  
     quit("Options -N and -M are incompatible",__LINE__,__FILE__);
   if(depth_subtree<0 || node_limit<0) 
     quit("Options -D and -N must be non-negative",__LINE__,__FILE__);
+  #endif
 
   // virtually get rid of options from the command line 
   optind -=1;
@@ -161,10 +164,18 @@ int main (int argc, char **argv) {
     #endif  
     if(verbose) mshow_stats(&a,"Current matrix",stdout);
     k2mat_t b=K2MAT_INITIALIZER;
+    #ifdef K2MAT
+    if(verbose) printf("Adding identity\n");
     mmake_pointer(&a,&b); 
     madd_identity(&b); // b = a + I
     if(verbose) printf("Multiplying (A+I)A\n");
     mmult(&b,&a,&aIa); // aIa = (a+I)a
+    #else
+    if(verbose) printf("Multiplying A*A\n");
+    mmult(&a,&a,&aIa); // aIa  now is A^2
+    if(verbose) printf("Computing A*A + A\n");
+    madd(&aIa,&a); // aIa = A^2 + A
+    #endif    
     if(verbose) printf("Checking if fixed point\n");
     if(mequals(&a,&aIa)==true) break;
     k2mat_t temp = a; a = aIa; aIa = temp; // swap a and aIa for the next iteration
