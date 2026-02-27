@@ -37,7 +37,7 @@ jobs:
           ./b128sparse.x -s 40000 web/goo40k.txt -o web/goo40k.b128
           ./b128unary.x web/goo40k.b128    
           ./matrixcmp.x web/goo40k.txt web/goo40k.b128.0.txt
-          ./k2sparse.x web/goo40k.txt -o web/goo40k.k2
+          ./k2sparse.x -s 40000 web/goo40k.txt -o web/goo40k.k2
           ./k2unary.x web/goo40k.k2
           ./matrixcmp.x web/goo40k.txt web/goo40k.k2.0.txt
           ./matrixcmp.x web/goo40k.b128.1sq.txt web/goo40k.k2.1sq.txt
