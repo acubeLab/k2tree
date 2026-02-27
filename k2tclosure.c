@@ -117,7 +117,7 @@ int main (int argc, char **argv) {
   
   // create file names
   sprintf(iname1,"%s",argv[1]);
-  if(outfile==NULL) sprintf(oname,"%s.tc.k2",argv[1]);
+  if(outfile==NULL) sprintf(oname,"%s%s",argv[1],default_ext);
   else sprintf(oname,"%s",outfile);
 
   // init matrix variables (valid for b128 and k2tree)

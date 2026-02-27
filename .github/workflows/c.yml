@@ -41,11 +41,12 @@ jobs:
           ./k2unary.x web/goo40k.k2
           ./matrixcmp.x web/goo40k.txt web/goo40k.k2.0.txt
           ./matrixcmp.x web/goo40k.b128.1sq.txt web/goo40k.k2.1sq.txt
-          ./k2sparse.x web/goo40k.txt -o web/goo40k.k4
+          ./k2sparse.x -s 40000 web/goo40k.txt -o web/goo40k.k4
           ./k2tclosure.x -v web/goo40k.k4
           ./k2sparse.x -d web/goo40k.k4.tc -o web/goo40k.k4.tc.txt
           ./b128tclosure.x -v web/goo40k.b128
           ./b128sparse.x -d web/goo40k.b128.tc -o web/goo40k.b128.tc.txt
+          ./matrixcmp.x web/goo40k.b128.tc.txt web/goo40k.k4.tc.txt
 
     - name: big transpose test 
       run: ./sumtest.sh web/*.txt
