@@ -33,14 +33,19 @@ jobs:
 
     - name: b128 test
       run: |
-          util/sparsetr.py -s 40000 web/cnr80k.txt -o web/cnr40k.txt  
-          ./b128sparse.x -s 40000 web/cnr40k.txt -o web/cnr40k.b128
-          ./b128unary.x web/cnr40k.b128    
-          ./matrixcmp.x web/cnr40k.txt web/cnr40k.b128.0.txt
-          ./k2sparse.x web/cnr40k.txt -o web/cnr40k.k2
-          ./k2unary.x web/cnr40k.k2
-          ./matrixcmp.x web/cnr40k.txt web/cnr40k.k2.0.txt
-          ./matrixcmp.x web/cnr40k.b128.1sq.txt web/cnr40k.k2.1sq.txt
+          util/sparsetr.py -s 40000 web/goo80k.txt -o web/goo40k.txt  
+          ./b128sparse.x -s 40000 web/goo40k.txt -o web/goo40k.b128
+          ./b128unary.x web/goo40k.b128    
+          ./matrixcmp.x web/goo40k.txt web/goo40k.b128.0.txt
+          ./k2sparse.x web/goo40k.txt -o web/goo40k.k2
+          ./k2unary.x web/goo40k.k2
+          ./matrixcmp.x web/goo40k.txt web/goo40k.k2.0.txt
+          ./matrixcmp.x web/goo40k.b128.1sq.txt web/goo40k.k2.1sq.txt
+          ./k2sparse.x web/goo40k.txt -o web/goo40k.k4
+          ./k2tclosure.x -v web/goo40k.k4
+          ./k2sparse.x -d web/goo40k.k4.tc -o web/goo40k.k4.tc.txt
+          ./b128tclosure.x -v web/goo40k.b128
+          ./b128sparse.x -d web/goo40k.b128.tc -o web/goo40k.b128.tc.txt
 
     - name: big transpose test 
       run: ./sumtest.sh web/*.txt

@@ -24,19 +24,19 @@
  #include "k2.h"
  extern bool Use_all_ones_node; // use the special ALL_ONES node in the result
  extern bool Extended_edf;      // compute subtree info on the fly 
-#else // definitions for b128 matrices
+ static void quit(const char *msg, int line, char *file);
+ static size_t intsqrt(size_t n);
+ #else // definitions for b128 matrices
  #include "b128.h"
  #define K2MAT_INITIALIZER B128MAT_INITIALIZER
  typedef b128mat_t k2mat_t;
  bool Use_all_ones_node; // not used: added for compatibility with k2mat
  bool Extended_edf;      // not used: added for compatibility with k2mat
 #endif
-#define default_ext ".tc.k2"
+#define default_ext ".tc"
 
 // static functions at the end of the file
 static void usage_and_exit(char *name);
-static void quit(const char *msg, int line, char *file);
-static size_t intsqrt(size_t n);
 
 // global from minimats.c
 extern uint32_t Minimat_node_ratio;
@@ -163,8 +163,8 @@ int main (int argc, char **argv) {
       assert((p&TSIZEMASK)==a.pos); // low bits contain size of whole matrix 
     #endif  
     if(verbose) mshow_stats(&a,"Current matrix",stdout);
-    k2mat_t b=K2MAT_INITIALIZER;
     #ifdef K2MAT
+    k2mat_t b=K2MAT_INITIALIZER;
     if(verbose) printf("Adding identity\n");
     mmake_pointer(&a,&b); 
     madd_identity(&b); // b = a + I
@@ -198,14 +198,9 @@ int main (int argc, char **argv) {
 static void usage_and_exit(char *name)
 {
     fprintf(stderr,"Usage:\n\t  %s [options] infile\n\n",name);
-    fprintf(stderr,"Demo of unary operations on the compressed matrices stored in infile\n\n");
-    fputs("Options:\n",stderr);
-    fprintf(stderr,"\t-n        do not write output file, only show stats\n");    
+    fputs("Options:\n",stderr); 
     fprintf(stderr,"\t-o out    outfile name (def. infile%s)\n",default_ext);
     #ifdef K2MAT
-    // fprintf(stderr,"\t-i info   infile subtree info file\n");
-    // fprintf(stderr,"\t-I info   infile backpointers file\n");
-    // fprintf(stderr,"\t-r size   rank block size for k2 compression (def. 64)\n");
     fprintf(stderr,"\t-e        compute subtree info on the fly (def. no)\n");
     fprintf(stderr,"\t-x        do not compact new 1's submatrices in the result matrix\n");    
     fprintf(stderr,"\t-D D      depth limit for subtree information (def. ignore depth)\n");
@@ -214,9 +209,11 @@ static void usage_and_exit(char *name)
     #endif  
     fprintf(stderr,"\t-h        show this help message\n");    
     fprintf(stderr,"\t-v        verbose\n\n");
+    fprintf(stderr,"Compute the transitive of the compressed matrix stored in infile\n\n");
     exit(1);
 }
 
+#ifdef K2MAT
 // compute integer square root
 static size_t intsqrt(size_t n) {
   // assert(n>=0);
@@ -230,8 +227,6 @@ static size_t intsqrt(size_t n) {
   return x;
 }
 
-
-
 // write error message and exit
 static void quit(const char *msg, int line, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), msg);
@@ -240,4 +235,5 @@ static void quit(const char *msg, int line, char *file) {
   fprintf(stderr,"== %d == Line: %d, File: %s\n",getpid(),line,file);
   exit(1);
 }
+#endif
 

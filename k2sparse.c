@@ -116,10 +116,10 @@ int main (int argc, char **argv) {
   if(check  && decompress)
     quit("Options -c and -d are incompatible",__LINE__,__FILE__);
   #ifndef K2MAT
-  if(xsize<=0)
+  if(!decompress && xsize<=0)
     quit("-s parameter is mandatory and must be positive",__LINE__,__FILE__); 
   #else    
-  if(xsize<0) 
+  if(!decompress && xsize<0) 
     quit("-s parameter must be non negative",__LINE__,__FILE__);
   #endif
   // check we are within the hard limit of matrix size

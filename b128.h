@@ -51,11 +51,12 @@ size_t mshow_stats(const b128mat_t *a, const char *mname,FILE *file);
 // if a!=b return the row index>=0 containing the first difference
 int mequals_plain(size_t size, const b128mat_t *a, const b128mat_t *b);
 // sum two b128 matrices a and b writing the result to c
-// multiplication is done replacing scalar + by logical or 
 void msum(const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
 // multiply two b128 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(const b128mat_t *a, const b128mat_t *b, b128mat_t *c);
+// add matrix :b to :a
+void madd(b128mat_t *a, const b128mat_t *b);
 // free a b128 matrix
 void matrix_free(b128mat_t *m);
 // make a read-only copy of a b128 matrix without allocating new memory
@@ -66,6 +67,8 @@ void madd_identity(b128mat_t *a);
 b128mat_t mat_zero(b128mat_t *b);
 // creates a size x size identity matrix
 b128mat_t mat_identity(b128mat_t *b);
+// check if two matrices are equal elementwise, return true if they are equal, false otherwise
+bool mequals(const b128mat_t *a, const b128mat_t *b);
 
 // from k2text.c
 void mwrite_to_textfile(const b128mat_t *a, char *outname);

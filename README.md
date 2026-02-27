@@ -254,9 +254,26 @@ should eventually display the input matrix squared:
 The `k2tclosure.x` tool can be used to compute the transitive closure of the graph associated  
 to a given binary matrix. The computation consists of the repeated iteration of the formula
 $A \gets (A+I)A$ until a fixed point is reached (this occurs after at most a logarithmic number of iterations).
+```
+Usage:
+	  k2tclosure.x [options] infile
 
+Options:
+	-o out    outfile name (def. infile.tc)
+	-e        compute subtree info on the fly (def. no)
+	-x        do not compact new 1's submatrices in the result matrix
+	-D D      depth limit for subtree information (def. ignore depth)
+	-N N      node limit for subtree information (def. sqrt(tot_nodes))
+	-M M      multiplier for node limit (def. 1)
+	-h        show this help message
+	-v        verbose
 
-
+Compute the transitive of the compressed matrix stored in infile
+```
+The input matrix must be in plain PDF format (`.k2` or `.k4`). 
+At the beginnig of each iteration the subtree information of the EDF format is computed according 
+to the parameters `-D`, `-N`, or `-M` as in the tool `k2subtinfo.x`. If the option `-e` is used the subtree information 
+in computed on the fly as in the `k2mult.x` tools. 
 
 
 ## Pagerank computation 
