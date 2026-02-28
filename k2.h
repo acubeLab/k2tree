@@ -155,7 +155,7 @@ void msum(const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
 // multiply two k2 matrices a and b writing the result to c
 // multiplication is done replacing scalar */+ by logical and/or 
 void mmult(const k2mat_t *a, const k2mat_t *b, k2mat_t *c);
-// right mutiply a k2 matrix :a by a vector :x writing the result to :y
+// right multiply a k2 matrix :a by a vector :x writing the result to :y
 // :size is the internal size of the k2 matrices (not the size of the vector 
 // which can be smaller and in that case :a is padded with zeros)
 void mvmult(const k2mat_t *a, double *x, double *y, bool clear_y);
