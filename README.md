@@ -6,20 +6,49 @@ This repository contains a set of functions for working with square sparse boole
 
 ## Prerequisites 
 
-A modern `gcc` supporting `c11` and `make`
+- A modern C compiler supporting C11 (e.g., `gcc`, `clang`).
+- **CMake** version `>= 3.10`.
+- **OpenMP** (optional, recommended for performance).
 
-A cmake version `>= 3.10`
+This project is cross-platform and has been verified on both **POSIX** (Linux/macOS) and **Windows** (via MinGW64).
 
 ## Installation 
 
-Clone/download the repostory then:
+The project uses a standard CMake build workflow. To build all tools:
 
+```bash
+# Create build directory and configure
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+# Build all targets
+cmake --build build --config Release
 ```
-cd libsais; cmake .; make; cd ..
-make release
-```
+
+All executables will be located in the `build` directory (or `build/Release` on some systems) with the `.x` (or `.x.exe` on Windows) extension.
 
 All tools invoked without arguments provide basic usage instructions. 
+
+## Running Tests
+
+The project includes as suite of automated tests to verify functional correctness and format consistency.
+
+#### Using CTest (Recommended)
+You can run all tests using the project's build system:
+```bash
+cmake --build build --config Release
+ctest --test-dir build --output-on-failure -C Release
+```
+
+#### Manual Testing
+- **Unit Tests**: Run the basic unit test suite directly:
+  ```bash
+  ./build/test_unit.x
+  ```
+- **Consistency Tests**: Cross-check different representations (Standard, Compressed, B128):
+  - **Windows (PowerShell)**: `powershell -File tests/test_consistency.ps1 -BuildDir build`
+  - **Linux/bash**: `bash tests/test_consistency.sh build`
+
+These tests ensure that all k2tree formats represent the exact same matrix bit-for-bit.
 
 ## Getting started
 
@@ -93,7 +122,7 @@ Invoked without the `-d` or `-c` switch `k2sparse.x` compresses a textual matrix
 
 When invoked with `-d` the input file must be a k2 matrix which is then expanded into the textual format. 
 
-When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `matrixcmp.x`.
+When invoked with `-c` the program compresses the input matrix, then decompresses it and verify that the decompressed matrix matches the original matrix. Since the order of the entries in the textual file is arbitrary the verification involves sorting and searching and is done invoking the tool `test_matrixcmp.x`.
 
 The option `-m` can be used only in compression, currently only with one of the two values `2` or `4`. This parameter is the size of the matrices stored at the leaf of the $k^2$-tree (except the leaves representing the submatrices of all 1's which can be of any size). A large leaf size usually yields larger files but improves the running time for the aritmetic operations over the matrices (as the tree is shallower). The value of the parameter `-m` is stored in the k2 compressed file so it does not have to be provided for decompression.
 Other command line options will be explained after we discuss the different compression formats. 
@@ -147,7 +176,7 @@ to compute the product `m1.k2` times `m2.k2` using the extra information `m1.k2.
 
 The option `-e` for `k2mult.x` enables the "on the fly" computation of the subtree information: when the multiplication algorithm reaches a subtree for which no subtree information is available, the information is computed on the fly and later discarded.  
 
-NOTE: to see a real speed improvement in the matrix multiplication algorithm using subtree size info at the moment it is necessary to use the release version (`make release`) since the default version still performs many redundant checks. 
+NOTE: To see a real speed improvement in the matrix multiplication algorithm, build the project in **Release** mode (`-DCMAKE_BUILD_TYPE=Release`).
 
 
 
@@ -319,9 +348,9 @@ The files `k2test.sh`, `k2btest.sh`, `k2square.sh` in the directory `utils` are 
 
 ## Matrices represented as bitarrays
 
-The library also contains the code for compressing and operating on boolean matrices using a bitarray, ie using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. See the use of the `B128MAT` compilation constant in the source files `k2bbm.c` and `k2mult.c` and in the `makefile`. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
+The library also contains the code for compressing and operating on boolean matrices using a bitarray, i.e., using one bit per entry plus a small overhead. To make the conversion between the two compressed formats very simple, the callable functions (whose prototypes are in `k2.h` and `b128.h`) have the same names. Hence, a program using the k2 format can be transformed into one using the bitarray format by redefining a few constants. Creation of bitarray matrices is currently not supported for textual input matrices. Since bitarray representation does not take advantage of sparsity, the largest supported size is $2^{30}$. 
 
-The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2sparse.x`, `k2bbm.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
+The programs `b128sparse.x`, `b128bbm.x`, `b128showinfo.x` and `b128mult.x` work exactly like `k2sparse.x`, `k2bbm.x`, `k2showinfo.x` and `k2mult.x` except that they use the bitarray representation instead of the k2 format. 
 
 
 
@@ -331,3 +360,26 @@ The programs `b128sparse.x`, `b128bbm.x` and `b128mult.x` work exactly like  `k2
 ### Product of bbm matrices with openmp
 
 The program `bbmmult.x` computes the product of two `.bbm` matrices using `openmp` to speedup the computation. This tool has been provided mainly as an alternative to the `-c` option to check the correctness of `k2mult.x` and `b128mult.x`.
+
+## Citation
+
+If you use this code, please cite the following paper:
+
+```bibtex
+@inproceedings{10.1007/978-3-032-05228-5_4,
+author = {Carmona, Gabriel and Manzini, Giovanni},
+title = {Depth First Representations of&nbsp;k2-trees},
+year = {2025},
+isbn = {978-3-032-05227-8},
+publisher = {Springer-Verlag},
+address = {Berlin, Heidelberg},
+url = {https://doi.org/10.1007/978-3-032-05228-5_4},
+doi = {10.1007/978-3-032-05228-5_4},
+abstract = {The k2-tree is a compact data structure designed to efficiently store sparse binary matrices leveraging&nbsp;both sparsity and clustering of nonzero elements. This representation efficiently supports navigational operations and complex binary operations, such as matrix-matrix multiplication, while maintaining space efficiency. The standard k2-tree follows a level-by-level representation, which, while effective, prevents further compression of identical subtrees and it is not cache friendly when accessing individual subtrees. In this work, we introduce some&nbsp;novel depth-first representations of the k2-tree and propose&nbsp;an efficient linear-time algorithm to identify and compress identical subtrees within these structures. Our experimental results show&nbsp;that the use of a depth-first representation is a strategy&nbsp;worth pursuing: for the adjacency matrix of web graphs exploiting&nbsp;the presence of identical subtrees does improve both compression&nbsp;ratio and peak memory usage, and for some matrices, depth-first representations turn out to be faster than the standard k2-tree in computing the matrix-matrix multiplication.},
+booktitle = {String Processing and Information Retrieval: 32nd International Symposium, SPIRE 2025, London, UK, September 8–11, 2025, Proceedings},
+pages = {28–44},
+numpages = {17},
+keywords = {Web graphs, Sparse binary matrices, Succinct&nbsp;tree representations, Compact data structure},
+location = {London, United Kingdom}
+}
+```

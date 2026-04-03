@@ -76,7 +76,7 @@ size_t mread_from_textfile(k2mat_t *a, char *iname, size_t xsize)
   size_t n; // number of entries
   size_t msize; // computed matrix size;
   // since we are storing entries in 64 bits each index must fit in 32 bits   
-  if(xsize>1UL+UINT32_MAX) quit("mread_from_textfile: matrix too large, current limit is 2^32",__LINE__,__FILE__);
+  if(xsize>1ULL+UINT32_MAX) quit("mread_from_textfile: matrix too large, current limit is 2^32",__LINE__,__FILE__);
   uint64_t *ia = create_ia(f,&n,&msize,xsize);
   assert(xsize==0 || msize==xsize);
   fclose(f);
@@ -311,7 +311,7 @@ uint64_t k2dfs_sizes(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z, int3
   }
   else assert(subtree_size>>BITSxTSIZE == 0); // there should not be any subtree encoding
   if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size
-    fprintf(stderr,"Scanned size: %zu, computed size: %lu\n", *pos-pos_save,subtree_size&TSIZEMASK); 
+    fprintf(stderr,"Scanned size: %llu, computed size: %llu\n", (unsigned long long)(*pos-pos_save), (unsigned long long)(subtree_size&TSIZEMASK)); 
     quit("Error or overflow in size encoding",__LINE__,__FILE__);
   } 
   return subtree_size;
@@ -373,7 +373,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
     z->n = zn_save;                        // no subtree information
   }
   if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size
-    fprintf(stderr,"Scanned size: %zu, computed size: %lu\n", *pos-pos_save,subtree_size&TSIZEMASK); 
+    fprintf(stderr,"Scanned size: %zu, computed size: %llu\n", *pos-pos_save,(unsigned long long)(subtree_size&TSIZEMASK)); 
     quit("Error or overflow in size encoding",__LINE__,__FILE__);
   } 
   return subtree_size;
@@ -430,7 +430,7 @@ uint64_t k2dfs_sizes_limit(size_t size, const k2mat_t *m, size_t *pos, vu64_t *z
     z->n = zn_save;                        // no subtree information
   }
   if(*pos != pos_save + (subtree_size&TSIZEMASK)) { // double check size
-    fprintf(stderr,"Scanned size: %zu, computed size: %lu\n", *pos-pos_save,subtree_size&TSIZEMASK); 
+    fprintf(stderr,"Scanned size: %zu, computed size: %llu\n", *pos-pos_save,(unsigned long long)(subtree_size&TSIZEMASK)); 
     quit("Error or overflow in size encoding",__LINE__,__FILE__);
   } 
   return subtree_size;
@@ -677,7 +677,7 @@ static size_t mread_from_ia(uint64_t ia[], size_t n, size_t msize, k2mat_t *a)
   assert(msize>1);
   assert(a_eq_b2(n,msize) || a_lt_b2(n,msize));   // entries can be at most msize**2
   k2_free(a);                 // free previous content of a 
-  if(msize>1UL+UINT32_MAX) quit("mread_from_ia: matrix too large, current limit is 2^32",__LINE__,__FILE__);
+  if(msize>1ULL+UINT32_MAX) quit("mread_from_ia: matrix too large, current limit is 2^32",__LINE__,__FILE__);
   size_t asize = k2get_k2size(msize);
   assert(asize>=2*MMsize);
   // count duplicates
@@ -758,7 +758,7 @@ static void mencode_ia(uint64_t *ia, size_t n, uint64_t smin, size_t size, k2mat
   uint64_t mid = left+range;
   uint64_t right = mid+range;
   // printf("range=%lu imax-smin=%lu\n",range,right+range-smin);
-  if(size==1UL+UINT32_MAX) // max value size=2^32 treated separately
+  if(size==1ULL+UINT32_MAX) // max value size=2^32 treated separately
     assert(right-smin>0 && right-smin+range==0); // equiv to right-smin+range==2^64
   else   
     assert(a_eq_b2(right-smin+range,size));  // equiv to: right+range == smin + size^2

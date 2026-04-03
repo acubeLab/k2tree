@@ -25,7 +25,9 @@ fi
 echo "Experiment run by $(whoami) at $(date) on $(hostname)"
 
 # compile if necessary 
-make
+if [ -f Makefile ] || [ -f makefile ]; then
+    make
+fi
 
 # timing command
 # timecmd='/usr/bin/time -f"Command: %C\nS:%S U:%U E:%e Mem(kb):%M\n"'

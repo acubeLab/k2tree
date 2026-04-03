@@ -1,0 +1,56 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: 'k2tree'
+message: >-
+  If you use this software, please cite the paper from SPIRE 2025 as specified in preferred-citation.
+type: software
+authors:
+  - given-names: Gabriel
+    family-names: Carmona
+    email: gabriel.carmona@phd.unipi.it
+    affiliation: >-
+      Department of Computer Science, University of Pisa,
+      Pisa, Italy
+    orcid: 'https://orcid.org/0009-0004-1454-2940'
+  - given-names: Giovanni
+    family-names: Manzini
+    email: giovanni.manzini@unipi.it
+    affiliation: >-
+      Department of Computer Science, University of Pisa,
+      Pisa, Italy
+    orcid: 'https://orcid.org/0000-0002-5047-0196'
+preferred-citation:
+  type: conference-paper
+  authors:
+    - family-names: "Carmona"
+      given-names: "Gabriel"
+    - family-names: "Manzini"
+      given-names: "Giovanni"
+  title: "Depth First Representations of k2-trees"
+  year: 2025
+  collection-title: "String Processing and Information Retrieval: 32nd International Symposium, SPIRE 2025, Proceedings"
+  conference:
+    name: "SPIRE 2025"
+    location: "London, UK"
+  start: 28 # Pagina iniziale dal BibTeX
+  end: 44   # Pagina finale dal BibTeX
+  doi: "10.1007/978-3-032-05228-5_4"
+  publisher:
+    name: "Springer-Verlag"
+    address: "Berlin, Heidelberg"
+repository-code: 'https://github.com/acubeLab/k2tree'
+abstract: >-
+  This repository contains a set of functions for working
+  with square sparse boolean matrices represented with a
+  k²-tree. Matrix sum and product operations use Boolean
+  algebra with the scalar operations + and * replaced by
+  logical "or" and "and", respectively. A version supporting
+  Z_2 arithmetic can be easily derived if needed.
+keywords:
+  - Web graphs
+  - Sparse binary matrices
+  - Succinct tree representations
+  - Compact data structures
+license: Apache-2.0

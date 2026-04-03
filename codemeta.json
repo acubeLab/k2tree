@@ -1,0 +1,77 @@
+{
+    "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+    "type": "SoftwareSourceCode",
+    "applicationCategory": "Data structures design and analysis",
+    "author": [
+        {
+            "id": "https://orcid.org/0009-0004-1454-2940",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Computer Science, University of Pisa, Pisa, Italy"
+            },
+            "email": "gabriel.carmona@phd.unipi.it",
+            "familyName": "Carmona",
+            "givenName": "Gabriel "
+        },
+        {
+            "id": "https://orcid.org/0000-0002-5047-0196",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Computer Science, University of Pisa, Pisa, Italy"
+            },
+            "email": "giovanni.manzini@unipi.it",
+            "familyName": "Manzini",
+            "givenName": "Giovanni"
+        }
+    ],
+    "codeRepository": "git+https://github.com/acubeLab/k2tree.git",
+    "datePublished": "2025-09-22",
+    "description": "A k²-tree depth-first-based representation of a Boolean matrix ",
+    "keywords": [
+        "Web graphs",
+        "Sparse binary matrices",
+        "Succinct tree representations",
+        "Compact data structures"
+    ],
+    "license": "https://spdx.org/licenses/Apache-2.0",
+    "name": "k2tree",
+    "programmingLanguage": "C",
+    "developmentStatus": "active",
+    "issueTracker": "https://github.com/acubeLab/k2tree/issues",
+    "referencePublication": "https://doi.org/10.1007/978-3-032-05228-5_4",
+    "citation": [
+        {
+            "@type": "ScholarlyArticle",
+            "@id": "https://doi.org/10.1007/978-3-032-05228-5_4",
+            "name": "Depth First Representations of k2-trees",
+            "datePublished": "2025",
+            "author": [
+                {
+                    "@type": "Person",
+                    "familyName": "Carmona",
+                    "givenName": "Gabriel"
+                },
+                {
+                    "@type": "Person",
+                    "familyName": "Manzini",
+                    "givenName": "Giovanni"
+                }
+            ],
+            "isPartOf": {
+                "@type": "PublicationEvent",
+                "name": "String Processing and Information Retrieval: 32nd International Symposium, SPIRE 2025, Proceedings"
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "Springer-Verlag",
+                "location": "Berlin, Heidelberg"
+            },
+            "pageStart": "28",
+            "pageEnd": "44",
+            "identifier": "10.1007/978-3-032-05228-5_4",
+            "url": "https://doi.org/10.1007/978-3-032-05228-5_4"
+        }
+    ]
+}

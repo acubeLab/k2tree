@@ -28,7 +28,7 @@ typedef struct b128mat {
 #define B128MAT_INITIALIZER {NULL,0,0,false}
 
 // maximum allowed size of a bitarray matrix
-#define MaxMatrixSize (1UL<<30)
+#define MaxMatrixSize (1ULL<<30)
 
 // prototypes
 

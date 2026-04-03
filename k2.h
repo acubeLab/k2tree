@@ -76,7 +76,7 @@ typedef struct k2mat {
 #define K2MAT_INITIALIZER {NULL,0, 0,0, NULL,NULL,0, NULL,NULL, 0,0,false, false, false}
 
 // maximum allowed size of a k2 matrix
-#define MaxMatrixSize (1UL<<40)
+#define MaxMatrixSize (1ULL<<40)
 
 // Constants to store size and esizes in a single entry of the subtse array
 #define BITSxTSIZE 40

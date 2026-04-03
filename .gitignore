@@ -59,3 +59,9 @@ data/
 
 # my executables 
 *.x
+
+# CMake build directories
+build/
+build*/
+out/
+bin/

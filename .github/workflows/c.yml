@@ -14,15 +14,23 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Compile libsais
-      run:
-        cd libsais; cmake .; make; cd ..
+    - name: install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libomp-dev
 
-    - name: make
-      run: make  
+    - name: cmake configure
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: cmake build
+      run: cmake --build build --config Release
+
+    - name: prepare binaries
+      # Copy binaries to root to maintain compatibility with test scripts
+      run: cp build/*.x . || true
         
     - name: run
-      run: ./prodtest.sh web cnr80k eu80k goo80k goo120k
+      run: ./tests/test_prod.sh web cnr80k eu80k goo80k goo120k
 
     - name: uncompress 
       run: |
@@ -36,20 +44,20 @@ jobs:
           util/sparsetr.py -s 40000 web/goo80k.txt -o web/goo40k.txt  
           ./b128sparse.x -s 40000 web/goo40k.txt -o web/goo40k.b128
           ./b128unary.x web/goo40k.b128    
-          ./matrixcmp.x web/goo40k.txt web/goo40k.b128.0.txt
+          ./test_matrixcmp.x web/goo40k.txt web/goo40k.b128.0.txt
           ./k2sparse.x -s 40000 web/goo40k.txt -o web/goo40k.k2
           ./k2unary.x web/goo40k.k2
-          ./matrixcmp.x web/goo40k.txt web/goo40k.k2.0.txt
-          ./matrixcmp.x web/goo40k.b128.1sq.txt web/goo40k.k2.1sq.txt
-          ./k2sparse.x -s 40000 web/goo40k.txt -o web/goo40k.k4
-          ./k2tclosure.x -v web/goo40k.k4
-          ./k2sparse.x -d web/goo40k.k4.tc -o web/goo40k.k4.tc.txt
+          ./test_matrixcmp.x web/goo40k.txt web/goo40k.k2.0.txt
+          ./test_matrixcmp.x web/goo40k.b128.1sq.txt web/goo40k.k2.1sq.txt
+          ./k2sparse.x -s 40000 web/goo40k.txt -o web/goo40k.k2
+          ./k2tclosure.x -v web/goo40k.k2
+          ./k2sparse.x -d web/goo40k.k2.tc -o web/goo40k.k2.tc.txt
           ./b128tclosure.x -v web/goo40k.b128
           ./b128sparse.x -d web/goo40k.b128.tc -o web/goo40k.b128.tc.txt
-          ./matrixcmp.x web/goo40k.b128.tc.txt web/goo40k.k4.tc.txt
+          ./test_matrixcmp.x web/goo40k.b128.tc.txt web/goo40k.k2.tc.txt
 
     - name: big transpose test 
-      run: ./sumtest.sh web/*.txt
+      run: ./tests/test_sum.sh web/*.txt
   
 
     # - name: configure

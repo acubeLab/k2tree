@@ -130,7 +130,7 @@ static void init_mtranspose4x4(void) {
       bt[j] = 0;           // the j-th column of b determines the j-th row of bt   
       for(int r=0;r<4;r++) // row index in b
         if(b & (1<<(j+r*4)))  // if b[r][j]!=0
-          bt[j] |= (1UL<<r);
+          bt[j] |= (1ULL<<r);
     }
     mtranspose4x4[b] = (uint16_t) (bt[0] | (bt[1]<<4) | (bt[2]<<8) | (bt[3]<<12));
   }
@@ -224,7 +224,7 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size) {
       int64_t j = (int64_t) (ia[i]-imin); 
       // for MMsize=2 j is the position of the corresponding 1 in res
       assert(j>=0 && j<4);
-      res |= (1UL<<j);
+      res |= (1ULL<<j);
     }
   }
   else if(MMsize==4) {
@@ -235,7 +235,7 @@ minimat_t minimat_from_ia(uint64_t *ia, size_t n, uint64_t imin, size_t size) {
       assert(ia[i]>=imin && ia[i]-imin <16); // equiv to imin <= ia[i]<imax
       int j = t[ia[i]-imin]; 
       assert(j>=0 && j<16);
-      res |= (1UL<<j);
+      res |= (1ULL<<j);
     }
   }
   else quit("minimat_from_ia: MMsize!=2,4",__LINE__,__FILE__); 

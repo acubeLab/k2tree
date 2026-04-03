@@ -567,7 +567,7 @@ static void mmult_base(const k2mat_t *a, const k2mat_t *b, k2mat_t *c)
     minimat_t cx  = mmultNxN(MMsize,ax[i][0],bx[0][j]);
     cx |= mmultNxN(MMsize,ax[i][1],bx[1][j]); // c[i][j] = a[i][0]*b[0][j] + a[i][1]*b[1][j]
     if(cx!=MINIMAT0s) {
-      rootc |= (1UL<<k);
+      rootc |= (1ULL<<k);
       k2add_minimat(c,cx);
     }
     if(cx!=MINIMAT1s) all_ones = false;

@@ -110,7 +110,8 @@ void byte_to_bbm(uint8_t *m, size_t msize, size_t i, size_t j, size_t size, uint
 void bbm_to_ascii(const uint8_t *m, size_t msize, size_t i, size_t j, size_t size, FILE *f)
 {
   assert(i<msize && j<msize);
-  fprintf(f,"Submatrix at (%zu,%zu) of size %zu\n",i,j,size);  
+  fprintf(f,"Submatrix at (%llu,%llu) of size %llu\n", (unsigned long long)i, (unsigned long long)j, (unsigned long long)size);
+  
   for(size_t ii=0; ii<size; ii++) {
     for(size_t jj=0; jj<size; jj++) {
       if(i+ii<msize && j+jj<msize) 

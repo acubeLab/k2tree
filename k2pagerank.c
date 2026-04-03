@@ -77,7 +77,11 @@
 #include <math.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <sys/times.h>
+#ifdef DETAILED_TIMING
+  #ifndef _WIN32
+    #include <sys/times.h>
+  #endif
+#endif
 // definitions to be used for b128 vs k2-encoded matrices 
 #ifdef K2MAT
 #include "k2.h"
@@ -148,9 +152,13 @@ int main (int argc, char **argv) {
   #endif
   time_t start_wc = time(NULL);
   #ifdef DETAILED_TIMING
-  struct tms ignored;
-  clock_t t1,t2;
-  long m1=0;
+    #ifndef _WIN32
+      struct tms ignored;
+      clock_t t1,t2;
+    #else
+      clock_t t1,t2;
+    #endif
+    long m1=0;
   #endif
   // default values for command line parameters 
   int maxiter=100,nblocks=1,topk=3;
@@ -211,31 +219,31 @@ int main (int argc, char **argv) {
   argv += optind; argc -= optind;
 
   // ----------- read column count file and get matrix size 
-  u_int32_t *outd = NULL;
+  uint32_t *outd = NULL;
   size_t size;
   {
     FILE *ccol_file  = fopen(argv[2],"rb");
     if(ccol_file==NULL) quit("Cannot open col_count_file", __LINE__, __FILE__);
     long e = fseek(ccol_file,0,SEEK_END);
     if(e!=0) quit("fseek failed on col_count_file", __LINE__, __FILE__);
-    e = ftell(ccol_file)/sizeof(u_int32_t);
+    e = ftell(ccol_file)/(long)sizeof(uint32_t);
     if(e<1) quit("ftell failed or invalid col_count_file", __LINE__, __FILE__);
     size = (size_t) e;
-    outd = (u_int32_t *) malloc(size*sizeof(*outd));
+    outd = (uint32_t *) malloc(size*sizeof(*outd));
     if(outd==NULL) quit("Cannot allocate out_degree vector", __LINE__, __FILE__);
     rewind(ccol_file);
-    e = fread(outd,sizeof(*outd),size,ccol_file);
-    if(e!=size) quit("cannot read out_degree vector from col_count_file", __LINE__, __FILE__);
+    e = (long)fread(outd,sizeof(*outd),size,ccol_file);
+    if((size_t)e!=size) quit("cannot read out_degree vector from col_count_file", __LINE__, __FILE__);
     if(fclose(ccol_file)!=0) quit("Error closing col_count_file", __LINE__, __FILE__);
   }
 
   // compute # dandling nodes and arcs if verbose
   if(verbose>0) {
-    fprintf(stderr,"Number of nodes: %ld\n",size);
+    fprintf(stderr,"Number of nodes: %llu\n",(unsigned long long)size);
     long dn=0,arcs=0;
-    for(int i=0;i<size;i++)
+    for(size_t i=0;i<size;i++)
       if(outd[i]==0) dn++;
-      else arcs += outd[i];
+      else arcs += (long)outd[i];
     fprintf(stderr,"Number of dandling nodes: %ld\n",dn);
     fprintf(stderr,"Number of arcs: %ld\n",arcs);
   }
@@ -306,7 +314,11 @@ int main (int argc, char **argv) {
   double delta=11+eps; // always larger than eps to prevent stopping at first iteration
   while(iter<maxiter && delta>=eps) {
     #ifdef DETAILED_TIMING
-    t1 = times(&ignored);
+      #ifndef _WIN32
+        t1 = times(&ignored);
+      #else
+        t1 = clock();
+      #endif
     #endif
     if (nblocks==1) 
       mvmult(&a,y->v,z->v, true);       // z = M*y
@@ -315,7 +327,11 @@ int main (int argc, char **argv) {
       pthread_barrier_wait(&tbarrier);
     }
     #ifdef DETAILED_TIMING
-    t2 = times(&ignored);
+      #ifndef _WIN32
+        t2 = times(&ignored);
+      #else
+        t2 = clock();
+      #endif
     m1 += (t2-t1);       // measure time for matrix multiplication only
     #endif
     // compute contribution of teleporting and dandling nodes
@@ -397,8 +413,13 @@ int main (int argc, char **argv) {
   free(top); free(aux);
   vector_destroy(x);
   #ifdef DETAILED_TIMING
+  #ifndef _WIN32
   fprintf(stderr,"Total mult time (secs): %lf  Average: %lf\n", ((double)m1)/((double)sysconf(_SC_CLK_TCK)), 
                                                          ((double)m1/(double)iter)/((double) sysconf(_SC_CLK_TCK)));
+  #else
+  fprintf(stderr,"Total mult time (secs): %lf  Average: %lf\n", ((double)m1)/((double)CLOCKS_PER_SEC), 
+                                                         ((double)m1/(double)iter)/((double)CLOCKS_PER_SEC));
+  #endif
   #endif
   fprintf(stderr,"Elapsed time: %.0lf secs\n",(double) (time(NULL)-start_wc));  
   return 0;

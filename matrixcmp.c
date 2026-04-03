@@ -119,14 +119,14 @@ uint64_t *entry2bin(FILE *f, size_t *n)
   ia = realloc(ia,size*sizeof(*ia));
   if(ia==NULL) quit("entry2bin: realloc failed",__LINE__,__FILE__);
   if(Verbose>0) {fprintf(stderr,"< Read %zu entries\n",size);
-                 fprintf(stderr,"< Largest index: %ld\n",maxentry);}
+                 fprintf(stderr,"< Largest index: %llu\n",(unsigned long long)maxentry);}
   // sort entries
   qsort(ia, size, sizeof(*ia), &uint64_cmp);
   // remove duplicates
   size_t j=0; // non duplicate items
   for(i=0;i<size;i++) {
     if(i>0 && ia[i]==ia[i-1]) {
-      if(Verbose>0) fprintf(stderr,"< Duplicate entry: %ld %ld\n",ia[i]>>32,ia[i]&UINT32_MAX);
+      if(Verbose>0) fprintf(stderr,"< Duplicate entry: %llu %llu\n",(unsigned long long)(ia[i]>>32),(unsigned long long)(ia[i]&UINT32_MAX));
       continue;
     }
     ia[j++] = ia[i];
@@ -179,28 +179,28 @@ size_t matrixcmp(FILE *f,uint64_t m1[], size_t n) {
 
     size_t pos = binsearch(m1,n,entry);
     if(pos==n || m1[pos]!=entry) {
-      fprintf(stderr,"> unmatched %ld %ld\n",a,b);
+      fprintf(stderr,"> unmatched %llu %llu\n",(unsigned long long)a,(unsigned long long)b);
       err++;
     }
     else { // check for matching duplicates in m2
       assert(m1[pos]==entry);
-      if(bits[pos/64]&(1UL<<(pos%64))) {
-        if(Verbose>0) fprintf(stderr,"> Duplicate entry: %ld %ld\n",a,b);
+      if(bits[pos/64]&(1ULL<<(pos%64))) {
+        if(Verbose>0) fprintf(stderr,"> Duplicate entry: %llu %llu\n",(unsigned long long)a,(unsigned long long)b);
         dup++;
         continue;
       }
-      bits[pos/64] |= (1UL<<(pos%64));
-      assert( (bits[pos/64]&(1UL<<(pos%64))) );
+      bits[pos/64] |= (1ULL<<(pos%64));
+      assert( (bits[pos/64]&(1ULL<<(pos%64))) );
     }
   }
   if(Verbose>0) {
     fprintf(stderr,"> Read %zu entries\n",line);
     fprintf(stderr,"> Found %zu duplicates\n",dup);
-    fprintf(stderr,"> Largest index: %ld\n",maxentry);
+    fprintf(stderr,"> Largest index: %llu\n",(unsigned long long)maxentry);
   }
   for(size_t i=0;i<n;i++)
-    if( (bits[i/64]&(1UL<<(i%64))) ==0) {
-      fprintf(stderr,"< unmatched %ld %ld\n",m1[i]>>32,m1[i]&UINT32_MAX);
+    if( (bits[i/64]&(1ULL<< (i%64))) ==0) {
+      fprintf(stderr,"< unmatched %llu %llu\n",(unsigned long long)(m1[i]>>32),(unsigned long long)(m1[i]&UINT32_MAX));
       err++;
     }
   free(bits);

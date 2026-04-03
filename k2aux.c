@@ -186,7 +186,7 @@ void k2write_node(k2mat_t *m, size_t p, node_t n)
 size_t k2add_minimat(k2mat_t *b, minimat_t m)
 {
   assert(!b->is_pointer);
-  assert(MMsize>7  ||  m< (1UL<<(MMsize*MMsize)));
+  assert(MMsize>7  ||  m< (1ULL<<(MMsize*MMsize)));
   if (MMsize==2) {
     // a 2x2 matrix takes exactly 4 bit == one node 
     assert(Minimat_node_ratio==1);
